@@ -11,19 +11,19 @@
 */
 
 -- إضافة policy للمستخدمين لحذف طلباتهم الخاصة
-CREATE POLICY "Users can delete own requests"
-  ON service_requests
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can delete own requests"
+--   ON service_requests
+--   FOR DELETE
+--   TO authenticated
+--   USING (auth.uid() = user_id);
 
 -- إضافة policy للأدمن لحذف جميع الطلبات
-CREATE POLICY "Admins can delete all requests"
-  ON service_requests
-  FOR DELETE
-  TO authenticated
-  USING (
-    (SELECT auth.jwt() ->> 'email') IN (
-      SELECT email FROM admin_users
-    )
-  );
+-- CREATE POLICY "Admins can delete all requests"
+--   ON service_requests
+--   FOR DELETE
+--   TO authenticated
+--   USING (
+--     (SELECT auth.jwt() ->> 'email') IN (
+--       SELECT email FROM admin_users
+--     )
+--   );

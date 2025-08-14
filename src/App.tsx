@@ -4,6 +4,7 @@ import { useLocation, useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuthContext } from './components/AuthProvider';
 import { useLanguage } from './hooks/useLanguage';
 import ServicePage from './components/ServicePage';
+import HealthInsurancePage from './components/HealthInsurancePage';
 import AuthModals from './components/AuthModals';
 import WelcomeMessage from './components/WelcomeMessage';
 import AdminDashboard from './components/AdminDashboard';
@@ -13,6 +14,7 @@ import ProfileEdit from './components/ProfileEdit';
 import HelpSupport from './components/HelpSupport';
 import VoluntaryReturnForm from './components/VoluntaryReturnForm';
 import VoluntaryReturnPage from './components/VoluntaryReturnPage';
+import EmailVerification from './components/EmailVerification';
 import { supabase } from './lib/supabase';
 
 import { servicesData } from './data/services';
@@ -193,22 +195,30 @@ function App() {
     
     // Handle admin routes
     if (path.startsWith('/admin')) {
+      console.log('🔧 تم اكتشاف مسار الأدمن، فتح لوحة التحكم');
       setShowAdminDashboard(true);
     } else {
       setShowAdminDashboard(false);
     }
   }, [location.pathname]);
 
-  // Debug logging for auth state
+  // Debug logging for auth state (reduced frequency)
   useEffect(() => {
-    console.log('🔍 Auth State Debug:', {
-      user: user?.email || 'null',
-      profile: profile?.full_name || 'null',
-      loading: authLoading,
-      showWelcome,
-      userExists: !!user,
-      profileExists: !!profile
-    });
+    // Only log when there are significant changes to reduce spam
+    const logKey = `${user?.email}-${authLoading}-${showWelcome}`;
+    if (!(window as any).authDebugLogs) (window as any).authDebugLogs = new Set();
+    
+    if (!(window as any).authDebugLogs.has(logKey)) {
+      console.log('🔍 Auth State Debug:', {
+        user: user?.email || 'null',
+        profile: profile?.full_name || 'null',
+        loading: authLoading,
+        showWelcome,
+        userExists: !!user,
+        profileExists: !!profile
+      });
+      (window as any).authDebugLogs.add(logKey);
+    }
   }, [user, profile, authLoading, showWelcome]);
 
   useEffect(() => {
@@ -273,10 +283,12 @@ function App() {
         setIsLoginOpen(false);
         setIsSignupOpen(false);
         
-        // Check if user is admin and redirect accordingly
-        const isAdmin = user.email === 'admin@tevasul.group';
-        if (isAdmin) {
-          console.log('🔧 إعادة توجيه الأدمن إلى لوحة التحكم');
+        // Check if user is admin/moderator and redirect accordingly
+        const isAdmin = profile?.role === 'admin';
+        const isModerator = profile?.role === 'moderator'; // Basic check, will be improved
+        
+        if (isAdmin || isModerator) {
+          console.log('🔧 إعادة توجيه الأدمن/المشرف إلى لوحة التحكم');
           navigate('/admin', { replace: true });
         } else {
           console.log('👤 إعادة توجيه المستخدم العادي إلى الصفحة الرئيسية');
@@ -296,8 +308,10 @@ function App() {
       // Also navigate away from login/signup routes
       if (location.pathname === '/login' || location.pathname === '/signup') {
         console.log('🔄 إعادة توجيه من صفحة تسجيل الدخول');
-        const isAdmin = user.email === 'admin@tevasul.group';
-        if (isAdmin) {
+        const isAdmin = profile?.role === 'admin';
+        const isModerator = profile?.role === 'moderator';
+        
+        if (isAdmin || isModerator) {
           navigate('/admin', { replace: true });
         } else {
           navigate('/home', { replace: true });
@@ -316,8 +330,10 @@ function App() {
         console.log('🚀 تنفيذ إعادة التوجيه الفوري');
         // Use React Router navigation instead of window.location
         setTimeout(() => {
-          const isAdmin = user.email === 'admin@tevasul.group';
-          if (isAdmin) {
+          const isAdmin = profile?.role === 'admin';
+          const isModerator = profile?.role === 'moderator';
+          
+          if (isAdmin || isModerator) {
             console.log('🔄 تغيير الموقع مباشرة إلى /admin');
             navigate('/admin', { replace: true });
           } else {
@@ -340,7 +356,7 @@ function App() {
       console.log('👤 بيانات المستخدم:', { email: user.email, name: profile?.full_name || user.email });
       
       // Check if user is admin
-      const isAdmin = user.email === 'admin@tevasul.group';
+      const isAdmin = profile?.role === 'admin';
       
       // تنظيف localStorage
       localStorage.removeItem('justLoggedIn');
@@ -382,25 +398,68 @@ function App() {
     }
   }, [user, profile, authLoading]);
 
-  // Comprehensive admin redirection effect
+  // First login admin redirection effect (only redirect on first login)
   useEffect(() => {
     if (!authLoading && user) {
-      const isAdmin = user.email === 'admin@tevasul.group';
+      const isAdmin = profile?.role === 'admin';
+      const isModerator = profile?.role === 'moderator';
       const currentPath = location.pathname;
       
-      // If admin is on home page or any non-admin route, redirect to admin dashboard
-      if (isAdmin && currentPath === '/home') {
-        console.log('🔧 الأدمن على الصفحة الرئيسية، إعادة توجيه إلى لوحة التحكم');
-        navigate('/admin', { replace: true });
-      }
+      // Only redirect on first login (check if user has visited before)
+      const hasVisitedBefore = sessionStorage.getItem(`user-visited-${user.email}`);
       
-      // If admin is on root path, redirect to admin dashboard
-      if (isAdmin && currentPath === '/') {
-        console.log('🔧 الأدمن على المسار الجذر، إعادة توجيه إلى لوحة التحكم');
+      if ((isAdmin || isModerator) && !hasVisitedBefore && (currentPath === '/home' || currentPath === '/')) {
+        console.log('🔧 أول تسجيل دخول للأدمن/المشرف، إعادة توجيه إلى لوحة التحكم');
+        sessionStorage.setItem(`user-visited-${user.email}`, 'true');
         navigate('/admin', { replace: true });
       }
     }
   }, [user, authLoading, location.pathname, navigate]);
+
+  // Cleanup on logout
+  useEffect(() => {
+    if (!user) {
+      console.log('🧹 تنظيف البيانات عند تسجيل الخروج...');
+      
+      // Clear admin redirect flags when user logs out
+      const adminKeys = Object.keys(sessionStorage);
+      adminKeys.forEach(key => {
+        if (key.startsWith('admin-redirect-')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear admin dashboard logged flag
+      (window as any).adminDashboardLogged = false;
+      (window as any).adminRedirectLogs = new Set();
+      (window as any).authDebugLogs = new Set();
+      
+      // Clear profile loading flags
+      const profileKeys = Object.keys(sessionStorage);
+      profileKeys.forEach(key => {
+        if (key.startsWith('profile-loading-')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear user visit flags
+      const userVisitKeys = Object.keys(sessionStorage);
+      userVisitKeys.forEach(key => {
+        if (key.startsWith('user-visited-')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear localStorage items
+      localStorage.removeItem('justLoggedIn');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('openServiceRequest');
+      localStorage.removeItem('pendingServiceRequest');
+      
+      console.log('✅ تم تنظيف جميع البيانات بنجاح');
+    }
+  }, [user]);
 
   useEffect(() => {
     const body = document.body;
@@ -518,8 +577,9 @@ function App() {
     }
   };
 
-  // Check if user is admin
-  const isAdmin = user?.email === 'admin@tevasul.group';
+  // Check if user is admin or moderator based on profile role
+  const isAdmin = profile?.role === 'admin';
+  const isModerator = profile?.role === 'moderator';
 
   const openServiceRequestForm = (serviceType: string, serviceTitle: string) => {
     if (!user) {
@@ -665,6 +725,7 @@ function App() {
     id: service.id,
     icon: (() => {
       switch (service.id) {
+        case 'health-insurance': return <Shield className="w-8 h-8 text-caribbean-500" />;
         case 'translation': return <Users className="w-8 h-8 text-caribbean-500" />;
         case 'travel': return <Globe className="w-8 h-8 text-caribbean-500" />;
         case 'legal': return <Star className="w-8 h-8 text-caribbean-500" />;
@@ -681,6 +742,87 @@ function App() {
   if (currentService) {
     const service = servicesData.find(s => s.id === currentService);
     if (service) {
+      // Special handling for health insurance service
+      if (service.id === 'health-insurance') {
+        return (
+          <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                /* Hide default cursor everywhere */
+                html, body, * {
+                  cursor: none !important;
+                }
+                
+                /* Specific elements */
+                button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
+                  cursor: none !important;
+                }
+                
+                /* Dropdowns and modals */
+                .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
+                [class*="dropdown"], [class*="modal"], [class*="popup"] {
+                  cursor: none !important;
+                }
+                
+                /* All children elements */
+                * * {
+                  cursor: none !important;
+                }
+                
+                /* Force override any other cursor styles */
+                * {
+                  cursor: none !important;
+                }
+
+                /* Exception for logo button to allow clicks */
+                .logo-button {
+                  cursor: pointer !important;
+                }
+
+                /* Show default cursor on touch devices */
+                @media (hover: none) and (pointer: coarse) {
+                  html, body, * {
+                    cursor: auto !important;
+                  }
+                  
+                  button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
+                    cursor: pointer !important;
+                  }
+                  
+                  .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
+                  [class*="dropdown"], [class*="modal"], [class*="popup"] {
+                    cursor: auto !important;
+                  }
+                  
+                  * * {
+                    cursor: auto !important;
+                  }
+                  
+                  * {
+                    cursor: auto !important;
+                  }
+                }
+              `
+            }} />
+            
+            <HealthInsurancePage 
+              onBack={handleBackToHome} 
+              isDarkMode={isDarkMode}
+              onNavigateToContact={scrollToContact}
+              onOpenProfile={() => setShowProfileEdit(true)}
+              onOpenAccount={() => {
+                console.log('onOpenAccount تم استدعاؤه من HealthInsurancePage');
+                setShowUserAccount(true);
+              }}
+              onOpenHelp={() => setShowHelpSupport(true)}
+              onToggleDarkMode={toggleDarkMode}
+              onNavigateToMainHome={navigateToMainHome}
+            />
+          </div>
+        );
+      }
+
+      // Regular service page for other services
       const serviceWithIcon = {
         ...service,
         icon: <service.icon className="w-8 h-8 text-white" />,
@@ -803,6 +945,11 @@ function App() {
 
   // If admin dashboard is open, show it
   if (showAdminDashboard) {
+    // Only log once to prevent spam
+    if (!(window as any).adminDashboardLogged) {
+      console.log('🔧 عرض لوحة تحكم الأدمن');
+      (window as any).adminDashboardLogged = true;
+    }
     return <AdminDashboard onBack={() => navigate('/home')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />;
   }
 
@@ -929,6 +1076,15 @@ function App() {
         />
 
 
+      </div>
+    );
+  }
+
+  // Check if we're on the email verification page
+  if (location.pathname === '/auth/verify-email') {
+    return (
+      <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} transition-colors duration-500`}>
+        <EmailVerification isDarkMode={isDarkMode} />
       </div>
     );
   }
@@ -1457,8 +1613,8 @@ function App() {
                       </span>
                     </div>
                     
-                    {/* Admin Control Panel Button - Mobile */}
-                    {isAdmin && (
+                    {/* Admin/Moderator Control Panel Button - Mobile */}
+                    {(isAdmin || isModerator) && (
                       <button
                         onClick={() => {
                           navigate('/admin');
@@ -1468,7 +1624,7 @@ function App() {
                         className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
                       >
                         <Settings className="w-4 h-4 ml-2" />
-                        لوحة التحكم
+                        {isAdmin ? 'لوحة التحكم' : 'لوحة الإشراف'}
                       </button>
                     )}
                     

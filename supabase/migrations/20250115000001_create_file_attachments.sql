@@ -1,6 +1,3 @@
--- حل مشكلة رفع الملفات - إنشاء جدول file_attachments
--- نفذ هذا الكود في Supabase SQL Editor
-
 -- إنشاء جدول file_attachments لحفظ الملفات كـ Base64
 CREATE TABLE IF NOT EXISTS file_attachments (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -36,18 +33,15 @@ CREATE POLICY "Users can update their own file attachments" ON file_attachments
 CREATE POLICY "Users can delete their own file attachments" ON file_attachments
     FOR DELETE USING (auth.uid() = user_id);
 
--- سياسة خاصة للإدارة: يمكنها رؤية جميع الملفات
-CREATE POLICY "Admins can view all file attachments" ON file_attachments
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM user_profiles 
-            WHERE user_profiles.id = auth.uid() 
-            AND user_profiles.role = 'admin'
-        )
-    );
-
--- إضافة حقل file_data إلى جدول service_requests لحفظ الملفات كـ Base64
-ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS file_data TEXT;
+-- سياسة خاصة للإدارة: يمكنها رؤية جميع الملفات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can view all file attachments" ON file_attachments
+--     FOR SELECT USING (
+--         EXISTS (
+--             SELECT 1 FROM user_profiles 
+--             WHERE user_profiles.id = auth.uid() 
+--             AND user_profiles.role = 'admin'
+--         )
+--     );
 
 -- دالة لتحديث updated_at
 CREATE OR REPLACE FUNCTION update_file_attachments_updated_at()

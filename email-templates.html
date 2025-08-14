@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد البريد الإلكتروني - Tevasul</title>
+    <style>
+        /* إعدادات عامة */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+            direction: rtl;
+        }
+        
+        /* الحاوية الرئيسية */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* الهيدر */
+        .header {
+            background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="40" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .logo {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* المحتوى الرئيسي */
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .welcome-section h2 {
+            color: #1e293b;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .welcome-section p {
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        /* زر التأكيد */
+        .cta-button {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 180, 216, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 180, 216, 0.4);
+        }
+        
+        /* معلومات إضافية */
+        .info-section {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+            border-right: 4px solid #00b4d8;
+        }
+        
+        .info-section h3 {
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .info-section p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* الفوتر */
+        .footer {
+            background-color: #1e293b;
+            color: #94a3b8;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .footer p {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .social-links {
+            margin-top: 20px;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .social-links a:hover {
+            color: #00b4d8;
+        }
+        
+        /* تحذير */
+        .warning {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .warning p {
+            color: #92400e;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        /* تحسينات للموبايل */
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .welcome-section h2 {
+                font-size: 20px;
+            }
+            
+            .btn {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- قالب تأكيد البريد الإلكتروني -->
+    <div class="email-container">
+        <!-- الهيدر -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://tevasul.group/logo.png" alt="Tevasul Logo">
+            </div>
+            <h1>مرحباً بك في Tevasul</h1>
+            <p>منصة الخدمات المتكاملة</p>
+        </div>
+        
+        <!-- المحتوى الرئيسي -->
+        <div class="content">
+            <div class="welcome-section">
+                <h2>🎉 تم إنشاء حسابك بنجاح!</h2>
+                <p>شكراً لك على التسجيل في منصة Tevasul. نحن متحمسون لرؤيتك جزءاً من مجتمعنا المتنامي.</p>
+            </div>
+            
+            <div class="info-section">
+                <h3>📧 تأكيد البريد الإلكتروني</h3>
+                <p>لإكمال عملية التسجيل والوصول إلى جميع ميزات المنصة، يرجى تأكيد بريدك الإلكتروني بالضغط على الزر أدناه:</p>
+            </div>
+            
+            <!-- زر التأكيد -->
+            <div class="cta-button">
+                <a href="{{ .ConfirmationURL }}" class="btn">
+                    ✅ تأكيد البريد الإلكتروني
+                </a>
+            </div>
+            
+            <!-- تحذير -->
+            <div class="warning">
+                <p>⚠️ إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذا البريد الإلكتروني بأمان.</p>
+            </div>
+            
+            <!-- معلومات إضافية -->
+            <div class="info-section">
+                <h3>🚀 ما يمكنك فعله بعد التأكيد:</h3>
+                <p>• الوصول إلى جميع الخدمات المتاحة<br>
+                • إنشاء طلبات الخدمة<br>
+                • التواصل مع فريق الدعم<br>
+                • تخصيص ملفك الشخصي</p>
+            </div>
+        </div>
+        
+        <!-- الفوتر -->
+        <div class="footer">
+            <p>© 2024 Tevasul. جميع الحقوق محفوظة.</p>
+            <p>هذا البريد الإلكتروني تم إرساله من منصة Tevasul</p>
+            <div class="social-links">
+                <a href="https://tevasul.group">الموقع الرسمي</a> |
+                <a href="https://tevasul.group/support">الدعم الفني</a> |
+                <a href="https://tevasul.group/privacy">سياسة الخصوصية</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ========================================== -->
+<!-- قالب إعادة تعيين كلمة المرور -->
+<!-- ========================================== -->
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعادة تعيين كلمة المرور - Tevasul</title>
+    <style>
+        /* نفس الأنماط السابقة */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+            direction: rtl;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="40" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .logo {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .welcome-section h2 {
+            color: #1e293b;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .welcome-section p {
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .cta-button {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+        }
+        
+        .info-section {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+            border-right: 4px solid #dc2626;
+        }
+        
+        .info-section h3 {
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .info-section p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            background-color: #1e293b;
+            color: #94a3b8;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .footer p {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .social-links {
+            margin-top: 20px;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .social-links a:hover {
+            color: #dc2626;
+        }
+        
+        .warning {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .warning p {
+            color: #92400e;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .welcome-section h2 {
+                font-size: 20px;
+            }
+            
+            .btn {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- الهيدر -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://tevasul.group/logo.png" alt="Tevasul Logo">
+            </div>
+            <h1>🔐 إعادة تعيين كلمة المرور</h1>
+            <p>منصة Tevasul - حماية حسابك</p>
+        </div>
+        
+        <!-- المحتوى الرئيسي -->
+        <div class="content">
+            <div class="welcome-section">
+                <h2>🔒 طلب إعادة تعيين كلمة المرور</h2>
+                <p>لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في منصة Tevasul.</p>
+            </div>
+            
+            <div class="info-section">
+                <h3>⚡ إعادة تعيين كلمة المرور</h3>
+                <p>لإعادة تعيين كلمة المرور الخاصة بك، اضغط على الزر أدناه. سيتم توجيهك إلى صفحة آمنة لإدخال كلمة المرور الجديدة:</p>
+            </div>
+            
+            <!-- زر إعادة التعيين -->
+            <div class="cta-button">
+                <a href="{{ .ConfirmationURL }}" class="btn">
+                    🔑 إعادة تعيين كلمة المرور
+                </a>
+            </div>
+            
+            <!-- تحذير -->
+            <div class="warning">
+                <p>⚠️ إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد الإلكتروني بأمان.</p>
+            </div>
+            
+            <!-- معلومات أمنية -->
+            <div class="info-section">
+                <h3>🛡️ نصائح أمنية:</h3>
+                <p>• استخدم كلمة مرور قوية وفريدة<br>
+                • لا تشارك كلمة المرور مع أي شخص<br>
+                • فعّل المصادقة الثنائية إذا كانت متاحة<br>
+                • راقب نشاط حسابك بانتظام</p>
+            </div>
+        </div>
+        
+        <!-- الفوتر -->
+        <div class="footer">
+            <p>© 2024 Tevasul. جميع الحقوق محفوظة.</p>
+            <p>هذا البريد الإلكتروني تم إرساله من منصة Tevasul</p>
+            <div class="social-links">
+                <a href="https://tevasul.group">الموقع الرسمي</a> |
+                <a href="https://tevasul.group/support">الدعم الفني</a> |
+                <a href="https://tevasul.group/privacy">سياسة الخصوصية</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

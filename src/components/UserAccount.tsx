@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
 import CursorWrapper from './CursorWrapper';
+import { formatDisplayDate } from '../lib/utils';
 
 interface ServiceRequest {
   id: string;
@@ -668,11 +669,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 ml-1" />
                         <span className="font-mono" dir="ltr">
-                          {new Date(request.created_at).toLocaleDateString('en-GB', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit'
-                          })}
+                          {formatDisplayDate(request.created_at)}
                         </span>
                       </div>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>

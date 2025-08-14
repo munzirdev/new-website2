@@ -52,8 +52,10 @@ const SharedNavbar: React.FC<SharedNavbarProps> = ({
   const navigate = useNavigate();
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
-  // Check if user is admin
-  const isAdmin = user?.email === 'admin@tevasul.group';
+  // Check if user is admin or moderator based on profile role
+  const isAdmin = profile?.role === 'admin';
+  const isModerator = profile?.role === 'moderator';
+  const isAdminOrModerator = isAdmin || isModerator;
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -225,7 +227,7 @@ const SharedNavbar: React.FC<SharedNavbarProps> = ({
             {/* Auth Buttons */}
             {user ? (
               <div className="flex items-center space-x-4 space-x-reverse">
-                            {isAdmin && (
+                            {isAdminOrModerator && (
               <button
                 onClick={() => navigate('/admin')}
                 className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
@@ -235,7 +237,9 @@ const SharedNavbar: React.FC<SharedNavbarProps> = ({
                 }`}
               >
                 <Settings className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">لوحة التحكم</span>
+                <span className="hidden sm:inline">
+                  {isAdmin ? 'لوحة التحكم' : 'لوحة الإشراف'}
+                </span>
               </button>
             )}
                 <div className="relative user-dropdown-container">

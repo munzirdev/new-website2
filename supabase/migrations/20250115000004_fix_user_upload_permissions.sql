@@ -55,44 +55,44 @@ CREATE POLICY "Users can delete own requests"
   TO authenticated
   USING (auth.uid() = user_id);
 
--- الأدمن يمكنهم قراءة جميع الطلبات
-CREATE POLICY "Admins can read all requests"
-  ON service_requests
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- الأدمن يمكنهم قراءة جميع الطلبات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can read all requests"
+--   ON service_requests
+--   FOR SELECT
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
--- الأدمن يمكنهم تحديث جميع الطلبات
-CREATE POLICY "Admins can update all requests"
-  ON service_requests
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- الأدمن يمكنهم تحديث جميع الطلبات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can update all requests"
+--   ON service_requests
+--   FOR UPDATE
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
--- الأدمن يمكنهم حذف جميع الطلبات
-CREATE POLICY "Admins can delete all requests"
-  ON service_requests
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- الأدمن يمكنهم حذف جميع الطلبات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can delete all requests"
+--   ON service_requests
+--   FOR DELETE
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
 -- 5. إصلاح سياسات RLS لجدول file_attachments
 -- حذف السياسات القديمة
@@ -119,25 +119,25 @@ CREATE POLICY "Users can update their own file attachments" ON file_attachments
 CREATE POLICY "Users can delete their own file attachments" ON file_attachments
     FOR DELETE USING (auth.uid() = user_id);
 
--- الأدمن يمكنهم رؤية جميع الملفات
-CREATE POLICY "Admins can view all file attachments" ON file_attachments
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM user_profiles 
-            WHERE user_profiles.id = auth.uid() 
-            AND user_profiles.role = 'admin'
-        )
-    );
+-- الأدمن يمكنهم رؤية جميع الملفات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can view all file attachments" ON file_attachments
+--     FOR SELECT USING (
+--         EXISTS (
+--             SELECT 1 FROM user_profiles 
+--             WHERE user_profiles.id = auth.uid() 
+--             AND user_profiles.role = 'admin'
+--         )
+--     );
 
--- الأدمن يمكنهم إدارة جميع الملفات
-CREATE POLICY "Admins can manage all file attachments" ON file_attachments
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM user_profiles 
-            WHERE user_profiles.id = auth.uid() 
-            AND user_profiles.role = 'admin'
-        )
-    );
+-- الأدمن يمكنهم إدارة جميع الملفات (سيتم إضافتها لاحقاً بعد إضافة عمود role)
+-- CREATE POLICY "Admins can manage all file attachments" ON file_attachments
+--     FOR ALL USING (
+--         EXISTS (
+--             SELECT 1 FROM user_profiles 
+--             WHERE user_profiles.id = auth.uid() 
+--             AND user_profiles.role = 'admin'
+--         )
+--     );
 
 -- 6. إنشاء دالة لضمان وجود ملف شخصي للمستخدم
 CREATE OR REPLACE FUNCTION ensure_user_profile()

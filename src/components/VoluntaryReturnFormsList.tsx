@@ -4,6 +4,7 @@ import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { VoluntaryReturnForm } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
 import VoluntaryReturnFormEditor from './VoluntaryReturnFormEditor';
+import { formatDisplayDate } from '../lib/utils';
 
 interface VoluntaryReturnFormsListProps {
   isDarkMode: boolean;
@@ -96,7 +97,7 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR');
+    return formatDisplayDate(dateString);
   };
 
   // دالة لفلترة النماذج حسب الفترة الزمنية
@@ -189,8 +190,8 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
 
   const generateFormContent = (form: VoluntaryReturnForm) => {
     const requestDate = form.custom_date || form.request_date;
-    const requestDateTR = new Date(requestDate).toLocaleDateString("tr-TR", { numberingSystem: "latn" });
-    const requestDateAR = new Date(requestDate).toLocaleDateString("ar-EG").replace(/\//g, "/");
+    const requestDateTR = formatDisplayDate(requestDate);
+    const requestDateAR = formatDisplayDate(requestDate);
 
     let refakatPartTR = "";
     if (form.refakat_entries && form.refakat_entries.length > 0) {

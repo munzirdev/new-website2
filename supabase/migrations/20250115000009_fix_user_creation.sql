@@ -41,25 +41,25 @@ FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 -- Step 4: Create very simple policies that allow everything for authenticated users
 -- For service_requests
-CREATE POLICY "Allow all for authenticated users"
-ON service_requests FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+-- CREATE POLICY "Allow all for authenticated users"
+-- ON service_requests FOR ALL
+-- TO authenticated
+-- USING (true)
+-- WITH CHECK (true);
 
 -- For file_attachments
-CREATE POLICY "Allow all for authenticated users"
-ON file_attachments FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+-- CREATE POLICY "Allow all for authenticated users"
+-- ON file_attachments FOR ALL
+-- TO authenticated
+-- USING (true)
+-- WITH CHECK (true);
 
 -- For user_profiles
-CREATE POLICY "Allow all for authenticated users"
-ON user_profiles FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+-- CREATE POLICY "Allow all for authenticated users"
+-- ON user_profiles FOR ALL
+-- TO authenticated
+-- USING (true)
+-- WITH CHECK (true);
 
 -- Step 5: Create function to ensure user profile exists
 CREATE OR REPLACE FUNCTION ensure_user_profile()
@@ -74,7 +74,6 @@ BEGIN
             full_name,
             phone,
             country_code,
-            role,
             created_at,
             updated_at
         ) VALUES (
@@ -83,7 +82,6 @@ BEGIN
             COALESCE((SELECT user_metadata->>'full_name' FROM auth.users WHERE id = NEW.user_id), 'مستخدم جديد'),
             (SELECT user_metadata->>'phone' FROM auth.users WHERE id = NEW.user_id),
             COALESCE((SELECT user_metadata->>'country_code' FROM auth.users WHERE id = NEW.user_id), '+90'),
-            'user',
             NOW(),
             NOW()
         );

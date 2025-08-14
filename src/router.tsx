@@ -2,6 +2,7 @@ import React from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import App from './App';
 import { servicesData } from './data/services';
+import EmailVerification from './components/EmailVerification';
 
 // Layout component that wraps all pages
 const Layout = () => {
@@ -80,6 +81,14 @@ export const router = createBrowserRouter([
       {
         path: 'admin/analytics',
         element: <Outlet />
+      },
+      {
+        path: 'admin/moderators',
+        element: <Outlet />
+      },
+      {
+        path: 'auth/verify-email',
+        element: <EmailVerification isDarkMode={false} />
       },
       {
         path: 'voluntary-return',

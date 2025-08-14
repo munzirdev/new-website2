@@ -4,6 +4,7 @@ import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
+import { formatDisplayDate } from '../lib/utils';
 
 interface RefakatEntry {
   id: string;
@@ -202,12 +203,12 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     let requestDateTR, requestDateAR;
     if (changeDate === "yes" && customDate) {
       const dateObj = new Date(customDate);
-      requestDateTR = dateObj.toLocaleDateString("tr-TR", { numberingSystem: "latn" });
-      requestDateAR = dateObj.toLocaleDateString("ar-EG").replace(/\//g, "/");
+      requestDateTR = formatDisplayDate(dateObj);
+      requestDateAR = formatDisplayDate(dateObj);
     } else {
       const today = new Date();
-      requestDateTR = today.toLocaleDateString("tr-TR", { numberingSystem: "latn" });
-      requestDateAR = today.toLocaleDateString("ar-EG").replace(/\//g, "/");
+      requestDateTR = formatDisplayDate(today);
+      requestDateAR = formatDisplayDate(today);
     }
 
     let refakatPartTR = "";

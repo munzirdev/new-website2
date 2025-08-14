@@ -47,44 +47,44 @@ CREATE POLICY "Users can delete own requests"
   TO authenticated
   USING (auth.uid() = user_id);
 
--- Admins can read all requests (using email check)
-CREATE POLICY "Admins can read all requests"
-  ON service_requests
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- Admins can read all requests (using email check) - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Admins can read all requests"
+--   ON service_requests
+--   FOR SELECT
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
--- Admins can update all requests
-CREATE POLICY "Admins can update all requests"
-  ON service_requests
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- Admins can update all requests - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Admins can update all requests"
+--   ON service_requests
+--   FOR UPDATE
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
--- Admins can delete all requests
-CREATE POLICY "Admins can delete all requests"
-  ON service_requests
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles 
-      WHERE user_profiles.id = auth.uid() 
-      AND user_profiles.role = 'admin'
-    )
-  );
+-- Admins can delete all requests - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Admins can delete all requests"
+--   ON service_requests
+--   FOR DELETE
+--   TO authenticated
+--   USING (
+--     EXISTS (
+--       SELECT 1 FROM user_profiles 
+--       WHERE user_profiles.id = auth.uid() 
+--       AND user_profiles.role = 'admin'
+--     )
+--   );
 
 -- 5. Fix file_attachments policies
 DROP POLICY IF EXISTS "Users can view their own file attachments" ON file_attachments;
@@ -107,23 +107,23 @@ CREATE POLICY "Users can update their own file attachments" ON file_attachments
 CREATE POLICY "Users can delete their own file attachments" ON file_attachments
     FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can view all file attachments" ON file_attachments
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM user_profiles 
-            WHERE user_profiles.id = auth.uid() 
-            AND user_profiles.role = 'admin'
-        )
-    );
+-- CREATE POLICY "Admins can view all file attachments" ON file_attachments
+--     FOR SELECT USING (
+--         EXISTS (
+--             SELECT 1 FROM user_profiles 
+--             WHERE user_profiles.id = auth.uid() 
+--             AND user_profiles.role = 'admin'
+--         )
+--     );
 
-CREATE POLICY "Admins can manage all file attachments" ON file_attachments
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM user_profiles 
-            WHERE user_profiles.id = auth.uid() 
-            AND user_profiles.role = 'admin'
-        )
-    );
+-- CREATE POLICY "Admins can manage all file attachments" ON file_attachments
+--     FOR ALL USING (
+--         EXISTS (
+--             SELECT 1 FROM user_profiles 
+--             WHERE user_profiles.id = auth.uid() 
+--             AND user_profiles.role = 'admin'
+--         )
+--     );
 
 -- 6. Ensure user_profiles table has the correct foreign key
 ALTER TABLE user_profiles DROP CONSTRAINT IF EXISTS user_profiles_id_fkey;

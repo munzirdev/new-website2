@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, X, CheckCircle, AlertCircle, Search, ChevronDown } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { supabase, countryCodes, CountryCode } from '../lib/supabase';
+import { formatDisplayDate } from '../lib/utils';
 
 interface ProfileEditProps {
   onBack: () => void;
@@ -135,7 +136,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({
               {profile?.full_name || 'المستخدم'}
             </h2>
             <p className="text-jet-600 dark:text-platinum-400">
-                              عضو منذ {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB') : 'غير محدد'}
+                              عضو منذ {profile?.created_at ? formatDisplayDate(profile.created_at) : 'غير محدد'}
             </p>
           </div>
 

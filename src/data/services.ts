@@ -1,6 +1,16 @@
-import { Users, Globe, Star, FileText, Heart } from 'lucide-react';
+import { Users, Globe, Star, FileText, Heart, Shield } from 'lucide-react';
 
 export const servicesData = [
+  {
+    id: 'health-insurance',
+    icon: Shield,
+    titleKey: 'services.healthInsurance.title',
+    descriptionKey: 'services.healthInsurance.description',
+    fullDescriptionKey: 'services.healthInsurance.fullDescription',
+    featuresKey: 'services.healthInsurance.features',
+    benefitsKey: 'services.healthInsurance.benefits',
+    processKey: 'services.healthInsurance.process'
+  },
   {
     id: 'translation',
     icon: Users,

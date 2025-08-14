@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HelpCircle, MessageCircle, Search, ChevronDown, ChevronUp, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
+import { formatDisplayDate } from '../lib/utils';
 
 interface FAQ {
   id: string;
@@ -223,13 +224,13 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                       </p>
                       {message.admin_reply_date && (
                         <p className="text-green-600 dark:text-green-400 text-xs mt-1">
-                          {new Date(message.admin_reply_date).toLocaleDateString('en-GB')}
+                          {formatDisplayDate(message.admin_reply_date)}
                         </p>
                       )}
                     </div>
                   )}
                   <p className="text-jet-500 dark:text-platinum-500 text-xs mt-2">
-                    {new Date(message.created_at).toLocaleDateString('en-GB')}
+                    {formatDisplayDate(message.created_at)}
                   </p>
                 </div>
               ))}

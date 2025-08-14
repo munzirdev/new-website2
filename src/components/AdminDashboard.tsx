@@ -26,7 +26,8 @@ import {
   BarChart3,
   Sun,
   Moon,
-  Home
+  Home,
+  Shield
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
@@ -34,6 +35,9 @@ import { useLanguage } from '../hooks/useLanguage';
 import VoluntaryReturnFormsList from './VoluntaryReturnFormsList';
 import VoluntaryReturnForm from './VoluntaryReturnForm';
 import VoluntaryReturnChart from './VoluntaryReturnChart';
+import ModeratorManagement from './ModeratorManagement';
+import HealthInsuranceManagement from './HealthInsuranceManagement';
+import { formatDisplayDate } from '../lib/utils';
 
 
 interface ServiceRequest {
@@ -112,7 +116,7 @@ const formatPhoneForWhatsApp = (phone: string): string => {
 };
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onToggleDarkMode }) => {
-  const { user } = useAuthContext();
+  const { user, profile } = useAuthContext();
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -125,7 +129,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'voluntary-return'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'voluntary-return' | 'moderators' | 'health-insurance'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
   const [editingRequest, setEditingRequest] = useState<ServiceRequest | null>(null);
@@ -199,6 +203,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     } else if (path === '/admin/faq') {
       setActiveTab('faqs');
       setVoluntaryReturnView('list');
+    } else if (path === '/admin/moderators') {
+      setActiveTab('moderators');
+      setVoluntaryReturnView('list');
     } else if (path === '/admin/analytics') {
       setActiveTab('voluntary-return');
       setVoluntaryReturnView('chart');
@@ -206,7 +213,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'voluntary-return') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'voluntary-return' | 'moderators' | 'health-insurance') => {
     setActiveTab(tab);
     switch (tab) {
       case 'requests':
@@ -220,6 +227,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         break;
       case 'voluntary-return':
         navigate('/admin/voluntary-returns');
+        break;
+      case 'moderators':
+        navigate('/admin/moderators');
+        break;
+      case 'health-insurance':
+        navigate('/admin/health-insurance');
         break;
     }
   };
@@ -1071,6 +1084,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 {activeTab === 'support' && 'رسائل الدعم'}
                 {activeTab === 'faqs' && 'الأسئلة الشائعة'}
                 {activeTab === 'voluntary-return' && 'العودة الطوعية'}
+                {activeTab === 'moderators' && (profile?.role === 'admin' ? 'إدارة المشرفين' : 'الوصول مرفوض')}
               </span>
             </>
           )}
@@ -1138,6 +1152,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               <div className="flex items-center">
                 <Globe className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
                 <span className="text-sm md:text-base">عودة طوعية</span>
+              </div>
+            </button>
+            <button
+              onClick={() => navigateToTab('moderators')}
+              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'moderators'
+                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
+                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+              }`}
+            >
+              <div className="flex items-center">
+                <Shield className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
+                <span className="text-sm md:text-base">المشرفين</span>
+              </div>
+            </button>
+            <button
+              onClick={() => navigateToTab('health-insurance')}
+              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'health-insurance'
+                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
+                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+              }`}
+            >
+              <div className="flex items-center">
+                <Shield className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
+                <span className="text-sm md:text-base">التأمين الصحي</span>
               </div>
             </button>
           </div>
@@ -1366,7 +1406,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                         <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500 mb-3">
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 ml-1" />
-                            <span>{new Date(request.created_at).toLocaleDateString('en-GB')}</span>
+                            <span>{formatDisplayDate(request.created_at)}</span>
                           </div>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
                             {getPriorityArabic(request.priority)}
@@ -1564,7 +1604,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                         <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500 mb-3">
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 ml-1" />
-                            <span>{new Date(message.created_at).toLocaleDateString('en-GB')}</span>
+                            <span>{formatDisplayDate(message.created_at)}</span>
                           </div>
                           <div className="flex items-center">
                             <Mail className="w-4 h-4 ml-1" />
@@ -1584,7 +1624,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                             </p>
                             {message.admin_reply_date && (
                               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                تاريخ الرد: {new Date(message.admin_reply_date).toLocaleDateString('en-GB')}
+                                تاريخ الرد: {formatDisplayDate(message.admin_reply_date)}
                               </p>
                             )}
                           </div>
@@ -1679,7 +1719,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                         <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500">
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 ml-1" />
-                            <span>{new Date(faq.created_at).toLocaleDateString('en-GB')}</span>
+                            <span>{formatDisplayDate(faq.created_at)}</span>
                           </div>
                           <span>ترتيب: {faq.order_index}</span>
                         </div>
@@ -2354,6 +2394,76 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             </div>
           </div>
         </div>
+      )}
+
+      {/* Moderators Tab */}
+      {activeTab === 'moderators' && (
+        <>
+          {/* Show moderator management for admin users */}
+          {profile?.role === 'admin' && (
+            <ModeratorManagement isDarkMode={isDarkMode} />
+          )}
+          
+          {/* Show access denied for non-admin users */}
+          {profile?.role !== 'admin' && (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                {/* Access Denied Message */}
+                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                  <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                    🔒 الوصول مرفوض
+                  </h2>
+                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                    فقط الأدمن يمكنه الوصول إلى هذه الصفحة
+                  </p>
+                  <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                      هذه الصفحة مخصصة لإدارة المشرفين وتتطلب صلاحيات أدمن كاملة
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Health Insurance Tab */}
+      {activeTab === 'health-insurance' && (
+        <>
+          {/* Show health insurance management for admin and moderator users */}
+          {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+            <HealthInsuranceManagement />
+          )}
+          
+          {/* Show access denied for non-admin/moderator users */}
+          {(profile?.role !== 'admin' && profile?.role !== 'moderator') && (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                {/* Access Denied Message */}
+                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                  <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                    🔒 الوصول مرفوض
+                  </h2>
+                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                    فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
+                  </p>
+                  <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                      هذه الصفحة مخصصة لإدارة التأمين الصحي وتتطلب صلاحيات أدمن أو مشرف
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Custom Cursor */}

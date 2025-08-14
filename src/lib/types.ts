@@ -27,3 +27,25 @@ export interface CreateVoluntaryReturnFormData {
   custom_date?: string;
   refakat_entries: RefakatEntry[];
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string;
+  country_code?: string;
+  role: 'user' | 'moderator' | 'admin';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Moderator {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}

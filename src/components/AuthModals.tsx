@@ -293,7 +293,7 @@ const AuthModals: React.FC<AuthModalsProps> = ({
         setError(errorMessage);
         setLoading(false);
       } else {
-        console.log('✅ تم إنشاء الحساب بنجاح، بدء الحركة الانتقالية');
+        console.log('✅ تم إنشاء الحساب بنجاح، إظهار رسالة التحقق بالبريد الإلكتروني');
         
         setLoading(false);
         
@@ -310,27 +310,26 @@ const AuthModals: React.FC<AuthModalsProps> = ({
           localStorage.removeItem('pendingServiceRequest');
         }
         
-        // بدء الحركة الانتقالية
-        setIsTransitioning(true);
+        // إغلاق المودال وإظهار رسالة التحقق
+        onCloseSignup();
+        setSignupData({ name: '', email: '', phone: '', countryCode: '+90', password: '', confirmPassword: '' });
+        setError(null);
         
-        // إغلاق المودال مع الحركة الانتقالية
-        setTimeout(() => {
-          onCloseSignup();
-          // Reset form data
-          setSignupData({ name: '', email: '', phone: '', countryCode: '+90', password: '', confirmPassword: '' });
-          setError(null);
-          setIsTransitioning(false);
-          console.log('✅ تم إغلاق المودال مع الحركة الانتقالية');
-          
-          // Navigate to home page after successful signup
-          if (onNavigateToHome) {
-            console.log('🔄 إعادة توجيه إلى الصفحة الرئيسية بعد إنشاء الحساب');
-            onNavigateToHome();
-          } else {
-            console.log('🔄 تغيير الموقع إلى /home');
-            window.location.href = '/home';
-          }
-        }, 800);
+        // إظهار رسالة التحقق بالبريد الإلكتروني
+        alert(`تم إنشاء حسابك بنجاح! 
+        
+يرجى التحقق من بريدك الإلكتروني (${signupData.email}) وتأكيد حسابك بالضغط على الرابط المرسل إليك.
+
+بعد تأكيد البريد الإلكتروني، يمكنك تسجيل الدخول واستخدام جميع ميزات التطبيق.`);
+        
+        // Navigate to home page after showing alert
+        if (onNavigateToHome) {
+          console.log('🔄 إعادة توجيه إلى الصفحة الرئيسية بعد إنشاء الحساب');
+          onNavigateToHome();
+        } else {
+          console.log('🔄 تغيير الموقع إلى /home');
+          window.location.href = '/home';
+        }
       }
     } catch (error) {
       console.error('💥 خطأ غير متوقع في إنشاء الحساب:', error);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, UserProfile } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { UserProfile } from '../lib/types';
 
 interface AuthState {
   user: User | null;
@@ -50,10 +51,10 @@ export const useAuth = () => {
       try {
         console.log('📡 جلب الجلسة الحالية...');
         
-        // Add timeout to getSession
+        // Add timeout to getSession with longer timeout for better reliability
         const sessionPromise = supabase.auth.getSession();
         const sessionTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session retrieval timeout')), 2000); // 2 second timeout
+          setTimeout(() => reject(new Error('Session retrieval timeout')), 10000); // 10 second timeout
         });
         
         const { data: { session }, error } = await Promise.race([sessionPromise, sessionTimeoutPromise]) as any;
@@ -65,6 +66,15 @@ export const useAuth = () => {
         }
         
         console.log('📋 الجلسة الحالية:', session ? 'موجودة' : 'غير موجودة');
+        
+        // Check if user has manually signed out (by checking localStorage)
+        const hasManuallySignedOut = localStorage.getItem('manuallySignedOut') === 'true';
+        if (hasManuallySignedOut) {
+          console.log('🚪 المستخدم قام بتسجيل الخروج يدوياً - تجاهل الجلسة المحفوظة');
+          localStorage.removeItem('manuallySignedOut');
+          setAuthState(prev => ({ ...prev, loading: false }));
+          return;
+        }
         
         if (session?.user) {
           console.log('👤 المستخدم موجود:', session.user.email);
@@ -110,6 +120,19 @@ export const useAuth = () => {
         console.log('👤 المستخدم:', session?.user?.email || 'غير موجود');
         console.log('📊 الجلسة:', session ? 'موجودة' : 'غير موجودة');
         
+        // Handle sign out event immediately
+        if (event === 'SIGNED_OUT') {
+          console.log('🚪 حدث تسجيل الخروج - تنظيف الحالة فوراً...');
+          setAuthState({
+            user: null,
+            profile: null,
+            session: null,
+            loading: false,
+            hasNotifications: false,
+          });
+          return;
+        }
+        
         // Only set loading true for sign in events, not sign out
         if (event !== 'SIGNED_OUT') {
           setAuthState(prev => ({ ...prev, loading: true }));
@@ -139,7 +162,7 @@ export const useAuth = () => {
             
             const newAuthState = {
               user: session.user,
-              profile,
+              profile: profile ? { ...profile, role: profile.role as 'user' | 'moderator' | 'admin' } : null,
               session,
               loading: false,
               hasNotifications,
@@ -159,7 +182,7 @@ export const useAuth = () => {
                  full_name: session.user.email?.split('@')[0] || 'مستخدم',
                  phone: undefined,
                  country_code: '+90',
-                 role: session.user.email === 'admin@tevasul.group' ? 'admin' : 'user',
+                 role: (session.user.email === 'admin@tevasul.group' ? 'admin' : 'user') as 'user' | 'moderator' | 'admin',
                  created_at: new Date().toISOString(),
                  updated_at: new Date().toISOString(),
                },
@@ -188,10 +211,17 @@ export const useAuth = () => {
     };
   }, [initialized]);
 
-  // إضافة useEffect لمراقبة تغييرات user وإعادة جلب profile
+  // إضافة useEffect لمراقبة تغييرات user وإعادة جلب profile (optimized)
   useEffect(() => {
     if (authState.user && !authState.profile && !authState.loading) {
+      // Prevent multiple profile loading attempts
+      const profileLoadingKey = `profile-loading-${authState.user.id}`;
+      if (sessionStorage.getItem(profileLoadingKey)) {
+        return;
+      }
+      
       console.log('🔄 إعادة جلب الملف الشخصي للمستخدم:', authState.user.id);
+      sessionStorage.setItem(profileLoadingKey, 'true');
       setAuthState(prev => ({ ...prev, loading: true }));
       
       getUserProfile(authState.user.id).then(profile => {
@@ -211,6 +241,11 @@ export const useAuth = () => {
             }
           });
         }
+        sessionStorage.removeItem(profileLoadingKey);
+      }).catch(error => {
+        console.error('❌ خطأ في جلب الملف الشخصي:', error);
+        setAuthState(prev => ({ ...prev, loading: false }));
+        sessionStorage.removeItem(profileLoadingKey);
       });
     }
   }, [authState.user, authState.profile, authState.loading]);
@@ -491,7 +526,8 @@ export const useAuth = () => {
             phone: signUpData.phone,
             country_code: signUpData.countryCode,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: `${window.location.origin}/auth/verify-email`,
+          emailConfirm: true // تفعيل التحقق بالبريد الإلكتروني
         }
       });
 
@@ -546,28 +582,67 @@ export const useAuth = () => {
         }
         
         console.log('🔧 محاولة إنشاء الملف الشخصي للمستخدم:', data.user.id);
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: data.user.id,
-            email: signUpData.email,
-            full_name: signUpData.name,
-            phone: signUpData.phone,
-            country_code: signUpData.countryCode,
-            role: 'user',
+        
+        // Try to create profile with error handling
+        try {
+          console.log('🔧 محاولة إنشاء الملف الشخصي للمستخدم:', data.user.id);
+          
+          // First, try to call the manual profile creation function
+          const { error: functionError } = await supabase.rpc('create_user_profile_manually', {
+            user_id: data.user.id,
+            user_email: signUpData.email,
+            user_name: signUpData.name,
+            user_phone: signUpData.phone,
+            user_country_code: signUpData.countryCode
           });
 
-        if (profileError) {
-          console.error('⚠️ خطأ في إنشاء الملف الشخصي:', profileError);
-          console.error('⚠️ تفاصيل خطأ الملف الشخصي:', {
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint
-          });
-          // Don't fail the signup if profile creation fails
-          console.log('⚠️ سيتم إنشاء الملف الشخصي لاحقاً');
-        } else {
-          console.log('✅ تم إنشاء الملف الشخصي بنجاح');
+          if (functionError) {
+            console.error('⚠️ خطأ في استدعاء دالة إنشاء الملف الشخصي:', functionError);
+            
+            // Fallback to direct insert
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .upsert({
+                id: data.user.id,
+                email: signUpData.email,
+                full_name: signUpData.name,
+                phone: signUpData.phone,
+                country_code: signUpData.countryCode,
+                role: 'user',
+              });
+
+            if (profileError) {
+              console.error('⚠️ خطأ في إنشاء الملف الشخصي المباشر:', profileError);
+              console.error('⚠️ تفاصيل خطأ الملف الشخصي:', {
+                message: profileError.message,
+                details: profileError.details,
+                hint: profileError.hint
+              });
+              
+              // Try minimal insert as last resort
+              console.log('🔄 محاولة إنشاء الملف الشخصي بالحد الأدنى...');
+              const { error: minProfileError } = await supabase
+                .from('user_profiles')
+                .upsert({
+                  id: data.user.id,
+                  full_name: signUpData.name,
+                });
+                
+              if (minProfileError) {
+                console.error('⚠️ فشل في إنشاء الملف الشخصي بالحد الأدنى:', minProfileError);
+                console.log('⚠️ سيتم إنشاء الملف الشخصي لاحقاً عبر الـ trigger');
+              } else {
+                console.log('✅ تم إنشاء الملف الشخصي بالحد الأدنى بنجاح');
+              }
+            } else {
+              console.log('✅ تم إنشاء الملف الشخصي المباشر بنجاح');
+            }
+          } else {
+            console.log('✅ تم إنشاء الملف الشخصي عبر الدالة بنجاح');
+          }
+        } catch (profileException) {
+          console.error('⚠️ استثناء في إنشاء الملف الشخصي:', profileException);
+          console.log('⚠️ سيتم إنشاء الملف الشخصي لاحقاً عبر الـ trigger');
         }
         
         // Force state update after successful signup
@@ -666,22 +741,22 @@ export const useAuth = () => {
         console.log('👤 معرف المستخدم:', data.user.id);
         
         // Create immediate auth state without waiting for profile
-        const immediateAuthState = {
-          user: data.user,
-          profile: {
-            id: data.user.id,
-            email: data.user.email || '',
-            full_name: data.user.email?.split('@')[0] || 'مستخدم',
-            phone: undefined,
-            country_code: '+90',
-            role: data.user.email === 'admin@tevasul.group' ? 'admin' : 'user',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          session: data.session,
-          loading: false,
-          hasNotifications: false,
-        };
+                  const immediateAuthState = {
+            user: data.user,
+            profile: {
+              id: data.user.id,
+              email: data.user.email || '',
+              full_name: data.user.email?.split('@')[0] || 'مستخدم',
+              phone: undefined,
+              country_code: '+90',
+              role: (data.user.email === 'admin@tevasul.group' ? 'admin' : 'user') as 'user' | 'moderator' | 'admin',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            session: data.session,
+            loading: false,
+            hasNotifications: false,
+          };
         
         console.log('📊 الحالة الفورية:', immediateAuthState);
         setAuthState(immediateAuthState);
@@ -728,6 +803,38 @@ export const useAuth = () => {
         loading: false,
         hasNotifications: false,
       });
+      
+      // Clear all localStorage items related to authentication
+      console.log('🧹 تنظيف localStorage...');
+      localStorage.removeItem('justLoggedIn');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('openServiceRequest');
+      localStorage.removeItem('pendingServiceRequest');
+      
+      // Clear all sessionStorage items related to authentication
+      console.log('🧹 تنظيف sessionStorage...');
+      const sessionKeys = Object.keys(sessionStorage);
+      sessionKeys.forEach(key => {
+        if (key.startsWith('profile-loading-') || 
+            key.startsWith('user-visited-') || 
+            key.startsWith('admin-redirect-')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Clear Supabase session from localStorage
+      console.log('🧹 تنظيف جلسة Supabase من localStorage...');
+      const supabaseKeys = Object.keys(localStorage);
+      supabaseKeys.forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          localStorage.removeItem(key);
+          console.log('🗑️ تم حذف:', key);
+        }
+      });
+      
+      // Mark that user has manually signed out
+      localStorage.setItem('manuallySignedOut', 'true');
       
       // Then try to sign out from Supabase
       console.log('🌐 محاولة تسجيل الخروج من Supabase...');
@@ -815,6 +922,8 @@ export const useAuth = () => {
   // Simple synchronous sign out (bypasses Supabase)
   const simpleSignOut = () => {
     console.log('🚪 Simple sign out (bypassing Supabase)...');
+    
+    // Clear local state
     setAuthState({
       user: null,
       profile: null,
@@ -822,6 +931,25 @@ export const useAuth = () => {
       loading: false,
       hasNotifications: false,
     });
+    
+    // Clear all storage
+    localStorage.removeItem('justLoggedIn');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('openServiceRequest');
+    localStorage.removeItem('pendingServiceRequest');
+    
+    // Clear Supabase session
+    const supabaseKeys = Object.keys(localStorage);
+    supabaseKeys.forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Mark that user has manually signed out
+    localStorage.setItem('manuallySignedOut', 'true');
+    
     console.log('✅ Simple sign out completed');
   };
 

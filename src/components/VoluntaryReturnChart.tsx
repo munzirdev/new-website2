@@ -16,6 +16,7 @@ import { Calendar, TrendingUp, BarChart3, PieChart, Filter, Download, RefreshCw,
 import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { VoluntaryReturnForm } from '../lib/types';
+import { formatDisplayDate } from '../lib/utils';
 
 ChartJS.register(
   CategoryScale,
@@ -126,38 +127,26 @@ const VoluntaryReturnChart: React.FC<VoluntaryReturnChartProps> = ({ isDarkMode 
     switch (range) {
       case '7days':
         while (current <= endDate) {
-          labels.push(current.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR', { 
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric'
-          }));
+          labels.push(formatDisplayDate(current));
           current.setDate(current.getDate() + 1);
         }
         break;
       case '30days':
         while (current <= endDate) {
-          labels.push(current.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR', { 
-            month: 'short',
-            day: 'numeric'
-          }));
+          labels.push(formatDisplayDate(current));
           current.setDate(current.getDate() + 1);
         }
         break;
       case '3months':
       case '6months':
         while (current <= endDate) {
-          labels.push(current.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR', { 
-            month: 'short',
-            year: 'numeric'
-          }));
+          labels.push(formatDisplayDate(current));
           current.setMonth(current.getMonth() + 1);
         }
         break;
       case '1year':
         while (current <= endDate) {
-          labels.push(current.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR', { 
-            month: 'short'
-          }));
+          labels.push(formatDisplayDate(current));
           current.setMonth(current.getMonth() + 1);
         }
         break;

@@ -42,6 +42,34 @@ const translations = {
     'services.title': 'خدماتنا المتميزة',
     'services.subtitle': 'نقدم مجموعة شاملة من الخدمات المصممة خصيصاً لتلبية احتياجاتك',
     
+    // Health Insurance Services
+    'services.healthInsurance.title': 'التأمين الصحي للأجانب',
+    'services.healthInsurance.description': 'تأمين صحي شامل للأجانب في تركيا بأفضل الأسعار والتغطية',
+    'services.healthInsurance.fullDescription': 'نقدم خدمات التأمين الصحي الشاملة للأجانب في تركيا. نحن نتعاون مع أفضل شركات التأمين التركية لتقديم أفضل الأسعار والتغطية الشاملة. تأميننا يشمل جميع الخدمات الطبية والعلاجية مع شبكة واسعة من المستشفيات والعيادات في جميع أنحاء تركيا.',
+    'services.healthInsurance.features': [
+      'تأمين صحي شامل للأفراد والعائلات',
+      'أسعار تنافسية حسب الفئة العمرية',
+      'تغطية شاملة لجميع الخدمات الطبية',
+      'شبكة واسعة من المستشفيات والعيادات',
+      'خدمة عملاء متاحة على مدار الساعة',
+      'إجراءات سريعة وبسيطة',
+      'تأمين لمدة سنة أو سنتين',
+      'استشارة مجانية لاختيار أفضل خطة'
+    ],
+    'services.healthInsurance.benefits': [
+      'حماية مالية شاملة للأسرة',
+      'راحة البال والاطمئنان',
+      'توفير في التكاليف الطبية',
+      'خدمة طبية عالية الجودة'
+    ],
+    'services.healthInsurance.process': [
+      'تحديد الفئة العمرية ومدة التأمين',
+      'اختيار شركة التأمين المناسبة',
+      'حساب السعر النهائي',
+      'تقديم الطلب والحصول على التأمين',
+      'استلام وثائق التأمين'
+    ],
+    
     // Translation Services
     'services.translation.title': 'خدمات الترجمة المحلفة',
     'services.translation.description': 'ترجمة معتمدة لجميع الوثائق والمستندات الرسمية والقانونية',
@@ -762,6 +790,34 @@ const translations = {
       'Receive documents and deliver to client'
     ],
     
+    // Health Insurance Services
+    'services.healthInsurance.title': 'Health Insurance for Foreigners',
+    'services.healthInsurance.description': 'Comprehensive health insurance for foreigners in Turkey with the best prices and coverage',
+    'services.healthInsurance.fullDescription': 'We provide comprehensive health insurance services for foreigners in Turkey. We collaborate with the best Turkish insurance companies to offer the best prices and comprehensive coverage. Our insurance covers all medical and treatment services with a wide network of hospitals and clinics throughout Turkey.',
+    'services.healthInsurance.features': [
+      'Comprehensive health insurance for individuals and families',
+      'Competitive prices based on age groups',
+      'Comprehensive coverage for all medical services',
+      'Wide network of hospitals and clinics',
+      '24/7 customer service',
+      'Fast and simple procedures',
+      'Insurance for 1 or 2 years',
+      'Free consultation to choose the best plan'
+    ],
+    'services.healthInsurance.benefits': [
+      'Comprehensive financial protection for the family',
+      'Peace of mind and reassurance',
+      'Savings on medical costs',
+      'High-quality medical service'
+    ],
+    'services.healthInsurance.process': [
+      'Determine age group and insurance duration',
+      'Choose the appropriate insurance company',
+      'Calculate final price',
+      'Submit request and obtain insurance',
+      'Receive insurance documents'
+    ],
+
     // Insurance Services
     'services.insurance.title': 'Health Insurance and Vehicle Insurance Services',
     'services.insurance.description': 'Assistance in obtaining health insurance and vehicle insurance at the best prices',
@@ -927,6 +983,8 @@ const translations = {
     'servicePage.talkToExpert': 'Talk to Expert',
 
     // Main Services Cards
+    'services.cards.healthInsurance.title': 'Health Insurance for Foreigners',
+    'services.cards.healthInsurance.description': 'Comprehensive health insurance for foreigners in Turkey with the best prices and coverage',
     'services.cards.translation.title': 'Certified Translation Services',
     'services.cards.translation.description': 'Certified translation for all official and legal documents',
     'services.cards.travel.title': 'Travel and Tourism Services',

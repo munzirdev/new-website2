@@ -3,6 +3,7 @@ import { FileText, Download, Printer, Save, X, Plus, ArrowLeft, Eye } from 'luci
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { VoluntaryReturnForm, RefakatEntry } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
+import { formatDisplayDate } from '../lib/utils';
 
 interface VoluntaryReturnFormEditorProps {
   form: VoluntaryReturnForm;
@@ -108,12 +109,12 @@ const VoluntaryReturnFormEditor: React.FC<VoluntaryReturnFormEditorProps> = ({
     let requestDateTR, requestDateAR;
     if (changeDate === "yes" && customDate) {
       const dateObj = new Date(customDate);
-      requestDateTR = dateObj.toLocaleDateString("tr-TR", { numberingSystem: "latn" });
-      requestDateAR = dateObj.toLocaleDateString("ar-EG").replace(/\//g, "/");
+      requestDateTR = formatDisplayDate(dateObj);
+      requestDateAR = formatDisplayDate(dateObj);
     } else {
       const today = new Date();
-      requestDateTR = today.toLocaleDateString("tr-TR", { numberingSystem: "latn" });
-      requestDateAR = today.toLocaleDateString("ar-EG").replace(/\//g, "/");
+      requestDateTR = formatDisplayDate(today);
+      requestDateAR = formatDisplayDate(today);
     }
 
     let refakatPartTR = "";

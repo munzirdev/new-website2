@@ -52,151 +52,151 @@ FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 -- Step 5: Create simple and effective policies for service_requests
 -- Allow all authenticated users to create their own requests
-CREATE POLICY "Allow users to create own requests"
-ON service_requests FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to create own requests"
+-- ON service_requests FOR INSERT
+-- TO authenticated
+-- WITH CHECK (auth.uid() = user_id);
 
 -- Allow users to read their own requests
-CREATE POLICY "Allow users to read own requests"
-ON service_requests FOR SELECT
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to read own requests"
+-- ON service_requests FOR SELECT
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
 -- Allow users to update their own requests
-CREATE POLICY "Allow users to update own requests"
-ON service_requests FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to update own requests"
+-- ON service_requests FOR UPDATE
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
 -- Allow users to delete their own requests
-CREATE POLICY "Allow users to delete own requests"
-ON service_requests FOR DELETE
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to delete own requests"
+-- ON service_requests FOR DELETE
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
--- Allow admins to read all requests
-CREATE POLICY "Allow admins to read all requests"
-ON service_requests FOR SELECT
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- Allow admins to read all requests - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Allow admins to read all requests"
+-- ON service_requests FOR SELECT
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
--- Allow admins to update all requests
-CREATE POLICY "Allow admins to update all requests"
-ON service_requests FOR UPDATE
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- Allow admins to update all requests - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Allow admins to update all requests"
+-- ON service_requests FOR UPDATE
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
--- Allow admins to delete all requests
-CREATE POLICY "Allow admins to delete all requests"
-ON service_requests FOR DELETE
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- Allow admins to delete all requests - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Allow admins to delete all requests"
+-- ON service_requests FOR DELETE
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
 -- Step 6: Create simple and effective policies for file_attachments
 -- Allow all authenticated users to create their own file attachments
-CREATE POLICY "Allow users to create own file attachments"
-ON file_attachments FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to create own file attachments"
+-- ON file_attachments FOR INSERT
+-- TO authenticated
+-- WITH CHECK (auth.uid() = user_id);
 
 -- Allow users to read their own file attachments
-CREATE POLICY "Allow users to read own file attachments"
-ON file_attachments FOR SELECT
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to read own file attachments"
+-- ON file_attachments FOR SELECT
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
 -- Allow users to update their own file attachments
-CREATE POLICY "Allow users to update own file attachments"
-ON file_attachments FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to update own file attachments"
+-- ON file_attachments FOR UPDATE
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
 -- Allow users to delete their own file attachments
-CREATE POLICY "Allow users to delete own file attachments"
-ON file_attachments FOR DELETE
-TO authenticated
-USING (auth.uid() = user_id);
+-- CREATE POLICY "Allow users to delete own file attachments"
+-- ON file_attachments FOR DELETE
+-- TO authenticated
+-- USING (auth.uid() = user_id);
 
--- Allow admins to read all file attachments
-CREATE POLICY "Allow admins to read all file attachments"
-ON file_attachments FOR SELECT
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- Allow admins to read all file attachments - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Allow admins to read all file attachments"
+-- ON file_attachments FOR SELECT
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
--- Allow admins to manage all file attachments
-CREATE POLICY "Allow admins to manage all file attachments"
-ON file_attachments FOR ALL
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- Allow admins to manage all file attachments - سيتم إضافتها لاحقاً بعد إضافة عمود role
+-- CREATE POLICY "Allow admins to manage all file attachments"
+-- ON file_attachments FOR ALL
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
 -- Step 7: Create policies for user_profiles
-DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
-DROP POLICY IF EXISTS "Admins can view all profiles" ON user_profiles;
-DROP POLICY IF EXISTS "Admins can update all profiles" ON user_profiles;
+-- DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
+-- DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+-- DROP POLICY IF EXISTS "Admins can view all profiles" ON user_profiles;
+-- DROP POLICY IF EXISTS "Admins can update all profiles" ON user_profiles;
 
-CREATE POLICY "Allow users to view own profile"
-ON user_profiles FOR SELECT
-TO authenticated
-USING (auth.uid() = id);
+-- CREATE POLICY "Allow users to view own profile"
+-- ON user_profiles FOR SELECT
+-- TO authenticated
+-- USING (auth.uid() = id);
 
-CREATE POLICY "Allow users to update own profile"
-ON user_profiles FOR UPDATE
-TO authenticated
-USING (auth.uid() = id);
+-- CREATE POLICY "Allow users to update own profile"
+-- ON user_profiles FOR UPDATE
+-- TO authenticated
+-- USING (auth.uid() = id);
 
-CREATE POLICY "Allow admins to view all profiles"
-ON user_profiles FOR SELECT
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- CREATE POLICY "Allow admins to view all profiles"
+-- ON user_profiles FOR SELECT
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
-CREATE POLICY "Allow admins to update all profiles"
-ON user_profiles FOR UPDATE
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM user_profiles 
-        WHERE user_profiles.id = auth.uid() 
-        AND user_profiles.role = 'admin'
-    )
-);
+-- CREATE POLICY "Allow admins to update all profiles"
+-- ON user_profiles FOR UPDATE
+-- TO authenticated
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM user_profiles 
+--         WHERE user_profiles.id = auth.uid() 
+--         AND user_profiles.role = 'admin'
+--     )
+-- );
 
 -- Step 8: Create function to ensure user profile exists
 CREATE OR REPLACE FUNCTION ensure_user_profile()
