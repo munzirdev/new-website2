@@ -2,26 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, X, CheckCircle, AlertCircle, Search, ChevronDown } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { supabase, countryCodes, CountryCode } from '../lib/supabase';
-import Navbar from './Navbar';
 
 interface ProfileEditProps {
   onBack: () => void;
   isDarkMode: boolean;
-  onNavigateToContact: () => void;
-  onOpenAccount: () => void;
-  onOpenHelp: () => void;
-  onToggleDarkMode: () => void;
-  onNavigateToMainHome: () => void;
 }
 
 const ProfileEdit: React.FC<ProfileEditProps> = ({ 
   onBack, 
-  isDarkMode, 
-  onNavigateToContact,
-  onOpenAccount,
-  onOpenHelp,
-  onToggleDarkMode,
-  onNavigateToMainHome
+  isDarkMode
 }) => {
   const { user, profile } = useAuthContext();
   const [loading, setLoading] = useState(false);
@@ -125,17 +114,6 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({
 
   return (
     <div className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16">
-      {/* Fixed Navbar */}
-      <Navbar
-        onNavigateHome={onNavigateToMainHome}
-        onNavigateToContact={onNavigateToContact}
-        onOpenProfile={() => {}} // Already in profile page
-        onOpenAccount={onOpenAccount}
-        onOpenHelp={onOpenHelp}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={onToggleDarkMode}
-      />
-
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -157,7 +135,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({
               {profile?.full_name || 'المستخدم'}
             </h2>
             <p className="text-jet-600 dark:text-platinum-400">
-              عضو منذ {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('ar-SA') : 'غير محدد'}
+                              عضو منذ {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB') : 'غير محدد'}
             </p>
           </div>
 

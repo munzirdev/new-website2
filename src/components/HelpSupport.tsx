@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { HelpCircle, MessageCircle, Search, ChevronDown, ChevronUp, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
-import Navbar from './Navbar';
 
 interface FAQ {
   id: string;
@@ -15,21 +14,11 @@ interface FAQ {
 interface HelpSupportProps {
   onBack: () => void;
   isDarkMode: boolean;
-  onNavigateToContact: () => void;
-  onOpenProfile: () => void;
-  onOpenAccount: () => void;
-  onToggleDarkMode: () => void;
-  onNavigateToMainHome: () => void;
 }
 
 const HelpSupport: React.FC<HelpSupportProps> = ({ 
   onBack, 
-  isDarkMode, 
-  onNavigateToContact,
-  onOpenProfile,
-  onOpenAccount,
-  onToggleDarkMode,
-  onNavigateToMainHome
+  isDarkMode
 }) => {
   const { user, profile } = useAuthContext();
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -184,17 +173,6 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
 
   return (
     <div className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16">
-      {/* Fixed Navbar */}
-      <Navbar
-        onNavigateHome={onNavigateToMainHome}
-        onNavigateToContact={onNavigateToContact}
-        onOpenProfile={onOpenProfile}
-        onOpenAccount={onOpenAccount}
-        onOpenHelp={() => {}} // Already in help page
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={onToggleDarkMode}
-      />
-
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -231,7 +209,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                         : message.status === 'in_progress'
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-sky-100 text-sky-800 dark:bg-sky-900/20 dark:text-sky-400'
                     }`}>
                       {message.status === 'resolved' ? 'محلولة' : 
                        message.status === 'in_progress' ? 'قيد المعالجة' : 'قيد الانتظار'}
@@ -245,13 +223,13 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                       </p>
                       {message.admin_reply_date && (
                         <p className="text-green-600 dark:text-green-400 text-xs mt-1">
-                          {new Date(message.admin_reply_date).toLocaleDateString('ar-SA')}
+                          {new Date(message.admin_reply_date).toLocaleDateString('en-GB')}
                         </p>
                       )}
                     </div>
                   )}
                   <p className="text-jet-500 dark:text-platinum-500 text-xs mt-2">
-                    {new Date(message.created_at).toLocaleDateString('ar-SA')}
+                    {new Date(message.created_at).toLocaleDateString('en-GB')}
                   </p>
                 </div>
               ))}

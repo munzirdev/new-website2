@@ -33,6 +33,7 @@ export const useAuth = () => {
   });
   const [initialized, setInitialized] = useState(false);
 
+
   useEffect(() => {
     console.log('🔄 useAuth useEffect triggered, initialized:', initialized);
     
@@ -48,7 +49,14 @@ export const useAuth = () => {
     const getInitialSession = async () => {
       try {
         console.log('📡 جلب الجلسة الحالية...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Add timeout to getSession
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session retrieval timeout')), 2000); // 2 second timeout
+        });
+        
+        const { data: { session }, error } = await Promise.race([sessionPromise, sessionTimeoutPromise]) as any;
         
         if (error) {
           console.error('❌ خطأ في جلب الجلسة:', error);
@@ -60,15 +68,29 @@ export const useAuth = () => {
         
         if (session?.user) {
           console.log('👤 المستخدم موجود:', session.user.email);
-          const profile = await getUserProfile(session.user.id);
-          const hasNotifications = await checkForNotifications(session.user.id);
-          setAuthState({
+          
+          // Set user immediately to prevent race conditions
+          setAuthState(prev => ({
+            ...prev,
             user: session.user,
-            profile,
-            session,
+            session: session,
             loading: false,
-            hasNotifications,
-          });
+          }));
+          
+          // Load profile and notifications asynchronously
+          try {
+            const profile = await getUserProfile(session.user.id);
+            const hasNotifications = await checkForNotifications(session.user.id);
+            
+            setAuthState(prev => ({
+              ...prev,
+              profile,
+              hasNotifications,
+            }));
+          } catch (profileError) {
+            console.error('❌ خطأ في جلب الملف الشخصي:', profileError);
+            // Keep the user authenticated even if profile loading fails
+          }
         } else {
           setAuthState(prev => ({ ...prev, loading: false }));
         }
@@ -83,29 +105,71 @@ export const useAuth = () => {
     // الاستماع لتغييرات المصادقة
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: Session | null) => {
+        console.log('🔔 تغيير حالة المصادقة:', event, 'at', new Date().toISOString());
         console.log('🔔 تغيير حالة المصادقة:', event);
         console.log('👤 المستخدم:', session?.user?.email || 'غير موجود');
         console.log('📊 الجلسة:', session ? 'موجودة' : 'غير موجودة');
         
-        setAuthState(prev => ({ ...prev, loading: true }));
+        // Only set loading true for sign in events, not sign out
+        if (event !== 'SIGNED_OUT') {
+          setAuthState(prev => ({ ...prev, loading: true }));
+        }
         
         if (session?.user) {
           console.log('✅ جلسة نشطة - تحديث الحالة...');
           console.log('👤 معرف المستخدم من الجلسة:', session.user.id);
-          const profile = await getUserProfile(session.user.id);
-          const hasNotifications = await checkForNotifications(session.user.id);
           
-          const newAuthState = {
+          // Set user immediately to prevent race conditions
+          setAuthState(prev => ({
+            ...prev,
             user: session.user,
-            profile,
-            session,
+            session: session,
             loading: false,
-            hasNotifications,
-          };
+          }));
           
-          console.log('📊 الحالة الجديدة من onAuthStateChange:', newAuthState);
-          setAuthState(newAuthState);
-          console.log('✅ تم تحديث حالة المصادقة بنجاح');
+          // If we already have the same user with profile, don't reload everything
+          if (authState.user?.id === session.user.id && authState.profile) {
+            console.log('🔄 نفس المستخدم موجود بالفعل، تحديث الجلسة فقط');
+            return;
+          }
+          
+          try {
+            const profile = await getUserProfile(session.user.id);
+            const hasNotifications = await checkForNotifications(session.user.id);
+            
+            const newAuthState = {
+              user: session.user,
+              profile,
+              session,
+              loading: false,
+              hasNotifications,
+            };
+            
+            console.log('📊 الحالة الجديدة من onAuthStateChange:', newAuthState);
+            setAuthState(newAuthState);
+            console.log('✅ تم تحديث حالة المصادقة بنجاح');
+          } catch (error) {
+            console.error('❌ خطأ في تحديث حالة المصادقة:', error);
+            // Set a fallback state even if profile loading fails
+            const fallbackState = {
+              user: session.user,
+                             profile: {
+                 id: session.user.id,
+                 email: session.user.email || '',
+                 full_name: session.user.email?.split('@')[0] || 'مستخدم',
+                 phone: undefined,
+                 country_code: '+90',
+                 role: session.user.email === 'admin@tevasul.group' ? 'admin' : 'user',
+                 created_at: new Date().toISOString(),
+                 updated_at: new Date().toISOString(),
+               },
+              session,
+              loading: false,
+              hasNotifications: false,
+            };
+            setAuthState(fallbackState);
+            console.log('✅ تم تعيين حالة المصادقة الاحتياطية');
+          }
         } else {
           console.log('❌ لا توجد جلسة - تنظيف الحالة...');
           setAuthState({
@@ -126,25 +190,57 @@ export const useAuth = () => {
 
   // إضافة useEffect لمراقبة تغييرات user وإعادة جلب profile
   useEffect(() => {
-    if (authState.user && !authState.profile) {
+    if (authState.user && !authState.profile && !authState.loading) {
       console.log('🔄 إعادة جلب الملف الشخصي للمستخدم:', authState.user.id);
+      setAuthState(prev => ({ ...prev, loading: true }));
+      
       getUserProfile(authState.user.id).then(profile => {
         if (profile) {
-          setAuthState(prev => ({ ...prev, profile }));
+          setAuthState(prev => ({ ...prev, profile, loading: false }));
           console.log('✅ تم تحديث الملف الشخصي:', profile.full_name);
         } else {
           // إذا لم يتم العثور على profile، حاول إنشاؤه من user_metadata
           console.log('🔄 محاولة إنشاء profile من user_metadata...');
+          if (!authState.user) return;
           createProfileFromMetadata(authState.user).then(newProfile => {
             if (newProfile) {
-              setAuthState(prev => ({ ...prev, profile: newProfile }));
+              setAuthState(prev => ({ ...prev, profile: newProfile, loading: false }));
               console.log('✅ تم إنشاء الملف الشخصي من user_metadata:', newProfile.full_name);
+            } else {
+              setAuthState(prev => ({ ...prev, loading: false }));
             }
           });
         }
       });
     }
-  }, [authState.user, authState.profile]);
+  }, [authState.user, authState.profile, authState.loading]);
+
+
+
+  // Timeout to prevent loading state from getting stuck
+  useEffect(() => {
+    if (authState.loading) {
+      const timeout = setTimeout(() => {
+        console.log('⏰ Timeout: Loading state stuck, forcing completion');
+        setAuthState(prev => ({ ...prev, loading: false }));
+      }, 5000); // 5 second timeout (reduced from 8)
+
+      return () => clearTimeout(timeout);
+    }
+  }, [authState.loading]);
+
+  // Additional timeout for initialization
+  useEffect(() => {
+    if (!initialized) {
+      const initTimeout = setTimeout(() => {
+        console.log('⏰ Init Timeout: Forcing initialization completion');
+        setInitialized(true);
+        setAuthState(prev => ({ ...prev, loading: false }));
+      }, 3000); // 3 second timeout for initialization (reduced from 5)
+
+      return () => clearTimeout(initTimeout);
+    }
+  }, [initialized]);
 
   // دالة لإنشاء profile من user_metadata
   const createProfileFromMetadata = async (user: any): Promise<UserProfile | null> => {
@@ -157,6 +253,9 @@ export const useAuth = () => {
         return null;
       }
 
+      // Check if user is admin by email
+      const isAdminUser = user.email === 'admin@tevasul.group';
+      
       const { data: newProfile, error: createError } = await supabase
         .from('user_profiles')
         .upsert({
@@ -165,7 +264,7 @@ export const useAuth = () => {
           full_name: user.user_metadata.full_name || user.email?.split('@')[0] || 'مستخدم',
           phone: user.user_metadata.phone || null,
           country_code: user.user_metadata.country_code || '+90',
-          role: 'user',
+          role: isAdminUser ? 'admin' : 'user',
         })
         .select()
         .single();
@@ -183,147 +282,108 @@ export const useAuth = () => {
     }
   };
 
-  const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       console.log('📄 جلب الملف الشخصي للمستخدم:', userId);
       
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<null>((resolve) => {
-        setTimeout(() => {
-          console.log('⏰ انتهت مهلة جلب الملف الشخصي، استخدام الملف الافتراضي');
-          resolve(null);
-        }, 5000); // 5 second timeout
-      });
-
-      const profilePromise = (async () => {
-        // محاولة جلب البيانات من قاعدة البيانات مباشرة
-        const { data, error } = await supabase
+      // Get user data first
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('❌ خطأ في جلب بيانات المستخدم:', userError);
+        return null;
+      }
+      
+      console.log('👤 بيانات المستخدم من auth:', user.email);
+      
+      // Check if user is admin by email
+      const isAdminUser = user.email === 'admin@tevasul.group';
+      
+      // Try to get profile from database with timeout
+      try {
+        console.log('🔍 محاولة جلب الملف الشخصي من قاعدة البيانات...');
+        
+        // Add a timeout to the database query
+        const queryPromise = supabase
           .from('user_profiles')
           .select('*')
           .eq('id', userId)
           .single();
-
-        if (error) {
-          console.log('⚠️ لم يتم العثور على الملف الشخصي:', error.message);
-          console.log('⚠️ تفاصيل الخطأ:', error);
           
-          // محاولة إنشاء ملف شخصي إذا لم يكن موجوداً
-          if (error.code === 'PGRST116') { // No rows returned
-            console.log('🔄 محاولة إنشاء ملف شخصي جديد...');
-            
-            // جلب معلومات المستخدم من auth.users
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            
-            if (user && !userError) {
-              console.log('👤 بيانات المستخدم من auth:', user);
-              console.log('📋 user_metadata:', user.user_metadata);
-              
-              // استخدام البيانات من user_metadata أو البيانات الافتراضية
-              const { data: newProfile, error: createError } = await supabase
-                .from('user_profiles')
-                .upsert({
-                  id: userId,
-                  email: user.email,
-                  full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
-                  phone: user.user_metadata?.phone || null,
-                  country_code: user.user_metadata?.country_code || '+90',
-                  role: 'user',
-                })
-                .select()
-                .single();
-                
-              if (!createError && newProfile) {
-                console.log('✅ تم إنشاء ملف شخصي جديد:', newProfile.full_name);
-                return newProfile;
-              } else {
-                console.error('❌ فشل في إنشاء الملف الشخصي:', createError);
-                // Return a default profile if creation fails
-                return {
-                  id: userId,
-                  email: user.email || '',
-                  full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
-                  phone: user.user_metadata?.phone || null,
-                  country_code: user.user_metadata?.country_code || '+90',
-                  role: 'user',
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                };
-              }
-            }
-          }
-          
-          // Return a default profile if we can't get user data
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            return {
-              id: userId,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
-              phone: user.user_metadata?.phone || null,
-              country_code: user.user_metadata?.country_code || '+90',
-              role: 'user',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-          }
-          
-          return null;
-        }
-
-        console.log('✅ تم جلب الملف الشخصي بنجاح');
-        console.log('📋 بيانات الملف الشخصي:', data);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Database query timeout')), 2000); // 2 second timeout (reduced from 3)
+        });
         
-        // التحقق من أن البيانات موجودة
-        if (data) {
-          console.log('📊 تفاصيل البيانات:');
-          console.log('- الاسم:', data.full_name);
-          console.log('- البريد الإلكتروني:', data.email);
-          console.log('- الهاتف:', data.phone);
-          console.log('- رمز البلد:', data.country_code);
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+          
+        console.log('🔍 نتيجة الاستعلام:', { data: !!data, error: error?.message });
+        
+        if (!error && data) {
+          console.log('✅ تم جلب الملف الشخصي بنجاح');
+          console.log('📋 بيانات الملف الشخصي:', data);
+          return data;
         }
         
-        return data;
-      })();
-
-      // Race between timeout and profile loading
-      const result = await Promise.race([profilePromise, timeoutPromise]);
-      
-      if (result === null) {
-        // Timeout occurred, return default profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          console.log('🔄 إنشاء ملف شخصي افتراضي بسبب انتهاء المهلة');
+        // If no profile found, create a fallback profile
+        if (error && error.code === 'PGRST116') {
+          console.log('⚠️ لم يتم العثور على الملف الشخصي، إنشاء ملف احتياطي...');
           return {
             id: userId,
             email: user.email || '',
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
-            phone: user.user_metadata?.phone || null,
-            country_code: user.user_metadata?.country_code || '+90',
-            role: 'user',
+            full_name: user.email?.split('@')[0] || 'مستخدم',
+            phone: undefined,
+            country_code: '+90',
+            role: isAdminUser ? 'admin' : 'user',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
         }
+        
+        // If profile doesn't exist, create it
+        if (error?.code === 'PGRST116') { // No rows returned
+          console.log('🔄 محاولة إنشاء ملف شخصي جديد...');
+          
+          const createPromise = supabase
+            .from('user_profiles')
+            .upsert({
+              id: userId,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
+              phone: user.user_metadata?.phone || null,
+              country_code: user.user_metadata?.country_code || '+90',
+              role: isAdminUser ? 'admin' : 'user',
+            })
+            .select()
+            .single();
+            
+          const createTimeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Profile creation timeout')), 3000); // 3 second timeout
+          });
+          
+          const { data: newProfile, error: createError } = await Promise.race([createPromise, createTimeoutPromise]) as any;
+            
+          if (!createError && newProfile) {
+            console.log('✅ تم إنشاء ملف شخصي جديد:', newProfile.full_name);
+            return newProfile;
+          }
+        }
+      } catch (dbError) {
+        console.error('💥 خطأ في قاعدة البيانات:', dbError);
       }
       
-      return result;
+      // Return default profile if database operations fail
+      console.log('🔄 إنشاء ملف شخصي افتراضي');
+      return {
+        id: userId,
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
+        phone: user.user_metadata?.phone || null,
+        country_code: user.user_metadata?.country_code || '+90',
+        role: isAdminUser ? 'admin' : 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     } catch (error) {
       console.error('💥 خطأ في جلب الملف الشخصي:', error);
-      // Return a default profile on error
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        console.log('🔄 إنشاء ملف شخصي افتراضي بسبب الخطأ');
-        return {
-          id: userId,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم',
-          phone: user.user_metadata?.phone || null,
-          country_code: user.user_metadata?.country_code || '+90',
-          role: 'user',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      }
       return null;
     }
   };
@@ -336,11 +396,18 @@ export const useAuth = () => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
-      const { data, error } = await supabase
+      // Add timeout to notifications query
+      const queryPromise = supabase
         .from('service_requests')
         .select('id, status, updated_at, created_at')
         .eq('user_id', userId)
         .gt('updated_at', sevenDaysAgo.toISOString());
+        
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Notifications query timeout')), 1500); // 1.5 second timeout (reduced from 2s)
+      });
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('خطأ في فحص الإشعارات:', error);
@@ -369,7 +436,7 @@ export const useAuth = () => {
       console.log('🔔 حالة الإشعارات:', hasUpdatedRequests);
       return hasUpdatedRequests;
     } catch (error) {
-      console.error('💥 خطأ في فحص الإشعارات:', error);
+      console.error('💥 خطأ في فحص الإشعارات (timeout or other):', error);
       return false;
     }
   };
@@ -530,6 +597,56 @@ export const useAuth = () => {
       console.log('🔐 بدء عملية تسجيل الدخول...');
       console.log('📧 البريد الإلكتروني:', signInData.emailOrPhone);
       
+      // فحص الاتصال أولاً
+      if (!supabase || supabase.supabaseUrl === 'https://dummy.supabase.co') {
+        console.error('❌ Supabase غير مُعد بشكل صحيح');
+        return { 
+          error: {
+            message: 'Supabase غير مُعد بشكل صحيح. يرجى التحقق من متغيرات البيئة.',
+            status: 500,
+            name: 'ConfigurationError'
+          }
+        };
+      }
+      
+      // اختبار الاتصال قبل تسجيل الدخول مع timeout أطول
+      try {
+        console.log('🔍 اختبار الاتصال قبل تسجيل الدخول...');
+        
+        // تجاوز اختبار الاتصال مؤقتاً في حالة وجود مشاكل
+        if (signInData.emailOrPhone === 'test@test.com' && signInData.password === 'test123') {
+          console.log('🧪 وضع الاختبار - تجاوز اختبار الاتصال');
+        } else {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Connection timeout')), 15000); // 15 seconds
+          });
+          
+          const connectionPromise = supabase.auth.getSession();
+          const { data: testData, error: testError } = await Promise.race([connectionPromise, timeoutPromise]) as any;
+          
+          if (testError) {
+            console.error('❌ خطأ في الاتصال مع Supabase:', testError);
+            return { 
+              error: {
+                message: 'لا يمكن الاتصال بخادم Supabase. تحقق من اتصال الإنترنت ومتغيرات البيئة.',
+                status: 500,
+                name: 'ConnectionError'
+              }
+            };
+          }
+          console.log('✅ الاتصال مع Supabase يعمل');
+        }
+      } catch (connectionError) {
+        console.error('❌ فشل في اختبار الاتصال:', connectionError);
+        return { 
+          error: {
+            message: 'فشل في الاتصال بخادم Supabase. تحقق من اتصال الإنترنت.',
+            status: 500,
+            name: 'ConnectionError'
+          }
+        };
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.emailOrPhone,
         password: signInData.password,
@@ -548,54 +665,47 @@ export const useAuth = () => {
         console.log('🔄 تحديث حالة المصادقة يدوياً...');
         console.log('👤 معرف المستخدم:', data.user.id);
         
-        try {
-          // Get profile and notifications with timeout protection
-          const profile = await getUserProfile(data.user.id);
-          const hasNotifications = await checkForNotifications(data.user.id);
-          
-          const newAuthState = {
-            user: data.user,
-            profile,
-            session: data.session,
-            loading: false,
-            hasNotifications,
-          };
-          
-          console.log('📊 الحالة الجديدة:', newAuthState);
-          console.log('📋 الملف الشخصي:', profile);
-          setAuthState(newAuthState);
-          console.log('✅ تم تحديث الحالة يدوياً');
-          
-          // Force a re-render by triggering a state update
-          setTimeout(() => {
-            console.log('🔄 إعادة تحميل الحالة للتأكد من التحديث...');
-            setAuthState(prev => ({ ...prev }));
-          }, 100);
-        } catch (profileError) {
-          console.error('❌ خطأ في جلب الملف الشخصي، استخدام الحالة الافتراضية:', profileError);
-          
-          // Create a default auth state even if profile loading fails
-          const defaultAuthState = {
-            user: data.user,
-            profile: {
-              id: data.user.id,
-              email: data.user.email || '',
-              full_name: data.user.email?.split('@')[0] || 'مستخدم',
-              phone: undefined,
-              country_code: '+90',
-              role: 'user',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            session: data.session,
-            loading: false,
-            hasNotifications: false,
-          };
-          
-          console.log('📊 الحالة الافتراضية:', defaultAuthState);
-          setAuthState(defaultAuthState);
-          console.log('✅ تم تحديث الحالة بالملف الافتراضي');
-        }
+        // Create immediate auth state without waiting for profile
+        const immediateAuthState = {
+          user: data.user,
+          profile: {
+            id: data.user.id,
+            email: data.user.email || '',
+            full_name: data.user.email?.split('@')[0] || 'مستخدم',
+            phone: undefined,
+            country_code: '+90',
+            role: data.user.email === 'admin@tevasul.group' ? 'admin' : 'user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: data.session,
+          loading: false,
+          hasNotifications: false,
+        };
+        
+        console.log('📊 الحالة الفورية:', immediateAuthState);
+        setAuthState(immediateAuthState);
+        console.log('✅ تم تحديث الحالة فورياً');
+        
+        // Try to get profile in background (non-blocking)
+        setTimeout(async () => {
+          try {
+            console.log('🔄 محاولة جلب الملف الشخصي في الخلفية...');
+            const profile = await getUserProfile(data.user.id);
+            const hasNotifications = await checkForNotifications(data.user.id);
+            
+            if (profile) {
+              setAuthState(prev => ({
+                ...prev,
+                profile,
+                hasNotifications,
+              }));
+              console.log('✅ تم تحديث الملف الشخصي في الخلفية');
+            }
+          } catch (error) {
+            console.error('❌ خطأ في جلب الملف الشخصي في الخلفية:', error);
+          }
+        }, 100);
       }
       
       return { error: null };
@@ -606,23 +716,11 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    console.log('🚪 بدء عملية تسجيل الخروج...');
+    
     try {
-      console.log('🚪 تسجيل الخروج...');
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('❌ خطأ في تسجيل الخروج:', error);
-        // Even if server sign-out fails, we should clear local state
-        console.log('⚠️ فشل تسجيل الخروج من الخادم، لكن سيتم تنظيف الحالة المحلية');
-      }
-      
-      console.log('✅ تم تسجيل الخروج بنجاح');
-      return { error: null };
-    } catch (error) {
-      console.error('💥 خطأ غير متوقع في تسجيل الخروج:', error);
-    } finally {
-      // Always clear local state regardless of server response
-      console.log('🧹 تنظيف الحالة المحلية...');
+      // First, clear local state immediately
+      console.log('🧹 تنظيف الحالة المحلية فوراً...');
       setAuthState({
         user: null,
         profile: null,
@@ -630,9 +728,101 @@ export const useAuth = () => {
         loading: false,
         hasNotifications: false,
       });
+      
+      // Then try to sign out from Supabase
+      console.log('🌐 محاولة تسجيل الخروج من Supabase...');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('❌ خطأ في تسجيل الخروج من Supabase:', error);
+        console.log('⚠️ تم تنظيف الحالة المحلية رغم فشل تسجيل الخروج من الخادم');
+      } else {
+        console.log('✅ تم تسجيل الخروج من Supabase بنجاح');
+      }
+      
+      // Force a re-render to ensure UI updates
+      setTimeout(() => {
+        console.log('🔄 إعادة تحميل الحالة للتأكد من التحديث...');
+        setAuthState(prev => ({ ...prev }));
+      }, 100);
+      
+      console.log('✅ تم إكمال عملية تسجيل الخروج');
+      return { error: null };
+      
+    } catch (error) {
+      console.error('💥 خطأ غير متوقع في تسجيل الخروج:', error);
+      
+      // Even if there's an error, ensure state is cleared
+      setAuthState({
+        user: null,
+        profile: null,
+        session: null,
+        loading: false,
+        hasNotifications: false,
+      });
+      
+      return { error: error as any };
     }
+  };
+
+  // Debug function to check current auth state
+  const debugAuthState = () => {
+    console.log('🔍 Debug Auth State:', {
+      user: authState.user?.email || 'null',
+      profile: authState.profile?.full_name || 'null',
+      loading: authState.loading,
+      session: authState.session ? 'exists' : 'null',
+      hasNotifications: authState.hasNotifications,
+      initialized: initialized
+    });
+  };
+
+  // Force clear auth state
+  const forceClearAuth = () => {
+    console.log('🧹 Force clearing auth state...');
+    setAuthState({
+      user: null,
+      profile: null,
+      session: null,
+      loading: false,
+      hasNotifications: false,
+    });
+    setInitialized(false);
+    console.log('✅ Auth state cleared');
+  };
+
+  // Test sign out function
+  const testSignOut = async () => {
+    console.log('🧪 Testing sign out...');
+    console.log('📊 Before sign out:', {
+      user: authState.user?.email,
+      profile: authState.profile?.full_name,
+      loading: authState.loading
+    });
     
-    return { error: null };
+    const result = await signOut();
+    
+    console.log('📊 After sign out:', {
+      user: authState.user?.email,
+      profile: authState.profile?.full_name,
+      loading: authState.loading
+    });
+    
+    console.log('📊 Sign out result:', result);
+    return result;
+  };
+
+  // Simple synchronous sign out (bypasses Supabase)
+  const simpleSignOut = () => {
+    console.log('🚪 Simple sign out (bypassing Supabase)...');
+    setAuthState({
+      user: null,
+      profile: null,
+      session: null,
+      loading: false,
+      hasNotifications: false,
+    });
+    console.log('✅ Simple sign out completed');
   };
 
   return {
@@ -641,5 +831,9 @@ export const useAuth = () => {
     signIn,
     signOut,
     clearNotifications,
+    debugAuthState,
+    forceClearAuth,
+    testSignOut,
+    simpleSignOut,
   };
 };

@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // التحقق من متغيرات البيئة
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fctvityawavmuethxxix.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdHZpdHlhd2F2bXVldGh4eGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzA5ODAsImV4cCI6MjA3MDY0Njk4MH0.d6T4MrGgV3vK';
 
 console.log('🔧 فحص متغيرات البيئة:');
 console.log('URL موجود:', !!supabaseUrl);
@@ -25,20 +25,66 @@ if (!supabaseUrl || !supabaseAnonKey) {
   supabaseClient.isConnected = false;
   supabaseClient.connectionError = 'Supabase environment variables are missing. Please create a .env file with your Supabase credentials.';
 } else {
-  // إنشاء عميل Supabase بأبسط إعدادات ممكنة
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  console.log('🔧 فحص متغيرات البيئة:');
+  console.log('URL:', supabaseUrl);
+  console.log('Key موجود:', !!supabaseAnonKey);
   
-  console.log('✅ تم إنشاء عميل Supabase بنجاح');
-  
-  // اختبار الاتصال
-  supabaseClient.auth.getSession().then(({ data, error }: any) => {
-    if (error) {
-      console.error('❌ خطأ في الاتصال مع Supabase:', error);
-      console.error('❌ تأكد من صحة متغيرات البيئة');
-    } else {
-      console.log('✅ الاتصال مع Supabase يعمل بنجاح');
-    }
-  });
+  // التحقق من صحة URL
+  if (!supabaseUrl.includes('supabase.co')) {
+    console.error('❌ URL غير صحيح! يجب أن يحتوي على supabase.co');
+    supabaseClient = createClient('https://dummy.supabase.co', 'dummy-key');
+    supabaseClient.isConnected = false;
+    supabaseClient.connectionError = 'Invalid Supabase URL. URL must contain supabase.co';
+  } else {
+    // إنشاء عميل Supabase بأبسط إعدادات ممكنة
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    });
+    
+    console.log('✅ تم إنشاء عميل Supabase بنجاح');
+    
+    // اختبار الاتصال مع timeout أطول
+    const testConnection = async () => {
+      try {
+        console.log('🔍 اختبار الاتصال مع Supabase...');
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Connection timeout')), 30000); // 30 seconds
+        });
+        
+        const connectionPromise = supabaseClient.auth.getSession();
+        const { data, error } = await Promise.race([connectionPromise, timeoutPromise]) as any;
+        
+        if (error) {
+          console.error('❌ خطأ في الاتصال مع Supabase:', error);
+          console.error('❌ تأكد من صحة متغيرات البيئة');
+          supabaseClient.isConnected = false;
+          supabaseClient.connectionError = error.message;
+        } else {
+          console.log('✅ الاتصال مع Supabase يعمل بنجاح');
+          supabaseClient.isConnected = true;
+        }
+      } catch (error) {
+        console.error('❌ فشل في اختبار الاتصال:', error);
+        supabaseClient.isConnected = false;
+        supabaseClient.connectionError = error instanceof Error ? error.message : 'Connection failed';
+        
+        // إعادة المحاولة بعد 5 ثوانٍ
+        setTimeout(() => {
+          console.log('🔄 إعادة محاولة الاتصال مع Supabase...');
+          testConnection();
+        }, 5000);
+      }
+    };
+    
+    // تأخير اختبار الاتصال قليلاً
+    setTimeout(() => {
+      testConnection();
+    }, 1000);
+  }
 }
 
 export const supabase = supabaseClient;

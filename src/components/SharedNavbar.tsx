@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, X, Sun, Moon, Globe, LogIn, UserPlus, User, Settings, ChevronDown, FileText, HelpCircle, LogOut } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
@@ -48,6 +49,7 @@ const SharedNavbar: React.FC<SharedNavbarProps> = ({
 }) => {
   const { user, profile, signOut, hasNotifications, clearNotifications } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
+  const navigate = useNavigate();
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
   // Check if user is admin
@@ -223,19 +225,19 @@ const SharedNavbar: React.FC<SharedNavbarProps> = ({
             {/* Auth Buttons */}
             {user ? (
               <div className="flex items-center space-x-4 space-x-reverse">
-                {isAdmin && onShowAdminDashboard && (
-                  <button
-                    onClick={onShowAdminDashboard}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                      scrollY > 50 
-                        ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                        : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4 ml-1" />
-                    <span className="hidden sm:inline">لوحة التحكم</span>
-                  </button>
-                )}
+                            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin')}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                  scrollY > 50 
+                    ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
+                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
+                }`}
+              >
+                <Settings className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">لوحة التحكم</span>
+              </button>
+            )}
                 <div className="relative user-dropdown-container">
                   <button
                     onClick={() => setShowUserDropdown(!showUserDropdown)}

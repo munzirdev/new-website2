@@ -6,10 +6,15 @@ interface AuthContextType {
   profile: any;
   loading: boolean;
   hasNotifications: boolean;
+  session: any;
   signUp: (data: any) => Promise<{ error: any }>;
   signIn: (data: any) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
   clearNotifications: () => void;
+  debugAuthState: () => void;
+  forceClearAuth: () => void;
+  testSignOut: () => Promise<{ error: any }>;
+  simpleSignOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

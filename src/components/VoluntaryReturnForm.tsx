@@ -3,6 +3,7 @@ import { ArrowRight, FileText, Download, Printer, Plus, X, Users, Globe, Shield,
 import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { useAuthContext } from './AuthProvider';
+import { supabase } from '../lib/supabase';
 
 interface RefakatEntry {
   id: string;
@@ -24,6 +25,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
   const { user } = useAuthContext();
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [formData, setFormData] = useState({
     fullNameTR: '',
     fullNameAR: '',
@@ -53,16 +55,71 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     setRefakatEntries(updated);
   };
 
+  const testDatabaseConnection = async () => {
+    setIsTestingConnection(true);
+    setSaveMessage('');
+    
+    try {
+      console.log('🔍 اختبار الاتصال بقاعدة البيانات...');
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        throw new Error('خطأ في المصادقة: ' + authError.message);
+      }
+      
+      if (!user) {
+        throw new Error('المستخدم غير مسجل الدخول');
+      }
+      
+      console.log('✅ المستخدم مسجل الدخول:', user.id);
+      
+      // اختبار الاتصال بجدول voluntary_return_forms
+      const { data, error } = await supabase
+        .from('voluntary_return_forms')
+        .select('id')
+        .limit(1);
+      
+      if (error) {
+        if (error.code === 'PGRST205') {
+          throw new Error('الجدول voluntary_return_forms غير موجود. يرجى إنشاؤه أولاً.');
+        } else if (error.message?.includes('permission') || error.message?.includes('denied')) {
+          throw new Error('خطأ في الصلاحيات. تأكد من إعدادات RLS والسياسات.');
+        } else {
+          throw new Error('خطأ في الاتصال بقاعدة البيانات: ' + error.message);
+        }
+      }
+      
+      console.log('✅ الاتصال بقاعدة البيانات يعمل');
+      setSaveMessage(language === 'ar' ? '✅ الاتصال بقاعدة البيانات يعمل بشكل صحيح' : '✅ Database connection is working');
+      
+    } catch (error: any) {
+      console.error('❌ خطأ في اختبار الاتصال:', error);
+      setSaveMessage(language === 'ar' ? '❌ خطأ في الاتصال: ' + error.message : '❌ Connection error: ' + error.message);
+    } finally {
+      setIsTestingConnection(false);
+      setTimeout(() => setSaveMessage(''), 5000);
+    }
+  };
+
   const saveFormToDatabase = async () => {
+    console.log('🔍 بدء عملية حفظ النموذج...');
+    
     if (!user) {
-      alert(language === 'ar' ? 'يجب تسجيل الدخول لحفظ النموذج' : 'Lütfen formu kaydetmek için giriş yapın');
+      const message = language === 'ar' ? 'يجب تسجيل الدخول لحفظ النموذج' : 'Lütfen formu kaydetmek için giriş yapın';
+      console.error('❌', message);
+      alert(message);
       return;
     }
 
     const { fullNameTR, fullNameAR, kimlikNo, sinirKapisi, gsm, changeDate, customDate } = formData;
 
+    console.log('📊 بيانات النموذج:', formData);
+
     if (!fullNameTR || !fullNameAR || !kimlikNo || !sinirKapisi) {
-      alert(language === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة' : 'Lütfen tüm zorunlu alanları doldurunuz');
+      const message = language === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة' : 'Lütfen tüm zorunlu alanları doldurunuz';
+      console.error('❌', message);
+      alert(message);
       return;
     }
 
@@ -71,6 +128,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
     try {
       const validRefakat = refakatEntries.filter(entry => entry.id && entry.name);
+      console.log('👥 المرافقون الصالحون:', validRefakat);
       
       const formDataToSave = {
         full_name_tr: fullNameTR,
@@ -82,18 +140,52 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
         refakat_entries: validRefakat
       };
 
+      console.log('💾 بيانات الحفظ:', formDataToSave);
+
       const { data, error } = await voluntaryReturnService.createForm(formDataToSave);
 
       if (error) {
+        console.error('❌ خطأ من الخدمة:', error);
         throw error;
       }
 
-      setSaveMessage(language === 'ar' ? 'تم حفظ النموذج بنجاح!' : 'Form başarıyla kaydedildi!');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Error saving form:', error);
-      setSaveMessage(language === 'ar' ? 'خطأ في حفظ النموذج' : 'Form kaydedilirken hata oluştu');
-      setTimeout(() => setSaveMessage(''), 3000);
+      console.log('✅ تم الحفظ بنجاح:', data);
+      const successMessage = language === 'ar' ? 'تم حفظ النموذج بنجاح!' : 'Form başarıyla kaydedildi!';
+      setSaveMessage(successMessage);
+      setTimeout(() => setSaveMessage(''), 5000);
+      
+      // إعادة تعيين النموذج بعد الحفظ الناجح
+      setFormData({
+        fullNameTR: '',
+        fullNameAR: '',
+        kimlikNo: '',
+        sinirKapisi: '',
+        gsm: '',
+        changeDate: 'no',
+        customDate: ''
+      });
+      setRefakatEntries([{ id: '', name: '' }]);
+      
+    } catch (error: any) {
+      console.error('💥 خطأ في حفظ النموذج:', error);
+      
+      let errorMessage = language === 'ar' ? 'خطأ في حفظ النموذج' : 'Form kaydedilirken hata oluştu';
+      
+      // رسائل خطأ أكثر تفصيلاً
+      if (error?.message) {
+        if (error.message.includes('المصادقة')) {
+          errorMessage = language === 'ar' ? 'خطأ في المصادقة - يرجى إعادة تسجيل الدخول' : 'Authentication error - please login again';
+        } else if (error.message.includes('مكتملة')) {
+          errorMessage = language === 'ar' ? 'جميع الحقول المطلوبة يجب أن تكون مملوءة' : 'All required fields must be filled';
+        } else if (error.message.includes('غير متوقع')) {
+          errorMessage = language === 'ar' ? 'خطأ غير متوقع - يرجى المحاولة مرة أخرى' : 'Unexpected error - please try again';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setSaveMessage(errorMessage);
+      setTimeout(() => setSaveMessage(''), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -546,6 +638,16 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
+            {/* Test Database Connection Button */}
+            <button
+              onClick={testDatabaseConnection}
+              disabled={isTestingConnection}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Zap className="w-4 h-4" />
+              {isTestingConnection ? (language === 'ar' ? 'اختبار الاتصال...' : 'Testing...') : (language === 'ar' ? 'اختبار الاتصال' : 'Test Connection')}
+            </button>
+            
             {user && (
               <button
                 onClick={saveFormToDatabase}

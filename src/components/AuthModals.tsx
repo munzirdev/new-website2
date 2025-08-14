@@ -170,16 +170,22 @@ const AuthModals: React.FC<AuthModalsProps> = ({
         setError(errorMessage);
         setLoading(false);
         
-        // Check if it's a Supabase connection issue
-        if (result.error.message?.includes('fetch') || result.error.message?.includes('network') || result.error.message?.includes('connection')) {
+                // Check if it's a Supabase connection issue
+        if (result.error.message?.includes('fetch') || result.error.message?.includes('network') || result.error.message?.includes('connection') || result.error.name === 'ConnectionError' || result.error.message?.includes('timeout')) {
           console.error('🌐 مشكلة في الاتصال - تحقق من متغيرات البيئة');
-          setError('مشكلة في الاتصال. يرجى التحقق من إعدادات الخادم.');
+          setError('مشكلة في الاتصال بخادم Supabase. تحقق من اتصال الإنترنت ومتغيرات البيئة. جرب استخدام: test@test.com / test123');
         }
-        
+
         // Check for missing environment variables
-        if (result.error.message?.includes('dummy') || result.error.message?.includes('environment')) {
+        if (result.error.message?.includes('dummy') || result.error.message?.includes('environment') || result.error.name === 'ConfigurationError') {
           console.error('🔧 متغيرات البيئة مفقودة - يرجى إنشاء ملف .env');
-          setError('إعدادات الخادم مفقودة. يرجى إنشاء ملف .env مع بيانات Supabase.');
+          setError('إعدادات Supabase مفقودة. يرجى إنشاء ملف .env مع بيانات المشروع الصحيحة.');
+        }
+
+        // Check for DNS resolution issues
+        if (result.error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+          console.error('🌐 مشكلة في حل اسم النطاق - تحقق من URL');
+          setError('لا يمكن الوصول إلى خادم Supabase. تحقق من صحة عنوان URL في ملف .env');
         }
       } else {
         console.log('✅ تم تسجيل الدخول بنجاح، بدء الحركة الانتقالية');
@@ -346,6 +352,21 @@ const AuthModals: React.FC<AuthModalsProps> = ({
     setLoading(false);
     setLoginData({ emailOrPhone: '', password: '' });
   };
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isLoginOpen) onCloseLogin();
+        if (isSignupOpen) onCloseSignup();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isLoginOpen, isSignupOpen, onCloseLogin, onCloseSignup]);
 
   // Don't render if modals are not open
   if (!isLoginOpen && !isSignupOpen) return null;

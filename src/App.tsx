@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, CreditCard, Building, ChevronDown, CheckCircle, Shield, Clock, LogIn, UserPlus, User, Settings, Bell, HelpCircle, LogOut } from 'lucide-react';
+import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, CreditCard, Building, ChevronDown, CheckCircle, Shield, Clock, LogIn, UserPlus, User, Settings, Bell, HelpCircle, LogOut, Send } from 'lucide-react';
 import { useLocation, useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuthContext } from './components/AuthProvider';
 import { useLanguage } from './hooks/useLanguage';
@@ -12,6 +12,9 @@ import UserAccount from './components/UserAccount';
 import ProfileEdit from './components/ProfileEdit';
 import HelpSupport from './components/HelpSupport';
 import VoluntaryReturnForm from './components/VoluntaryReturnForm';
+import VoluntaryReturnPage from './components/VoluntaryReturnPage';
+import { supabase } from './lib/supabase';
+
 import { servicesData } from './data/services';
 
 function App() {
@@ -44,6 +47,17 @@ function App() {
     serviceType: '',
     serviceTitle: ''
   });
+  
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    serviceType: '',
+    message: ''
+  });
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
   const { user, profile, loading: authLoading, signOut, hasNotifications, clearNotifications } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
   const isArabic = language === 'ar';
@@ -148,8 +162,12 @@ function App() {
         navigate('/home', { replace: true });
       }
     } else {
-      setIsLoginOpen(false);
-      setIsSignupOpen(false);
+      // إغلاق المودال عند الانتقال لمسارات أخرى
+      if (isLoginOpen || isSignupOpen) {
+        console.log('🔄 إغلاق المودال - الانتقال لمسار آخر');
+        setIsLoginOpen(false);
+        setIsSignupOpen(false);
+      }
     }
     
     // Handle user account routes
@@ -174,7 +192,7 @@ function App() {
     }
     
     // Handle admin routes
-    if (path === '/admin') {
+    if (path.startsWith('/admin')) {
       setShowAdminDashboard(true);
     } else {
       setShowAdminDashboard(false);
@@ -243,22 +261,30 @@ function App() {
     };
   }, []);
 
-  // Redirect to home page after successful authentication
+  // Redirect after successful authentication
   useEffect(() => {
-    if (!authLoading && user && profile) {
+    if (!authLoading && user) {
       const currentPath = location.pathname;
       
-      // If user is authenticated and on login/signup routes, redirect to home
+      // If user is authenticated and on login/signup routes, redirect appropriately
       if (currentPath === '/login' || currentPath === '/signup') {
-        console.log('🔄 المستخدم مسجل دخول، إعادة توجيه إلى الصفحة الرئيسية');
+        console.log('🔄 المستخدم مسجل دخول، إعادة توجيه');
         // Close modals first
         setIsLoginOpen(false);
         setIsSignupOpen(false);
-        // Then navigate
-        navigate('/home', { replace: true });
+        
+        // Check if user is admin and redirect accordingly
+        const isAdmin = user.email === 'admin@tevasul.group';
+        if (isAdmin) {
+          console.log('🔧 إعادة توجيه الأدمن إلى لوحة التحكم');
+          navigate('/admin', { replace: true });
+        } else {
+          console.log('👤 إعادة توجيه المستخدم العادي إلى الصفحة الرئيسية');
+          navigate('/home', { replace: true });
+        }
       }
     }
-  }, [user, profile, authLoading, location.pathname, navigate]);
+  }, [user, authLoading, location.pathname, navigate]);
 
   // Force close modals if user is authenticated
   useEffect(() => {
@@ -270,27 +296,38 @@ function App() {
       // Also navigate away from login/signup routes
       if (location.pathname === '/login' || location.pathname === '/signup') {
         console.log('🔄 إعادة توجيه من صفحة تسجيل الدخول');
-        navigate('/home', { replace: true });
+        const isAdmin = user.email === 'admin@tevasul.group';
+        if (isAdmin) {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/home', { replace: true });
+        }
       }
     }
   }, [user, authLoading, isLoginOpen, isSignupOpen, location.pathname, navigate]);
 
   // Immediate navigation after successful authentication
   useEffect(() => {
-    if (!authLoading && user && profile) {
+    if (!authLoading && user) {
       const currentPath = location.pathname;
       console.log('🔍 فحص المسار الحالي بعد تسجيل الدخول:', currentPath);
       
       if (currentPath === '/login' || currentPath === '/signup') {
-        console.log('🚀 تنفيذ إعادة التوجيه الفوري إلى الصفحة الرئيسية');
+        console.log('🚀 تنفيذ إعادة التوجيه الفوري');
         // Use React Router navigation instead of window.location
         setTimeout(() => {
-          console.log('🔄 تغيير الموقع مباشرة إلى /home');
-          navigate('/home', { replace: true });
+          const isAdmin = user.email === 'admin@tevasul.group';
+          if (isAdmin) {
+            console.log('🔄 تغيير الموقع مباشرة إلى /admin');
+            navigate('/admin', { replace: true });
+          } else {
+            console.log('🔄 تغيير الموقع مباشرة إلى /home');
+            navigate('/home', { replace: true });
+          }
         }, 100);
       }
     }
-  }, [user, profile, authLoading, location.pathname, navigate]);
+  }, [user, authLoading, location.pathname, navigate]);
 
   // Show welcome message when user logs in
   useEffect(() => {
@@ -298,9 +335,12 @@ function App() {
     const justLoggedIn = localStorage.getItem('justLoggedIn');
     const openServiceRequest = localStorage.getItem('openServiceRequest');
     
-    if (!authLoading && user && profile && justLoggedIn === 'true') {
+    if (!authLoading && user && justLoggedIn === 'true') {
       console.log('🎉 المستخدم سجل دخوله للتو، عرض رسالة الترحيب');
-      console.log('👤 بيانات المستخدم:', { email: user.email, name: profile.full_name });
+      console.log('👤 بيانات المستخدم:', { email: user.email, name: profile?.full_name || user.email });
+      
+      // Check if user is admin
+      const isAdmin = user.email === 'admin@tevasul.group';
       
       // تنظيف localStorage
       localStorage.removeItem('justLoggedIn');
@@ -341,6 +381,26 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [user, profile, authLoading]);
+
+  // Comprehensive admin redirection effect
+  useEffect(() => {
+    if (!authLoading && user) {
+      const isAdmin = user.email === 'admin@tevasul.group';
+      const currentPath = location.pathname;
+      
+      // If admin is on home page or any non-admin route, redirect to admin dashboard
+      if (isAdmin && currentPath === '/home') {
+        console.log('🔧 الأدمن على الصفحة الرئيسية، إعادة توجيه إلى لوحة التحكم');
+        navigate('/admin', { replace: true });
+      }
+      
+      // If admin is on root path, redirect to admin dashboard
+      if (isAdmin && currentPath === '/') {
+        console.log('🔧 الأدمن على المسار الجذر، إعادة توجيه إلى لوحة التحكم');
+        navigate('/admin', { replace: true });
+      }
+    }
+  }, [user, authLoading, location.pathname, navigate]);
 
   useEffect(() => {
     const body = document.body;
@@ -410,8 +470,23 @@ function App() {
     navigate('/signup');
   };
 
-  const closeLogin = () => setIsLoginOpen(false);
-  const closeSignup = () => setIsSignupOpen(false);
+  const closeLogin = () => {
+    setIsLoginOpen(false);
+    // إعادة توجيه للصفحة الرئيسية عند إغلاق مودال تسجيل الدخول
+    if (location.pathname === '/login') {
+      console.log('🔄 إغلاق مودال تسجيل الدخول - إعادة توجيه للصفحة الرئيسية');
+      navigate('/home', { replace: true });
+    }
+  };
+  
+  const closeSignup = () => {
+    setIsSignupOpen(false);
+    // إعادة توجيه للصفحة الرئيسية عند إغلاق مودال تسجيل الحساب
+    if (location.pathname === '/signup') {
+      console.log('🔄 إغلاق مودال تسجيل الحساب - إعادة توجيه للصفحة الرئيسية');
+      navigate('/home', { replace: true });
+    }
+  };
 
   const switchToSignup = () => {
     setIsLoginOpen(false);
@@ -469,6 +544,120 @@ function App() {
       serviceType: '',
       serviceTitle: ''
     });
+  };
+
+  // Contact form submission handler
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Prevent double submission
+    if (contactLoading) {
+      console.log('⚠️ منع الإرسال المزدوج');
+      return;
+    }
+    
+    console.log('🔍 بدء إرسال رسالة التواصل...');
+    console.log('👤 المستخدم:', user?.email);
+    console.log('📝 بيانات النموذج:', contactForm);
+    
+    if (!user) {
+      console.log('❌ المستخدم غير مسجل دخول');
+      setContactError(language === 'ar' ? 'يجب تسجيل الدخول أولاً لإرسال الرسالة' : 'Mesaj göndermek için önce giriş yapmalısınız');
+      return;
+    }
+
+    // Validate form
+    if (!contactForm.name.trim() || !contactForm.email.trim() || !contactForm.message.trim()) {
+      console.log('❌ النموذج غير مكتمل');
+      setContactError(language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Lütfen tüm gerekli alanları doldurun');
+      return;
+    }
+
+    setContactLoading(true);
+    setContactError(null);
+    setContactSuccess(false);
+    console.log('⏳ بدء عملية الإرسال...');
+
+    try {
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000); // 10 seconds timeout
+      });
+
+      // Check if Supabase is properly configured
+      if (!supabase || !supabase.from) {
+        console.error('❌ Supabase غير مُعد بشكل صحيح');
+        setContactError(language === 'ar' ? 'مشكلة في إعداد قاعدة البيانات. يرجى المحاولة مرة أخرى لاحقاً.' : 'Veritabanı yapılandırmasında sorun. Lütfen daha sonra tekrar deneyin.');
+        setContactLoading(false);
+        return;
+      }
+
+      // First, test the connection
+      console.log('🔍 اختبار الاتصال مع Supabase...');
+      const testPromise = supabase
+        .from('support_messages')
+        .select('count')
+        .limit(1);
+      
+      const { data: testData, error: testError } = await Promise.race([testPromise, timeoutPromise]) as any;
+      console.log('🔍 نتيجة اختبار الاتصال:', { testData, testError });
+      
+      if (testError) {
+        console.error('❌ فشل في اختبار الاتصال:', testError);
+        setContactError(language === 'ar' ? 'فشل في الاتصال بقاعدة البيانات. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.' : 'Veritabanına bağlantı başarısız. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.');
+        setContactLoading(false);
+        return;
+      }
+      
+      const messageData = {
+        user_id: user.id,
+        name: contactForm.name.trim(),
+        email: contactForm.email.trim(),
+        subject: contactForm.serviceType ? `${contactForm.serviceType} - ${language === 'ar' ? 'طلب خدمة' : 'Service Request'}` : (language === 'ar' ? 'رسالة تواصل' : 'Contact Message'),
+        message: contactForm.message.trim(),
+        status: 'pending'
+      };
+      
+      console.log('📤 إرسال البيانات:', messageData);
+      
+      const insertPromise = supabase
+        .from('support_messages')
+        .insert(messageData)
+        .select();
+
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+      console.log('📥 استجابة قاعدة البيانات:', { data, error });
+
+      if (error) {
+        console.error('❌ خطأ في إرسال الرسالة:', error);
+        setContactError(language === 'ar' ? 'حدث خطأ في إرسال الرسالة. يرجى المحاولة مرة أخرى.' : 'Mesaj gönderilirken hata oluştu. Lütfen tekrar deneyin.');
+        setContactLoading(false);
+        return;
+      }
+
+      console.log('✅ تم إرسال الرسالة بنجاح:', data);
+      setContactSuccess(true);
+      setContactForm({ name: '', email: '', serviceType: '', message: '' });
+      setContactLoading(false);
+      
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setContactSuccess(false);
+      }, 3000);
+
+    } catch (error) {
+      console.error('💥 خطأ غير متوقع:', error);
+      
+      if (error instanceof Error && error.message === 'Request timeout') {
+        setContactError(language === 'ar' ? 'انتهت مهلة الطلب. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.' : 'İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.');
+      } else {
+        setContactError(language === 'ar' ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.' : 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.');
+      }
+    } finally {
+      console.log('🏁 إنهاء عملية الإرسال');
+      setContactLoading(false);
+    }
   };
 
   // Define services with icons and translations
@@ -614,7 +803,7 @@ function App() {
 
   // If admin dashboard is open, show it
   if (showAdminDashboard) {
-    return <AdminDashboard onBack={() => setShowAdminDashboard(false)} isDarkMode={isDarkMode} />;
+    return <AdminDashboard onBack={() => navigate('/home')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />;
   }
 
   // If user account is open, show it
@@ -622,11 +811,6 @@ function App() {
     return <UserAccount 
       onBack={() => setShowUserAccount(false)} 
       isDarkMode={isDarkMode}
-      onNavigateToContact={scrollToContact}
-      onOpenProfile={() => setShowProfileEdit(true)}
-      onOpenHelp={() => setShowHelpSupport(true)}
-      onToggleDarkMode={toggleDarkMode}
-      onNavigateToMainHome={navigateToMainHome}
     />;
   }
 
@@ -635,11 +819,6 @@ function App() {
     return <ProfileEdit 
       onBack={() => setShowProfileEdit(false)} 
       isDarkMode={isDarkMode}
-      onNavigateToContact={scrollToContact}
-      onOpenAccount={() => setShowUserAccount(true)}
-      onOpenHelp={() => setShowHelpSupport(true)}
-      onToggleDarkMode={toggleDarkMode}
-      onNavigateToMainHome={navigateToMainHome}
     />;
   }
 
@@ -648,17 +827,110 @@ function App() {
     return <HelpSupport 
       onBack={() => setShowHelpSupport(false)} 
       isDarkMode={isDarkMode}
-      onNavigateToContact={scrollToContact}
-      onOpenProfile={() => setShowProfileEdit(true)}
-      onOpenAccount={() => setShowUserAccount(true)}
-      onToggleDarkMode={toggleDarkMode}
-      onNavigateToMainHome={navigateToMainHome}
     />;
   }
 
-  // If voluntary return form is requested, show it
+  // If voluntary return page is requested, show it
   if (location.pathname === '/voluntary-return') {
-    return <VoluntaryReturnForm isDarkMode={isDarkMode} />;
+    return (
+      <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            /* Hide default cursor everywhere */
+            html, body, * {
+              cursor: none !important;
+            }
+            
+            /* Specific elements */
+            button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
+              cursor: none !important;
+            }
+            
+            /* Dropdowns and modals */
+            .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
+            [class*="dropdown"], [class*="modal"], [class*="popup"] {
+              cursor: none !important;
+            }
+            
+            /* All children elements */
+            * * {
+              cursor: none !important;
+            }
+            
+            /* Force override any other cursor styles */
+            * {
+              cursor: none !important;
+            }
+
+            /* Exception for logo button to allow clicks */
+            .logo-button {
+              cursor: pointer !important;
+            }
+
+            /* Show default cursor on touch devices */
+            @media (hover: none) and (pointer: coarse) {
+              html, body, * {
+                cursor: auto !important;
+              }
+              
+              button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
+                cursor: pointer !important;
+              }
+              
+              .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
+              [class*="dropdown"], [class*="modal"], [class*="popup"] {
+                cursor: auto !important;
+              }
+              
+              * * {
+                cursor: auto !important;
+              }
+              
+              * {
+                cursor: auto !important;
+              }
+            }
+          `
+        }} />
+        
+        <VoluntaryReturnPage 
+          onBack={() => navigate('/home')} 
+          isDarkMode={isDarkMode}
+        />
+
+        {/* Auth Modals */}
+        <AuthModals
+          isLoginOpen={isLoginOpen}
+          isSignupOpen={isSignupOpen}
+          onCloseLogin={closeLogin}
+          onCloseSignup={closeSignup}
+          onSwitchToSignup={switchToSignup}
+          onSwitchToLogin={switchToLogin}
+          isDarkMode={isDarkMode}
+          setShowWelcome={setShowWelcome}
+          onNavigateToHome={navigateToMainHome}
+        />
+
+        {/* Welcome Message */}
+        {showWelcome && user && (
+          <WelcomeMessage
+            userName={profile?.full_name || user.email || 'مستخدم'}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
+
+        {/* Service Request Form */}
+        <ServiceRequestForm
+          isOpen={serviceRequestForm.isOpen}
+          onClose={closeServiceRequestForm}
+          serviceType={serviceRequestForm.serviceType}
+          serviceTitle={serviceRequestForm.serviceTitle}
+          isDarkMode={isDarkMode}
+        />
+
+
+      </div>
+    );
   }
 
   return (
@@ -807,7 +1079,7 @@ function App() {
                 <div className="flex items-center space-x-4 space-x-reverse">
                   {isAdmin && (
                     <button
-                      onClick={() => setShowAdminDashboard(true)}
+                      onClick={() => navigate('/admin')}
                       className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                         scrollY > 50 
                           ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
@@ -1008,7 +1280,7 @@ function App() {
                     : 'left-1 bg-white shadow-lg'
                 }`}>
                   {isDarkMode ? (
-                    <Sun className="w-3 h-3 text-yellow-400" />
+                    <Sun className="w-3 h-3 text-sky-400" />
                   ) : (
                     <Moon className="w-3 h-3 text-gray-600" />
                   )}
@@ -1081,7 +1353,7 @@ function App() {
                     : 'left-0.5 bg-white shadow-lg'
                 }`}>
                   {isDarkMode ? (
-                    <Sun className="w-2 h-2 text-yellow-400" />
+                    <Sun className="w-2 h-2 text-sky-400" />
                   ) : (
                     <Moon className="w-2 h-2 text-gray-600" />
                   )}
@@ -1157,14 +1429,18 @@ function App() {
                       <button
                         key={lang}
                         onClick={() => handleLanguageChange(lang)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-lg flag-shadow flag-gloss transition-all duration-200 ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center flag-shadow flag-gloss transition-all duration-200 ${
                           language === lang 
                             ? 'ring-2 ring-caribbean-400 ring-offset-1 ring-offset-white dark:ring-offset-jet-700' 
                             : 'bg-white dark:bg-jet-600 hover:ring-2 hover:ring-caribbean-200 hover:ring-offset-1 hover:ring-offset-white dark:hover:ring-offset-jet-700'
                         }`}
                         title={t(`language.${lang === 'ar' ? 'arabic' : lang === 'tr' ? 'turkish' : 'english'}`)}
                       >
-                        {getLanguageFlag(lang)}
+                        <img 
+                          src={getLanguageFlag(lang)} 
+                          alt={`${getLanguageName(lang)} flag`}
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
                       </button>
                     ))}
                   </div>
@@ -1180,6 +1456,22 @@ function App() {
                         {t('user.welcome')} {profile?.full_name || user.email}
                       </span>
                     </div>
+                    
+                    {/* Admin Control Panel Button - Mobile */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          navigate('/admin');
+                          setIsMenuOpen(false);
+                          setShowUserDropdown(false);
+                        }}
+                        className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
+                      >
+                        <Settings className="w-4 h-4 ml-2" />
+                        لوحة التحكم
+                      </button>
+                    )}
+                    
                     <button
                       onClick={() => {
                         handleUserAccountClick();
@@ -1375,8 +1667,8 @@ function App() {
             </div>
             
             {/* Government Service */}
-            <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-orange-500/40 rounded-full flex items-center justify-center animate-float-wide-slower delay-3000 shadow-lg">
-              <Building className="w-8 h-8 text-orange-300" />
+            <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-blue-500/40 rounded-full flex items-center justify-center animate-float-wide-slower delay-3000 shadow-lg">
+              <Building className="w-8 h-8 text-blue-300" />
             </div>
             
             {/* Insurance Service */}
@@ -1387,7 +1679,7 @@ function App() {
             {/* Additional Animated Elements */}
             <div className="absolute top-1/6 right-1/6 w-24 h-24 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 rounded-full animate-spin-slow"></div>
             <div className="absolute bottom-1/6 left-1/6 w-20 h-20 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-full animate-spin-slow-reverse"></div>
-            <div className="absolute top-1/2 left-1/6 w-16 h-16 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 rounded-full animate-bounce-slow"></div>
+            <div className="absolute top-1/2 left-1/6 w-16 h-16 bg-gradient-to-r from-sky-400/20 to-blue-400/20 rounded-full animate-bounce-slow"></div>
             <div className="absolute top-1/2 right-1/6 w-18 h-18 bg-gradient-to-r from-green-400/20 to-teal-400/20 rounded-full animate-pulse-slow delay-500"></div>
             
             {/* Animated Lines */}
@@ -1461,7 +1753,7 @@ function App() {
             </div>
             <div className="w-px h-8 md:h-12 bg-white/30"></div>
             <div className="text-center">
-          <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-yellow-300 animate-count-up-delayed-2">10+</div>
+          <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-sky-300 animate-count-up-delayed-2">10+</div>
           <div className="text-xs md:text-sm text-white/70">{t('hero.stats.experience')}</div>
         </div>
       </div>
@@ -1500,7 +1792,7 @@ function App() {
           <span className="text-base md:text-xl font-semibold">{t('hero.trust.fast')}</span>
         </div>
         <div className="flex items-center text-white/70 text-sm md:text-lg">
-          <Star className="w-5 h-5 md:w-7 md:h-7 ml-2 md:ml-3 text-yellow-400" />
+          <Star className="w-5 h-5 md:w-7 md:h-7 ml-2 md:ml-3 text-sky-400" />
           <span className="text-base md:text-xl font-semibold">{t('hero.trust.excellent')}</span>
         </div>
       </div>
@@ -1579,7 +1871,7 @@ function App() {
             {!user && (
               <button 
                 onClick={() => openServiceRequestForm(service.id, service.title)}
-                className="w-full mt-2 bg-orange-500 text-white border-2 border-orange-500 py-2 px-6 rounded-lg font-semibold hover:bg-orange-600 hover:border-orange-600 transition-all duration-300 flex items-center justify-center"
+                className="w-full mt-2 bg-blue-500 text-white border-2 border-blue-500 py-2 px-6 rounded-lg font-semibold hover:bg-blue-600 hover:border-blue-600 transition-all duration-300 flex items-center justify-center"
               >
                 {t('services.loginToRequest')}
               </button>
@@ -1668,7 +1960,20 @@ function App() {
               </div>
               <div className="flex items-center">
                 <Phone className="w-6 h-6 text-indigo-500 ml-3" />
-                <span className="text-jet-600 dark:text-platinum-400">+90 555 123 4567</span>
+                <span className="text-jet-600 dark:text-platinum-400 font-mono text-left font-bold" dir="ltr">
+                  +90 555 123 4567
+                </span>
+                <a
+                  href="https://wa.me/905551234567"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors cursor-pointer"
+                  title="فتح الواتساب"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                  </svg>
+                </a>
               </div>
               <div className="flex items-center">
                 <MapPin className="w-6 h-6 text-green-500 ml-3" />
@@ -1679,47 +1984,92 @@ function App() {
         </div>
 
         <div>
-          <form className="bg-white dark:bg-jet-800 p-8 rounded-2xl shadow-lg border border-platinum-300 dark:border-jet-600 space-y-6">
+          <form onSubmit={handleContactSubmit} className="bg-white dark:bg-jet-800 p-8 rounded-2xl shadow-lg border border-platinum-300 dark:border-jet-600 space-y-6">
+            {/* Success/Error Messages */}
+            {contactSuccess && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
+                  <span className="text-green-800 dark:text-green-200">
+                    {language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz.'}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {contactError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-center">
+                  <X className="w-5 h-5 text-red-600 dark:text-red-400 ml-2" />
+                  <span className="text-red-800 dark:text-red-200">{contactError}</span>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.name')}</label>
               <input
                 type="text"
+                value={contactForm.name}
+                onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
                 className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
                 placeholder={t('contact.form.name') as string}
+                required
               />
             </div>
             <div>
               <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.email')}</label>
               <input
                 type="email"
+                value={contactForm.email}
+                onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
                 className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
                 placeholder="example@email.com"
+                required
               />
             </div>
             <div>
               <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.serviceType')}</label>
-              <select className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white">
-                <option>{t('contact.form.selectService')}</option>
-                <option>{t('contact.form.translation')}</option>
-                <option>{t('contact.form.travel')}</option>
-                <option>{t('contact.form.legal')}</option>
-                <option>{t('contact.form.government')}</option>
-                <option>{t('contact.form.insurance')}</option>
+              <select 
+                value={contactForm.serviceType}
+                onChange={(e) => setContactForm({ ...contactForm, serviceType: e.target.value })}
+                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+              >
+                <option value="">{t('contact.form.selectService')}</option>
+                <option value={t('contact.form.translation') as string}>{t('contact.form.translation')}</option>
+                <option value={t('contact.form.travel') as string}>{t('contact.form.travel')}</option>
+                <option value={t('contact.form.legal') as string}>{t('contact.form.legal')}</option>
+                <option value={t('contact.form.government') as string}>{t('contact.form.government')}</option>
+                <option value={t('contact.form.insurance') as string}>{t('contact.form.insurance')}</option>
               </select>
             </div>
             <div>
               <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.message')}</label>
               <textarea
                 rows={5}
+                value={contactForm.message}
+                onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
                 className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
                 placeholder={t('contact.form.message') as string}
+                required
               ></textarea>
             </div>
             <button
               type="submit"
-              className={`w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-4 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${isLanguageChanging ? 'language-change-text' : ''}`}
+              disabled={contactLoading}
+              className={`w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-4 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center ${isLanguageChanging ? 'language-change-text' : ''}`}
             >
-              {t('contact.form.submit')}
+              {contactLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white ml-2"></div>
+                  {language === 'ar' ? 'جاري الإرسال...' : 'Gönderiliyor...'}
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5 ml-2" />
+                  {t('contact.form.submit')}
+                </>
+              )}
             </button>
           </form>
         </div>

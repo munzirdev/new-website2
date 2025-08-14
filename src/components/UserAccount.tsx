@@ -21,7 +21,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
-import Navbar from './Navbar';
+import CursorWrapper from './CursorWrapper';
 
 interface ServiceRequest {
   id: string;
@@ -41,21 +41,11 @@ interface ServiceRequest {
 interface UserAccountProps {
   onBack: () => void;
   isDarkMode: boolean;
-  onNavigateToContact: () => void;
-  onOpenProfile: () => void;
-  onOpenHelp: () => void;
-  onToggleDarkMode: () => void;
-  onNavigateToMainHome: () => void;
 }
 
 const UserAccount: React.FC<UserAccountProps> = ({ 
   onBack, 
-  isDarkMode, 
-  onNavigateToContact,
-  onOpenProfile,
-  onOpenHelp,
-  onToggleDarkMode,
-  onNavigateToMainHome
+  isDarkMode
 }) => {
   const { user, profile } = useAuthContext();
   const { language } = useLanguage();
@@ -499,21 +489,11 @@ const UserAccount: React.FC<UserAccountProps> = ({
   }
 
   return (
-    <div 
-      className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16"
-      dir={isArabic ? 'rtl' : 'ltr'}
-    >
-      {/* Fixed Navbar */}
-      <Navbar
-        onNavigateHome={onNavigateToMainHome}
-        onNavigateToContact={onNavigateToContact}
-        onOpenProfile={onOpenProfile}
-        onOpenAccount={() => {}} // Already in account page
-        onOpenHelp={onOpenHelp}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={onToggleDarkMode}
-      />
-
+    <CursorWrapper>
+      <div 
+        className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16"
+        dir={isArabic ? 'rtl' : 'ltr'}
+      >
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -688,7 +668,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 ml-1" />
                         <span className="font-mono" dir="ltr">
-                          {new Date(request.created_at).toLocaleDateString('en-US', {
+                          {new Date(request.created_at).toLocaleDateString('en-GB', {
                             year: 'numeric',
                             month: '2-digit',
                             day: '2-digit'
@@ -700,8 +680,8 @@ const UserAccount: React.FC<UserAccountProps> = ({
                       </span>
                     </div>
                     {request.admin_notes && (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-sm text-blue-800 dark:text-blue-300">
+                      <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-lg border border-emerald-200 dark:border-emerald-700/30">
+                        <p className="text-sm text-emerald-800 dark:text-emerald-300">
                           <strong>ملاحظات الإدارة:</strong> {request.admin_notes}
                         </p>
                       </div>
@@ -709,11 +689,11 @@ const UserAccount: React.FC<UserAccountProps> = ({
                     
                     {/* File Display */}
                     {request.file_url && (
-                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <p className="text-sm text-green-800 dark:text-green-300 mb-2">
+                      <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 rounded-lg border border-amber-200 dark:border-amber-700/30">
+                        <p className="text-sm text-amber-800 dark:text-amber-300 mb-2">
                           <strong>الملف المرفق:</strong> {request.file_name || 'ملف مرفق'}
                           {request.file_url.startsWith('base64://') && (
-                            <span className="ml-2 text-xs text-green-600 dark:text-green-400">
+                            <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400">
                               (محفوظ في قاعدة البيانات)
                             </span>
                           )}
@@ -721,14 +701,14 @@ const UserAccount: React.FC<UserAccountProps> = ({
                         <div className="flex space-x-3 space-x-reverse">
                           <button
                             onClick={() => handleFileView(request.file_url!, request.file_name || 'file', request.id)}
-                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
                           >
                             <Eye className="w-4 h-4 ml-2 group-hover:animate-pulse" />
                             <span className="font-semibold">عرض</span>
                           </button>
                           <button
                             onClick={() => handleFileDownload(request.file_url!, request.file_name || 'file', request.id)}
-                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
                           >
                             <Download className="w-4 h-4 ml-2 group-hover:animate-bounce" />
                             <span className="font-semibold">تحميل</span>
@@ -881,7 +861,8 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </CursorWrapper>
   );
 };
 

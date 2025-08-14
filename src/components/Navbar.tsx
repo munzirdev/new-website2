@@ -22,7 +22,7 @@ const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleDarkMode
 }) => {
-  const { user, profile, signOut, hasNotifications, clearNotifications } = useAuthContext();
+  const { user, profile, signOut, hasNotifications, clearNotifications, loading } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
 
 
@@ -141,7 +141,7 @@ const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* User Menu */}
-            {user ? (
+            {user && !loading ? (
               <div className={`flex items-center ${language === 'ar' ? 'space-x-2 space-x-reverse' : 'space-x-2'}`}>
                 {/* Account Button */}
                 <button
@@ -180,7 +180,15 @@ const Navbar: React.FC<NavbarProps> = ({
 
                 {/* Logout */}
                 <button
-                  onClick={signOut}
+                  onClick={async () => {
+                    console.log('🚪 زر تسجيل الخروج تم النقر عليه');
+                    try {
+                      const result = await signOut();
+                      console.log('📊 نتيجة تسجيل الخروج:', result);
+                    } catch (error) {
+                      console.error('❌ خطأ في تسجيل الخروج:', error);
+                    }
+                  }}
                   className={`flex items-center px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-300`}
                   title={t('navbar.logout')}
                 >
@@ -196,7 +204,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   {isDarkMode ? '☀️' : '🌙'}
                 </button>
               </div>
-            ) : (
+            ) : !loading ? (
               <div className={`flex items-center ${language === 'ar' ? 'space-x-2 space-x-reverse' : 'space-x-2'}`}>
                 {/* Login Button for non-authenticated users */}
                 <button
@@ -220,6 +228,11 @@ const Navbar: React.FC<NavbarProps> = ({
                 >
                   {isDarkMode ? '☀️' : '🌙'}
                 </button>
+              </div>
+            ) : (
+              // Loading state - show a subtle loading indicator
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 border-2 border-caribbean-200 border-t-caribbean-600 rounded-full animate-spin"></div>
               </div>
             )}
           </div>

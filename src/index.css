@@ -14,6 +14,55 @@
 }
 
 @layer utilities {
+  /* Custom Cursor Styles */
+  .cursor-none {
+    cursor: none !important;
+  }
+  
+  .cursor-element {
+    z-index: 9999 !important;
+    pointer-events: none !important;
+  }
+  
+  /* Hide default cursor everywhere */
+  * {
+    cursor: none !important;
+  }
+  
+  /* Show default cursor on touch devices */
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      cursor: auto !important;
+    }
+    .cursor-element {
+      display: none !important;
+    }
+  }
+  
+  /* Show pointer cursor on clickable elements for accessibility */
+  button, a, [role="button"], input, select, textarea, [tabindex], .cursor-pointer, [data-cursor="pointer"] {
+    cursor: pointer !important;
+  }
+  
+  /* تحسين الأداء للمؤشر المخصص */
+  .will-change-transform {
+    will-change: transform;
+  }
+  
+  /* إضافة hover effects للعناصر القابلة للنقر */
+  button:hover, a:hover, [role="button"]:hover, .cursor-pointer:hover, [data-cursor="pointer"]:hover {
+    cursor: pointer !important;
+  }
+  
+  /* تحسين استجابة المؤشر */
+  .custom-cursor-container {
+    position: relative;
+  }
+  
+  .custom-cursor-container * {
+    cursor: none !important;
+  }
+  
   @keyframes fade-in {
     from {
       opacity: 0;
@@ -36,10 +85,10 @@
   
   @keyframes pulse-glow {
     0%, 100% {
-      box-shadow: 0 0 20px rgba(60, 110, 113, 0.4);
+      box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
     }
     50% {
-      box-shadow: 0 0 40px rgba(40, 75, 99, 0.6);
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
     }
   }
   
@@ -514,12 +563,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(45deg, #3c6e71, #284b63);
+  background: linear-gradient(45deg, #0ea5e9, #3b82f6);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(45deg, #356267, #253d3f);
+  background: linear-gradient(45deg, #0284c7, #2563eb);
 }
 
 /* RTL support improvements */

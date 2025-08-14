@@ -58,6 +58,30 @@ export const router = createBrowserRouter([
         element: <Outlet />
       },
       {
+        path: 'admin/dashboard',
+        element: <Outlet />
+      },
+      {
+        path: 'admin/service-requests',
+        element: <Outlet />
+      },
+      {
+        path: 'admin/support-messages',
+        element: <Outlet />
+      },
+      {
+        path: 'admin/voluntary-returns',
+        element: <Outlet />
+      },
+      {
+        path: 'admin/faq',
+        element: <Outlet />
+      },
+      {
+        path: 'admin/analytics',
+        element: <Outlet />
+      },
+      {
         path: 'voluntary-return',
         element: <Outlet />
       },

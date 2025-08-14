@@ -9,6 +9,30 @@ interface VoluntaryReturnFormsListProps {
   isDarkMode: boolean;
 }
 
+// دالة لتنسيق رقم الهاتف للواتساب
+const formatPhoneForWhatsApp = (phone: string): string => {
+  // إزالة جميع الأحرف غير الرقمية
+  let cleanPhone = phone.replace(/\D/g, '');
+  
+  // إذا كان الرقم يبدأ بـ 0، نزيله ونضيف 90
+  if (cleanPhone.startsWith('0')) {
+    cleanPhone = '90' + cleanPhone.substring(1);
+  }
+  
+  // إذا كان الرقم لا يبدأ بـ 90، نضيفه
+  if (!cleanPhone.startsWith('90')) {
+    cleanPhone = '90' + cleanPhone;
+  }
+  
+  // إذا كان الرقم أقل من 12 رقم، نضيف أصفار في البداية
+  while (cleanPhone.length < 12) {
+    cleanPhone = '90' + cleanPhone;
+  }
+  
+  // نأخذ أول 12 رقم فقط (90 + 10 أرقام)
+  return cleanPhone.substring(0, 12);
+};
+
 const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isDarkMode }) => {
   const { t, language } = useLanguage();
   const [forms, setForms] = useState<VoluntaryReturnForm[]>([]);
@@ -16,6 +40,7 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   const [error, setError] = useState('');
   const [selectedForm, setSelectedForm] = useState<VoluntaryReturnForm | null>(null);
   const [editingForm, setEditingForm] = useState<VoluntaryReturnForm | null>(null);
+  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
 
   useEffect(() => {
     loadForms();
@@ -24,15 +49,22 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   const loadForms = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 بدء تحميل النماذج...');
+      
       const { data, error } = await voluntaryReturnService.getAllForms();
       
       if (error) {
+        console.error('❌ خطأ في تحميل النماذج:', error);
         throw error;
       }
       
+      console.log('✅ تم تحميل النماذج بنجاح:', data?.length || 0);
+      console.log('📋 بيانات النماذج:', data);
+      
       setForms(data || []);
     } catch (err) {
-      console.error('Error loading forms:', err);
+      console.error('💥 خطأ في تحميل النماذج:', err);
       setError(language === 'ar' ? 'خطأ في تحميل النماذج' : 'Formlar yüklenirken hata oluştu');
     } finally {
       setLoading(false);
@@ -66,6 +98,35 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'tr-TR');
   };
+
+  // دالة لفلترة النماذج حسب الفترة الزمنية
+  const getFilteredForms = () => {
+    if (timeFilter === 'all') {
+      return forms;
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    return forms.filter(form => {
+      const formDate = new Date(form.created_at);
+      
+      switch (timeFilter) {
+        case 'today':
+          return formDate >= today;
+        case 'week':
+          return formDate >= weekAgo;
+        case 'month':
+          return formDate >= monthAgo;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredForms = getFilteredForms();
 
   const openPrintWindow = (content: string) => {
     const printWindow = window.open('', '_blank', 'width=900,height=700');
@@ -233,41 +294,116 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-jet-800 dark:text-platinum-200">
+    <div className="p-3 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 space-y-3 md:space-y-0">
+        <h2 className="text-xl md:text-2xl font-bold text-jet-800 dark:text-platinum-200 text-center md:text-right">
           {language === 'ar' ? 'نماذج العودة الطوعية' : 'Gönüllü Dönüş Formları'}
         </h2>
-        <span className="text-sm text-jet-600 dark:text-platinum-400">
-          {forms.length} {language === 'ar' ? 'نموذج' : 'form'}
-        </span>
+        <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4">
+          <span className="text-sm text-jet-600 dark:text-platinum-400">
+            {filteredForms.length} {language === 'ar' ? 'نموذج' : 'form'}
+          </span>
+          <button
+            onClick={loadForms}
+            className="px-3 py-1 bg-caribbean-600 text-white rounded-lg hover:bg-caribbean-700 transition-colors text-sm flex items-center"
+          >
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {language === 'ar' ? 'تحديث' : 'Yenile'}
+          </button>
+        </div>
       </div>
 
-      {forms.length === 0 ? (
+      {/* Time Filter Buttons */}
+      <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
+        <button
+          onClick={() => setTimeFilter('all')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            timeFilter === 'all'
+              ? 'bg-caribbean-600 text-white'
+              : 'bg-white dark:bg-jet-700 text-jet-600 dark:text-platinum-400 border border-platinum-200 dark:border-jet-600 hover:bg-platinum-50 dark:hover:bg-jet-600'
+          }`}
+        >
+          {language === 'ar' ? 'كل الوقت' : 'Tüm Zaman'}
+        </button>
+        <button
+          onClick={() => setTimeFilter('today')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            timeFilter === 'today'
+              ? 'bg-caribbean-600 text-white'
+              : 'bg-white dark:bg-jet-700 text-jet-600 dark:text-platinum-400 border border-platinum-200 dark:border-jet-600 hover:bg-platinum-50 dark:hover:bg-jet-600'
+          }`}
+        >
+          {language === 'ar' ? 'آخر يوم' : 'Bugün'}
+        </button>
+        <button
+          onClick={() => setTimeFilter('week')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            timeFilter === 'week'
+              ? 'bg-caribbean-600 text-white'
+              : 'bg-white dark:bg-jet-700 text-jet-600 dark:text-platinum-400 border border-platinum-200 dark:border-jet-600 hover:bg-platinum-50 dark:hover:bg-jet-600'
+          }`}
+        >
+          {language === 'ar' ? 'أسبوع' : 'Hafta'}
+        </button>
+        <button
+          onClick={() => setTimeFilter('month')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            timeFilter === 'month'
+              ? 'bg-caribbean-600 text-white'
+              : 'bg-white dark:bg-jet-700 text-jet-600 dark:text-platinum-400 border border-platinum-200 dark:border-jet-600 hover:bg-platinum-50 dark:hover:bg-jet-600'
+          }`}
+        >
+          {language === 'ar' ? 'شهر' : 'Ay'}
+        </button>
+      </div>
+
+      {filteredForms.length === 0 ? (
         <div className="text-center py-12">
           <FileText className="w-16 h-16 text-jet-400 dark:text-jet-600 mx-auto mb-4" />
-          <p className="text-jet-600 dark:text-platinum-400">
-            {language === 'ar' ? 'لا توجد نماذج محفوظة' : 'Henüz kaydedilmiş form yok'}
+          <p className="text-jet-600 dark:text-platinum-400 mb-4">
+            {timeFilter === 'all' 
+              ? (language === 'ar' ? 'لا توجد نماذج محفوظة' : 'Henüz kaydedilmiş form yok')
+              : (language === 'ar' ? `لا توجد نماذج في الفترة المحددة` : 'Seçilen dönemde form bulunamadı')
+            }
           </p>
+          {timeFilter !== 'all' && (
+            <button
+              onClick={() => setTimeFilter('all')}
+              className="px-4 py-2 bg-caribbean-600 text-white rounded-lg hover:bg-caribbean-700 transition-colors flex items-center mx-auto mb-3"
+            >
+              {language === 'ar' ? 'عرض جميع النماذج' : 'Tüm Formları Göster'}
+            </button>
+          )}
+          <button
+            onClick={loadForms}
+            className="px-4 py-2 bg-caribbean-600 text-white rounded-lg hover:bg-caribbean-700 transition-colors flex items-center mx-auto"
+          >
+            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {language === 'ar' ? 'إعادة تحميل' : 'Yenile'}
+          </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {forms.map((form) => (
+        <div className="space-y-3 md:space-y-4">
+          {filteredForms.map((form) => (
             <div
               key={form.id}
-              className="bg-white dark:bg-jet-800 rounded-lg shadow-md border border-platinum-200 dark:border-jet-600 p-6"
+              className="bg-white dark:bg-jet-800 rounded-lg shadow-md border border-platinum-200 dark:border-jet-600 p-4 md:p-6"
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-4 space-y-3 md:space-y-0">
                 <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-2">
-                    <h3 className="text-lg font-semibold text-jet-800 dark:text-platinum-200">
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2">
+                    <h3 className="text-base md:text-lg font-semibold text-jet-800 dark:text-platinum-200">
                       {form.full_name_tr}
                     </h3>
                     <span className="text-sm text-jet-600 dark:text-platinum-400">
                       {form.full_name_ar}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-caribbean-600" />
                       <span className="text-jet-600 dark:text-platinum-400">
@@ -283,65 +419,76 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
                     {form.gsm && (
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-green-600" />
-                        <span className="text-jet-600 dark:text-platinum-400">
+                        <span className="text-jet-600 dark:text-platinum-400 font-mono text-left font-bold" dir="ltr">
                           {form.gsm}
                         </span>
+                        <a
+                          href={`https://wa.me/${formatPhoneForWhatsApp(form.gsm)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors cursor-pointer"
+                          title={language === 'ar' ? 'فتح الواتساب' : 'WhatsApp\'ta Aç'}
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                          </svg>
+                        </a>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-orange-600" />
+                      <Calendar className="w-4 h-4 text-blue-600" />
                       <span className="text-jet-600 dark:text-platinum-400">
                         {formatDate(form.created_at)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center md:justify-end gap-1 md:gap-2">
                   <button
                     onClick={() => setEditingForm(form)}
                     className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     title={language === 'ar' ? 'تعديل النموذج' : 'Formu Düzenle'}
                   >
-                    <Edit className="w-5 h-5" />
+                    <Edit className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                   <button
                     onClick={() => setSelectedForm(selectedForm?.id === form.id ? null : form)}
                     className="p-2 text-caribbean-600 hover:text-caribbean-700 hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 rounded-lg transition-colors"
                     title={language === 'ar' ? 'عرض التفاصيل' : 'Detayları Göster'}
                   >
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                   <button
                     onClick={() => openPrintWindow(generateFormContent(form))}
                     className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                     title={language === 'ar' ? 'طباعة' : 'Yazdır'}
                   >
-                    <Printer className="w-5 h-5" />
+                    <Printer className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                   <button
                     onClick={() => deleteForm(form.id)}
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     title={language === 'ar' ? 'حذف' : 'Sil'}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 </div>
               </div>
 
               {selectedForm?.id === form.id && (
-                <div className="mt-4 p-4 bg-platinum-50 dark:bg-jet-700 rounded-lg">
-                  <h4 className="font-semibold text-jet-800 dark:text-platinum-200 mb-2">
+                <div className="mt-4 p-3 md:p-4 bg-platinum-50 dark:bg-jet-700 rounded-lg">
+                  <h4 className="font-semibold text-jet-800 dark:text-platinum-200 mb-2 text-sm md:text-base">
                     {language === 'ar' ? 'المرافقين:' : 'Refakatçiler:'}
                   </h4>
                   {form.refakat_entries && form.refakat_entries.length > 0 ? (
                     <div className="space-y-2">
                       {form.refakat_entries.map((entry, index) => (
-                        <div key={index} className="flex items-center gap-4 text-sm">
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm">
                           <span className="text-jet-600 dark:text-platinum-400">
                             {language === 'ar' ? 'مرافق' : 'Refakatçi'} {index + 1}:
                           </span>
                           <span className="font-medium">{entry.id}</span>
-                          <span className="text-jet-600 dark:text-platinum-400">-</span>
+                          <span className="text-jet-600 dark:text-platinum-400 hidden sm:inline">-</span>
                           <span className="font-medium">{entry.name}</span>
                         </div>
                       ))}
