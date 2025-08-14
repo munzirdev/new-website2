@@ -1,0 +1,29 @@
+export interface RefakatEntry {
+  id: string;
+  name: string;
+}
+
+export interface VoluntaryReturnForm {
+  id: string;
+  user_id: string;
+  full_name_tr: string;
+  full_name_ar: string;
+  kimlik_no: string;
+  sinir_kapisi: string;
+  gsm?: string;
+  request_date: string;
+  custom_date?: string;
+  refakat_entries: RefakatEntry[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateVoluntaryReturnFormData {
+  full_name_tr: string;
+  full_name_ar: string;
+  kimlik_no: string;
+  sinir_kapisi: string;
+  gsm?: string;
+  custom_date?: string;
+  refakat_entries: RefakatEntry[];
+}

@@ -1,0 +1,71 @@
+import React from 'react';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import App from './App';
+import { servicesData } from './data/services';
+
+// Layout component that wraps all pages
+const Layout = () => {
+  return <App />;
+};
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/home" replace />
+      },
+      {
+        path: 'home',
+        element: <Outlet />
+      },
+      {
+        path: 'services',
+        element: <Outlet />
+      },
+      {
+        path: 'about',
+        element: <Outlet />
+      },
+      {
+        path: 'contact',
+        element: <Outlet />
+      },
+      {
+        path: 'login',
+        element: <Outlet />
+      },
+      {
+        path: 'signup',
+        element: <Outlet />
+      },
+      {
+        path: 'account',
+        element: <Outlet />
+      },
+      {
+        path: 'profile',
+        element: <Outlet />
+      },
+      {
+        path: 'help',
+        element: <Outlet />
+      },
+      {
+        path: 'admin',
+        element: <Outlet />
+      },
+      {
+        path: 'voluntary-return',
+        element: <Outlet />
+      },
+      // Service routes
+      ...servicesData.map(service => ({
+        path: `services/${service.id}`,
+        element: <Outlet />
+      }))
+    ]
+  }
+]);
