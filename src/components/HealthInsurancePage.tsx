@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Calculator, Users, Clock, CheckCircle, ArrowRight, ChevronDown, ChevronUp, Building, Calendar, DollarSign, Phone, Mail, Send, X } from 'lucide-react';
+import CustomCursor from './CustomCursor';
+import CustomDatePicker from './CustomDatePicker';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
 import { supabase } from '../lib/supabase';
+
+
 
 interface HealthInsurancePageProps {
   onBack: () => void;
@@ -63,6 +67,8 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
   const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [birthDate, setBirthDate] = useState<string>('');
+  const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('');
   const [selectedDuration, setSelectedDuration] = useState<number>(12);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
@@ -87,6 +93,7 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
   const loadPricingData = async () => {
     try {
       setLoading(true);
+      console.log('🔍 جلب بيانات التأمين الصحي...');
       
       // Load companies
       const { data: companiesData, error: companiesError } = await supabase
@@ -95,7 +102,11 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
         .eq('is_active', true)
         .order('name');
 
-      if (companiesError) throw companiesError;
+      if (companiesError) {
+        console.error('خطأ في جلب الشركات:', companiesError);
+        throw companiesError;
+      }
+      console.log('📋 الشركات المحملة:', companiesData?.length || 0);
       setCompanies(companiesData || []);
 
       // Load age groups
@@ -105,22 +116,81 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
         .eq('is_active', true)
         .order('min_age');
 
-      if (ageGroupsError) throw ageGroupsError;
+      if (ageGroupsError) {
+        console.error('خطأ في جلب الفئات العمرية:', ageGroupsError);
+        throw ageGroupsError;
+      }
+      console.log('📋 الفئات العمرية المحملة:', ageGroupsData?.length || 0);
       setAgeGroups(ageGroupsData || []);
 
-      // Load pricing data
+      // Load pricing data using direct query instead of RPC
       const { data: pricingData, error: pricingError } = await supabase
-        .rpc('get_health_insurance_pricing');
+        .from('health_insurance_pricing')
+        .select(`
+          *,
+          insurance_companies(name, name_ar),
+          age_groups(name, name_ar, min_age, max_age)
+        `)
+        .eq('is_active', true)
+        .order('company_id');
 
-      if (pricingError) throw pricingError;
-      setPricingData(pricingData || []);
+      if (pricingError) {
+        console.error('خطأ في جلب بيانات الأسعار:', pricingError);
+        throw pricingError;
+      }
+      
+      // Format the pricing data
+      const formattedPricing = pricingData?.map((p: any) => ({
+        company_id: p.company_id,
+        company_name: p.insurance_companies?.name || '',
+        company_name_ar: p.insurance_companies?.name_ar || '',
+        age_group_id: p.age_group_id,
+        age_group_name: p.age_groups?.name || '',
+        age_group_name_ar: p.age_groups?.name_ar || '',
+        min_age: p.age_groups?.min_age || 0,
+        max_age: p.age_groups?.max_age || 0,
+        duration_months: p.duration_months,
+        price_try: p.price_try
+      })) || [];
+      
+      console.log('📋 بيانات الأسعار المحملة:', formattedPricing.length);
+      setPricingData(formattedPricing);
 
     } catch (error) {
-      console.error('Error loading pricing data:', error);
+      console.error('خطأ في تحميل بيانات التأمين الصحي:', error);
+      // Show user-friendly error message
+      alert(isArabic ? 'حدث خطأ في تحميل بيانات التأمين الصحي. يرجى المحاولة مرة أخرى.' : 'Error loading health insurance data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Calculate age from birth date
+  useEffect(() => {
+    if (birthDate) {
+      const today = new Date();
+      const birth = new Date(birthDate);
+      const age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      
+      // Adjust age if birthday hasn't occurred this year
+      const calculatedAgeValue = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate()) 
+        ? age - 1 
+        : age;
+      
+      setCalculatedAge(calculatedAgeValue);
+      
+      // Find matching age group
+      const matchingAgeGroup = ageGroups.find(group => 
+        calculatedAgeValue >= group.min_age && calculatedAgeValue <= group.max_age
+      );
+      
+      setSelectedAgeGroup(matchingAgeGroup?.id || '');
+    } else {
+      setCalculatedAge(null);
+      setSelectedAgeGroup('');
+    }
+  }, [birthDate, ageGroups]);
 
   // Calculate price when selections change
   useEffect(() => {
@@ -146,7 +216,7 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
       return;
     }
 
-    if (!selectedCompany || !selectedAgeGroup || !calculatedPrice) {
+    if (!selectedCompany || !birthDate || !calculatedAge || !selectedAgeGroup || !calculatedPrice) {
       setSubmitError(isArabic ? 'يرجى اختيار جميع الخيارات المطلوبة' : 'Please select all required options');
       return;
     }
@@ -210,6 +280,7 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
 
   return (
     <div className="min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria">
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Navigation Bar */}
       <nav className="fixed top-0 w-full z-40 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md shadow-xl border-b border-platinum-300 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -334,12 +405,45 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
               </p>
             </div>
 
+            {/* Debug Information */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  {isArabic ? 'معلومات التصحيح:' : 'Debug Information:'}
+                </h4>
+                <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                  <p>{isArabic ? 'عدد الشركات:' : 'Companies:'} {companies.length}</p>
+                  <p>{isArabic ? 'عدد الفئات العمرية:' : 'Age Groups:'} {ageGroups.length}</p>
+                  <p>{isArabic ? 'عدد بيانات الأسعار:' : 'Pricing Records:'} {pricingData.length}</p>
+                  <p>{isArabic ? 'حالة التحميل:' : 'Loading:'} {loading ? 'جاري التحميل' : 'مكتمل'}</p>
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto"></div>
                 <p className="mt-4 text-jet-600 dark:text-platinum-400">
                   {isArabic ? 'جاري تحميل البيانات...' : 'Loading data...'}
                 </p>
+              </div>
+            ) : companies.length === 0 || ageGroups.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-red-700 dark:text-red-300 mb-2">
+                  {isArabic ? 'لا توجد بيانات متاحة' : 'No data available'}
+                </h3>
+                <p className="text-jet-600 dark:text-platinum-400 mb-4">
+                  {isArabic ? 'لم يتم العثور على بيانات التأمين الصحي. يرجى المحاولة مرة أخرى لاحقاً.' : 'Health insurance data not found. Please try again later.'}
+                </p>
+                <button
+                  onClick={loadPricingData}
+                  className="bg-caribbean-600 text-white px-6 py-2 rounded-lg hover:bg-caribbean-700 transition-colors"
+                >
+                  {isArabic ? 'إعادة المحاولة' : 'Retry'}
+                </button>
               </div>
             ) : (
               <div className="grid lg:grid-cols-2 gap-12">
@@ -371,25 +475,59 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
                       </select>
                     </div>
 
-                    {/* Age Group */}
+                    {/* Birth Date */}
                     <div>
                       <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
-                        {isArabic ? 'الفئة العمرية' : 'Age Group'}
+                        {isArabic ? 'تاريخ الميلاد' : 'Date of Birth'}
                       </label>
-                      <select
-                        value={selectedAgeGroup}
-                        onChange={(e) => setSelectedAgeGroup(e.target.value)}
-                        className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
-                      >
-                        <option value="">
-                          {isArabic ? 'اختر الفئة العمرية' : 'Select Age Group'}
-                        </option>
-                        {ageGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {isArabic ? group.name_ar : group.name}
-                          </option>
-                        ))}
-                      </select>
+                      <CustomDatePicker
+                        value={birthDate}
+                        onChange={setBirthDate}
+                        maxDate={new Date().toISOString().split('T')[0]}
+                        placeholder={isArabic ? 'اختر تاريخ الميلاد' : 'Select date of birth'}
+                        isArabic={isArabic}
+                        isDarkMode={isDarkMode}
+                      />
+                      
+
+                      
+                      {calculatedAge !== null && (
+                        <div className={`mt-2 p-3 rounded-lg border ${
+                          selectedAgeGroup 
+                            ? 'bg-caribbean-50 dark:bg-caribbean-900/20 border-caribbean-200 dark:border-caribbean-700'
+                            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-sm font-medium ${
+                              selectedAgeGroup 
+                                ? 'text-caribbean-700 dark:text-caribbean-300'
+                                : 'text-red-700 dark:text-red-300'
+                            }`}>
+                              {isArabic ? 'العمر المحسوب:' : 'Calculated Age:'}
+                            </span>
+                            <span className={`text-lg font-bold ${
+                              selectedAgeGroup 
+                                ? 'text-caribbean-800 dark:text-caribbean-200'
+                                : 'text-red-800 dark:text-red-200'
+                            }`}>
+                              {calculatedAge} {isArabic ? 'سنة' : 'years'}
+                            </span>
+                          </div>
+                          {selectedAgeGroup ? (
+                            <div className="mt-1 text-xs text-caribbean-600 dark:text-caribbean-400">
+                              {isArabic ? 'الفئة العمرية:' : 'Age Group:'} {
+                                ageGroups.find(group => group.id === selectedAgeGroup)?.name_ar || 
+                                ageGroups.find(group => group.id === selectedAgeGroup)?.name || 
+                                (isArabic ? 'غير محدد' : 'Not specified')
+                              }
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-xs text-red-600 dark:text-red-400">
+                              {isArabic ? 'العمر خارج النطاق المدعوم (0-69 سنة)' : 'Age is outside supported range (0-69 years)'}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Duration */}
@@ -428,7 +566,7 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
                     {/* Calculate Button */}
                     <button
                       onClick={() => setShowRequestForm(true)}
-                      disabled={!selectedCompany || !selectedAgeGroup || !calculatedPrice}
+                      disabled={!selectedCompany || !birthDate || !calculatedAge || !selectedAgeGroup || !calculatedPrice}
                       className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-none flex items-center justify-center"
                     >
                       <Calculator className="w-5 h-5 mr-2" />
@@ -450,9 +588,33 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
                         <div className="text-4xl font-bold text-caribbean-700 dark:text-caribbean-400 mb-2">
                           {formatPrice(calculatedPrice)}
                         </div>
-                        <p className="text-jet-600 dark:text-platinum-400">
+                        <p className="text-jet-600 dark:text-platinum-400 mb-4">
                           {isArabic ? 'للمدة المحددة' : 'for the selected duration'}
                         </p>
+                        
+                        {/* Age and Company Info */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl mb-6">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-blue-700 dark:text-blue-300">
+                                {isArabic ? 'العمر:' : 'Age:'}
+                              </span>
+                              <div className="text-lg font-bold text-blue-800 dark:text-blue-200">
+                                {calculatedAge} {isArabic ? 'سنة' : 'years'}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                                {isArabic ? 'الشركة:' : 'Company:'}
+                              </span>
+                              <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
+                                {companies.find(c => c.id === selectedCompany)?.name_ar || 
+                                 companies.find(c => c.id === selectedCompany)?.name || 
+                                 (isArabic ? 'غير محدد' : 'Not specified')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl">

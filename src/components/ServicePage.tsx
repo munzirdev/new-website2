@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, Star, Users, Clock, Shield, Phone, Mail } from 'lucide-react';
+import CustomCursor from './CustomCursor';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
 import ServiceRequestForm from './ServiceRequestForm';
@@ -127,7 +128,8 @@ const ServicePage: React.FC<ServicePageProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria" style={{ cursor: 'none' }}>
+    <div className="min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria">
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Navigation Bar */}
       <nav className="fixed top-0 w-full z-40 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md shadow-xl border-b border-platinum-300 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -218,31 +220,27 @@ const ServicePage: React.FC<ServicePageProps> = ({
       </nav>
       <style dangerouslySetInnerHTML={{
         __html: `
-          /* Hide default cursor everywhere */
-          html, body, * {
+          /* Custom cursor styles - commented out to restore default cursor */
+          /* html, body, * {
             cursor: none !important;
           }
           
-          /* Specific elements */
           button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
             cursor: none !important;
           }
           
-          /* Dropdowns and modals */
           .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
           [class*="dropdown"], [class*="modal"], [class*="popup"] {
             cursor: none !important;
           }
           
-          /* All children elements */
           * * {
             cursor: none !important;
           }
           
-          /* Force override any other cursor styles */
           * {
             cursor: none !important;
-          }
+          } */
 
                       /* Exception for logo button to allow clicks */
             .logo-button {

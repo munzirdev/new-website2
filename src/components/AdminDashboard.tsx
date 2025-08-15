@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import CustomCursor from './CustomCursor';
 import { 
   Users, 
   FileText, 
@@ -121,9 +122,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const location = useLocation();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const [isCursorVisible, setIsCursorVisible] = useState(false);
+
+
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,42 +252,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     }
   };
 
-  // Custom cursor logic
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-      setIsCursorVisible(true);
-      
-      // Simple hover detection for better performance
-      const target = e.target as HTMLElement;
-      const isInteractive = target.tagName === 'BUTTON' || 
-                           target.tagName === 'A' || 
-                           target.closest('button') !== null || 
-                           target.closest('a') !== null;
-      
-      setIsHovering(isInteractive);
-    };
 
-    const handleMouseLeave = () => {
-      setIsCursorVisible(false);
-    };
-    
-    // Check if device is touch-based
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    
-    // Only add mouse events for non-touch devices
-    if (!isTouchDevice) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseleave', handleMouseLeave);
-    }
-    
-    return () => {
-      if (!isTouchDevice) {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseleave', handleMouseLeave);
-      }
-    };
-  }, []);
 
   const fetchServiceRequests = async () => {
     try {
@@ -862,6 +827,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-jet-800 flex items-center justify-center">
+        <CustomCursor isDarkMode={isDarkMode} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto mb-4"></div>
           <p className="text-jet-600 dark:text-platinum-400">جاري تحميل لوحة التحكم...</p>
@@ -873,6 +839,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   if (!user) {
     return (
       <div className="min-h-screen bg-white dark:bg-jet-800 flex items-center justify-center">
+        <CustomCursor isDarkMode={isDarkMode} />
         <div className="text-center">
           <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">غير مصرح</h2>
           <p className="text-jet-600 dark:text-platinum-400">يجب تسجيل الدخول للوصول إلى لوحة التحكم</p>
@@ -883,6 +850,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50/40 to-cyan-50/30 dark:from-jet-900 dark:via-jet-800 dark:to-jet-900 relative overflow-hidden">
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Subtle animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-sky-200/8 to-transparent rounded-full animate-pulse" style={{ animationDuration: '4s' }}></div>
@@ -890,69 +858,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-tr from-cyan-200/4 to-sky-200/4 rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '6s' }}></div>
         <div className="absolute bottom-40 right-1/3 w-20 h-20 bg-gradient-to-r from-blue-200/5 to-cyan-200/5 rounded-full animate-pulse" style={{ animationDelay: '3s', animationDuration: '4s' }}></div>
       </div>
-      {/* Custom Cursor CSS */}
+      {/* Phone number formatting for Arabic */}
       <style jsx global>{`
-        /* Hide default cursor everywhere */
-        html, body, * {
-          cursor: none !important;
-        }
-        
-        /* Specific elements */
-        button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-          cursor: none !important;
-        }
-        
-        /* Dropdowns and modals */
-        .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-        [class*="dropdown"], [class*="modal"], [class*="popup"] {
-          cursor: none !important;
-        }
-        
-        /* All children elements */
-        * * {
-          cursor: none !important;
-        }
-        
-        /* Force override any other cursor styles */
-        * {
-          cursor: none !important;
-        }
-
-        /* Exception for logo button to allow clicks */
-        .logo-button {
-          cursor: pointer !important;
-        }
-
         /* Phone number formatting for Arabic */
         .phone-number {
           direction: ltr !important;
           text-align: left !important;
           unicode-bidi: bidi-override !important;
           font-family: monospace !important;
-        }
-
-        /* Show default cursor on touch devices */
-        @media (hover: none) and (pointer: coarse) {
-          html, body, * {
-            cursor: auto !important;
-          }
-          
-          button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-            cursor: pointer !important;
-          }
-          
-          .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-          [class*="dropdown"], [class*="modal"], [class*="popup"] {
-            cursor: auto !important;
-          }
-          
-          * * {
-            cursor: auto !important;
-          }
-          
-          * {
-            cursor: auto !important;
-          }
         }
 
         /* Flag Gloss Effect */
@@ -2466,56 +2379,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         </>
       )}
 
-      {/* Custom Cursor */}
-      {isCursorVisible && (
-        <>
-          {/* Cursor Glow */}
-          <div className="fixed w-32 h-32 bg-gradient-to-r from-caribbean-400/15 to-indigo-400/15 rounded-full blur-xl pointer-events-none transition-transform duration-300 ease-out z-0 hidden md:block cursor-element"
-               style={{
-                 left: `${mousePosition.x}px`,
-                 top: `${mousePosition.y}px`,
-                 transform: 'translate(-50%, -50%)',
-               }}>
-          </div>
-          
-          {/* Modern Professional Cursor */}
-          {!isHovering ? (
-            <>
-              <div className="fixed w-6 h-6 border-2 border-white rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out shadow-lg cursor-element hidden md:block"
-                   style={{
-                     left: `${mousePosition.x}px`,
-                     top: `${mousePosition.y}px`,
-                     transform: 'translate(-50%, -50%)',
-                   }}>
-              </div>
-              <div className="fixed w-2 h-2 bg-white rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out cursor-element hidden md:block"
-                   style={{
-                     left: `${mousePosition.x}px`,
-                     top: `${mousePosition.y}px`,
-                     transform: 'translate(-50%, -50%)',
-                   }}>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="fixed w-8 h-8 border-2 border-caribbean-400 rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out shadow-xl cursor-element hidden md:block"
-                   style={{
-                     left: `${mousePosition.x}px`,
-                     top: `${mousePosition.y}px`,
-                     transform: 'translate(-50%, -50%)',
-                   }}>
-              </div>
-              <div className="fixed w-3 h-3 bg-caribbean-400 rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out cursor-element hidden md:block"
-                   style={{
-                     left: `${mousePosition.x}px`,
-                     top: `${mousePosition.y}px`,
-                     transform: 'translate(-50%, -50%)',
-                   }}>
-              </div>
-            </>
-          )}
-        </>
-      )}
+
 
       {/* Success Message */}
       {updateSuccess && (

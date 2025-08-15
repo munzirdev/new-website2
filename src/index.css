@@ -14,20 +14,44 @@
 }
 
 @layer utilities {
-  /* Custom Cursor Styles */
+  /* Ultra-smooth cursor optimizations */
   .cursor-none {
     cursor: none !important;
   }
   
+  /* Hardware acceleration for cursor elements */
   .cursor-element {
     z-index: 9999 !important;
     pointer-events: none !important;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   
-  /* Hide default cursor everywhere */
-  * {
-    cursor: none !important;
+  /* Optimized cursor container */
+  .cursor-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: opacity 0.1s ease-out;
   }
+  
+  /* Cursor elements with hardware acceleration */
+  .cursor-glow,
+  .cursor-main {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Custom cursor styles - only apply to specific elements if needed */
+  /* * {
+    cursor: none !important;
+  } */
   
   /* Show default cursor on touch devices */
   @media (hover: none) and (pointer: coarse) {
@@ -39,89 +63,97 @@
     }
   }
   
-  /* Show pointer cursor on clickable elements for accessibility */
-  button, a, [role="button"], input, select, textarea, [tabindex], .cursor-pointer, [data-cursor="pointer"] {
+  /* Interactive elements for cursor detection */
+  .interactive, button, a, [role="button"], input, select, textarea, [tabindex], .cursor-pointer, [data-cursor="pointer"] {
     cursor: pointer !important;
   }
   
-  /* تحسين الأداء للمؤشر المخصص */
+  /* Hardware acceleration utilities */
   .will-change-transform {
     will-change: transform;
+    transform: translateZ(0);
   }
   
-  /* إضافة hover effects للعناصر القابلة للنقر */
-  button:hover, a:hover, [role="button"]:hover, .cursor-pointer:hover, [data-cursor="pointer"]:hover {
+  /* Smooth cursor transitions */
+  .cursor-smooth {
+    transition: none !important;
+  }
+  
+  /* Optimized hover detection */
+  .interactive:hover, button:hover, a:hover, [role="button"]:hover, .cursor-pointer:hover, [data-cursor="pointer"]:hover {
     cursor: pointer !important;
   }
-  
-  /* تحسين استجابة المؤشر */
-  .custom-cursor-container {
-    position: relative;
-  }
-  
-  .custom-cursor-container * {
-    cursor: none !important;
-  }
-  
+
+  /* Performance-optimized animations */
   @keyframes fade-in {
     from {
       opacity: 0;
-      transform: translateY(30px);
+      transform: translate3d(0, 20px, 0);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate3d(0, 0, 0);
     }
   }
   
   @keyframes float {
     0%, 100% {
-      transform: translateY(0px);
+      transform: translate3d(0, 0px, 0);
     }
     50% {
-      transform: translateY(-20px);
+      transform: translate3d(0, -10px, 0);
     }
   }
   
   @keyframes pulse-glow {
     0%, 100% {
-      box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
     }
     50% {
-      box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
     }
   }
   
   .animate-fade-in {
-    animation: fade-in 1s ease-out;
+    animation: fade-in 0.6s ease-out;
+    will-change: transform, opacity;
+  }
+  
+  /* Hardware acceleration for all animations */
+  .animate-float-slow,
+  .animate-pulse-slow,
+  .animate-spin-slow,
+  .animate-orbit {
+    will-change: transform;
+    transform: translateZ(0);
   }
   
   .animate-fade-in-delay-1 {
-    animation: fade-in 1s ease-out 0.2s both;
+    animation: fade-in 0.6s ease-out 0.1s both;
   }
   
   .animate-fade-in-delay-2 {
-    animation: fade-in 1s ease-out 0.4s both;
+    animation: fade-in 0.6s ease-out 0.2s both;
   }
   
   .animate-fade-in-delay-3 {
-    animation: fade-in 1s ease-out 0.6s both;
+    animation: fade-in 0.6s ease-out 0.3s both;
   }
   
   .animate-float {
-    animation: float 6s ease-in-out infinite;
+    animation: float 4s ease-in-out infinite;
   }
   
   .animate-pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
+    animation: pulse-glow 2s ease-in-out infinite;
   }
   
   @keyframes float-slow {
     0%, 100% {
-      transform: translateY(0px) rotate(12deg);
+      transform: translateY(0px) rotate(6deg);
     }
     50% {
-      transform: translateY(-15px) rotate(12deg);
+      transform: translateY(-8px) rotate(6deg);
     }
   }
   
@@ -130,29 +162,29 @@
       transform: translateY(0px);
     }
     50% {
-      transform: translateY(15px);
+      transform: translateY(8px);
     }
   }
   
   @keyframes speed-line {
     0% {
-      transform: translateX(-100px);
+      transform: translateX(-50px);
       opacity: 0;
     }
     50% {
       opacity: 1;
     }
     100% {
-      transform: translateX(100px);
+      transform: translateX(50px);
       opacity: 0;
     }
   }
   
-  /* Glass Modal Animations */
+  /* Glass Modal Animations - مبسطة */
   @keyframes fade-in-up {
     from {
       opacity: 0;
-      transform: translateY(50px) scale(0.95);
+      transform: translateY(30px) scale(0.98);
     }
     to {
       opacity: 1;
@@ -166,21 +198,21 @@
       opacity: 1;
     }
     50% {
-      transform: scale(1.05);
-      opacity: 0.8;
+      transform: scale(1.02);
+      opacity: 0.9;
     }
   }
   
   @keyframes bounce-in {
     0% {
-      transform: scale(0.3);
+      transform: scale(0.5);
       opacity: 0;
     }
     50% {
       transform: scale(1.05);
     }
     70% {
-      transform: scale(0.9);
+      transform: scale(0.95);
     }
     100% {
       transform: scale(1);
@@ -198,45 +230,45 @@
   }
   
   .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out;
+    animation: fade-in-up 0.5s ease-out;
   }
   
   .animate-pulse-slow {
-    animation: pulse-slow 3s ease-in-out infinite;
+    animation: pulse-slow 2s ease-in-out infinite;
   }
   
   .animate-bounce-in {
-    animation: bounce-in 0.8s ease-out;
+    animation: bounce-in 0.6s ease-out;
   }
   
   .animate-expand-width {
-    animation: expand-width 2s ease-out;
+    animation: expand-width 1.5s ease-out;
   }
   
   @keyframes speed-line-delayed {
     0% {
-      transform: translateX(-80px);
+      transform: translateX(-40px);
       opacity: 0;
     }
     50% {
       opacity: 0.8;
     }
     100% {
-      transform: translateX(80px);
+      transform: translateX(40px);
       opacity: 0;
     }
   }
   
   @keyframes speed-line-delayed-2 {
     0% {
-      transform: translateX(-60px);
+      transform: translateX(-30px);
       opacity: 0;
     }
     50% {
       opacity: 0.6;
     }
     100% {
-      transform: translateX(60px);
+      transform: translateX(30px);
       opacity: 0;
     }
   }
@@ -246,18 +278,7 @@
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-10px);
-    }
-  }
-  
-  @keyframes pulse-slow {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 0.7;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 1;
+      transform: translateY(-5px);
     }
   }
   
@@ -272,54 +293,19 @@
   
   @keyframes orbit {
     from {
-      transform: rotate(0deg) translateX(180px) rotate(0deg);
+      transform: rotate(0deg) translateX(120px) rotate(0deg);
     }
     to {
-      transform: rotate(360deg) translateX(180px) rotate(-360deg);
+      transform: rotate(360deg) translateX(120px) rotate(-360deg);
     }
   }
   
   @keyframes orbit-reverse {
     from {
-      transform: rotate(0deg) translateX(-180px) rotate(0deg);
+      transform: rotate(0deg) translateX(-120px) rotate(0deg);
     }
     to {
-      transform: rotate(-360deg) translateX(-180px) rotate(360deg);
-    }
-  }
-  
-  @keyframes bounce-in {
-    0% {
-      transform: scale(0);
-    }
-    50% {
-      transform: scale(1.2);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-  
-  @keyframes bounce-in-delayed {
-    0%, 20% {
-      transform: scale(0);
-    }
-    70% {
-      transform: scale(1.2);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-  
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(50px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+      transform: rotate(-360deg) translateX(-120px) rotate(360deg);
     }
   }
   
@@ -332,27 +318,9 @@
     }
   }
   
-  @keyframes expand-width {
-    0% {
-      width: 0;
-    }
-    100% {
-      width: 100%;
-    }
-  }
-  
-  @keyframes type-writer {
-    from {
-      width: 0;
-    }
-    to {
-      width: 100%;
-    }
-  }
-  
   @keyframes count-up {
     from {
-      transform: translateY(20px);
+      transform: translateY(10px);
       opacity: 0;
     }
     to {
@@ -363,7 +331,7 @@
   
   @keyframes count-up-delayed {
     0%, 20% {
-      transform: translateY(20px);
+      transform: translateY(10px);
       opacity: 0;
     }
     100% {
@@ -374,7 +342,7 @@
   
   @keyframes count-up-delayed-2 {
     0%, 40% {
-      transform: translateY(20px);
+      transform: translateY(10px);
       opacity: 0;
     }
     100% {
@@ -388,107 +356,89 @@
       transform: translate(0, 0);
     }
     100% {
-      transform: translate(50px, 50px);
+      transform: translate(25px, 25px);
     }
   }
   
   .animate-float-slow {
-    animation: float-slow 4s ease-in-out infinite;
+    animation: float-slow 3s ease-in-out infinite;
   }
   
   .animate-float-reverse {
-    animation: float-reverse 3s ease-in-out infinite;
+    animation: float-reverse 2s ease-in-out infinite;
   }
   
   .animate-speed-line {
-    animation: speed-line 3s ease-in-out infinite;
+    animation: speed-line 2s ease-in-out infinite;
   }
   
   .animate-speed-line-delayed {
-    animation: speed-line-delayed 3s ease-in-out infinite 0.5s;
+    animation: speed-line-delayed 2s ease-in-out infinite 0.3s;
   }
   
   .animate-speed-line-delayed-2 {
-    animation: speed-line-delayed-2 3s ease-in-out infinite 1s;
+    animation: speed-line-delayed-2 2s ease-in-out infinite 0.6s;
   }
   
   .animate-bounce-slow {
-    animation: bounce-slow 3s ease-in-out infinite;
-  }
-  
-  .animate-pulse-slow {
-    animation: pulse-slow 2s ease-in-out infinite;
+    animation: bounce-slow 2s ease-in-out infinite;
   }
   
   .animate-spin-slow {
-    animation: spin-slow 20s linear infinite;
+    animation: spin-slow 15s linear infinite;
   }
   
   .animate-orbit {
-    animation: orbit 15s linear infinite;
+    animation: orbit 10s linear infinite;
   }
   
   .animate-orbit-reverse {
-    animation: orbit-reverse 12s linear infinite;
+    animation: orbit-reverse 8s linear infinite;
   }
   
   .animate-bounce-in {
-    animation: bounce-in 1s ease-out 0.5s both;
-  }
-  
-  .animate-bounce-in-delayed {
-    animation: bounce-in-delayed 1s ease-out 0.8s both;
+    animation: bounce-in 0.8s ease-out 0.3s both;
   }
   
   .animate-fade-in-up {
-    animation: fade-in-up 1s ease-out;
+    animation: fade-in-up 0.8s ease-out;
   }
   
   .animate-text-shimmer {
-    animation: text-shimmer 3s ease-in-out infinite;
+    animation: text-shimmer 2s ease-in-out infinite;
   }
   
   .animate-expand-width {
-    animation: expand-width 1s ease-out 0.5s both;
+    animation: expand-width 1s ease-out 0.3s both;
   }
   
   .animate-expand-width-delayed {
-    animation: expand-width 1.5s ease-out 1s both;
-  }
-  
-  .animate-type-writer {
-    animation: type-writer 2s ease-out 0.5s both;
+    animation: expand-width 1.2s ease-out 0.6s both;
   }
   
   .animate-count-up {
-    animation: count-up 1s ease-out 1s both;
+    animation: count-up 0.8s ease-out 0.8s both;
   }
   
   .animate-count-up-delayed {
-    animation: count-up-delayed 1s ease-out 1s both;
+    animation: count-up-delayed 0.8s ease-out 0.8s both;
   }
   
   .animate-count-up-delayed-2 {
-    animation: count-up-delayed-2 1s ease-out 1s both;
+    animation: count-up-delayed-2 0.8s ease-out 0.8s both;
   }
   
   .animate-fade-in-delay-4 {
-    animation: fade-in 1s ease-out 0.8s both;
+    animation: fade-in 0.6s ease-out 0.4s both;
   }
   
-  /* Additional animations for VoluntaryReturnForm */
+  /* تحسين الأداء: تقليل الأنيميشن المعقدة */
   @keyframes float-wide-slower {
     0%, 100% {
       transform: translateY(0px) translateX(0px);
     }
-    25% {
-      transform: translateY(-10px) translateX(5px);
-    }
     50% {
-      transform: translateY(-5px) translateX(-5px);
-    }
-    75% {
-      transform: translateY(-15px) translateX(3px);
+      transform: translateY(-5px) translateX(2px);
     }
   }
   
@@ -498,7 +448,7 @@
       opacity: 0.7;
     }
     50% {
-      transform: scale(1.15);
+      transform: scale(1.05);
       opacity: 1;
     }
   }
@@ -508,7 +458,7 @@
       transform: translateY(0px);
     }
     50% {
-      transform: translateY(-12px);
+      transform: translateY(-6px);
     }
   }
   
@@ -518,8 +468,8 @@
       opacity: 0.6;
     }
     50% {
-      transform: scale(1.1);
-      opacity: 0.9;
+      transform: scale(1.03);
+      opacity: 0.8;
     }
   }
   
@@ -533,29 +483,29 @@
   }
   
   .animate-float-wide-slower {
-    animation: float-wide-slower 6s ease-in-out infinite;
+    animation: float-wide-slower 4s ease-in-out infinite;
   }
   
   .animate-pulse-wide-slower {
-    animation: pulse-wide-slower 4s ease-in-out infinite;
+    animation: pulse-wide-slower 3s ease-in-out infinite;
   }
   
   .animate-bounce-wide-slower {
-    animation: bounce-wide-slower 4s ease-in-out infinite;
+    animation: bounce-wide-slower 3s ease-in-out infinite;
   }
   
   .animate-pulse-wide-slow {
-    animation: pulse-wide-slow 5s ease-in-out infinite;
+    animation: pulse-wide-slow 4s ease-in-out infinite;
   }
   
   .animate-spin-slow-reverse {
-    animation: spin-slow-reverse 25s linear infinite;
+    animation: spin-slow-reverse 20s linear infinite;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - مبسط */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -564,7 +514,7 @@
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(45deg, #0ea5e9, #3b82f6);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -578,18 +528,18 @@
 
 /* Flag styling */
 .flag-shadow {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .flag-gloss {
-  filter: brightness(1.1) contrast(1.1);
+  filter: brightness(1.05) contrast(1.05);
 }
 
-/* Dropdown animations */
+/* Dropdown animations - مبسطة */
 @keyframes slide-in-from-top-2 {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
@@ -606,12 +556,46 @@
 }
 
 .duration-200 {
-  animation-duration: 200ms;
+  animation-duration: 150ms;
 }
 
-/* Smooth transitions for all interactive elements */
+/* تحسين الأداء: تقليل التحولات */
 * {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, opacity, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-duration: 100ms;
+}
+
+/* تحسين الأداء: إيقاف الأنيميشن للأجهزة الضعيفة */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* تحسين الأداء: تقليل الأنيميشن على الأجهزة المحمولة */
+@media (max-width: 768px) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-float-wide-slower {
+    animation: none;
+  }
+  
+  .animate-spin-slow,
+  .animate-spin-slow-reverse,
+  .animate-orbit,
+  .animate-orbit-reverse {
+    animation: none;
+  }
+  
+  .animate-speed-line,
+  .animate-speed-line-delayed,
+  .animate-speed-line-delayed-2 {
+    animation: none;
+  }
 }

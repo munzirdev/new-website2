@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Mail, ArrowLeft, RefreshCw } from 'lucide-react';
+import CustomCursor from './CustomCursor';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -110,6 +111,7 @@ const EmailVerification: React.FC<EmailVerificationProps> = ({ isDarkMode }) => 
   if (verificationStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-caribbean-50 to-indigo-50 dark:from-jet-900 dark:to-jet-800">
+        <CustomCursor isDarkMode={isDarkMode} />
         <div className="bg-white dark:bg-jet-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto mb-4"></div>
@@ -127,6 +129,7 @@ const EmailVerification: React.FC<EmailVerificationProps> = ({ isDarkMode }) => 
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-caribbean-50 to-indigo-50 dark:from-jet-900 dark:to-jet-800">
+      <CustomCursor isDarkMode={isDarkMode} />
       <div className="bg-white dark:bg-jet-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
         {verificationStatus === 'success' && (
           <div className="text-center">

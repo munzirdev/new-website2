@@ -18,10 +18,10 @@ import {
   Eye,
   Download
 } from 'lucide-react';
+import CustomCursor from './CustomCursor';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
-import CursorWrapper from './CursorWrapper';
 import { formatDisplayDate } from '../lib/utils';
 
 interface ServiceRequest {
@@ -481,6 +481,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-jet-800 flex items-center justify-center">
+        <CustomCursor isDarkMode={isDarkMode} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto mb-4"></div>
           <p className="text-jet-600 dark:text-platinum-400">جاري تحميل طلباتك...</p>
@@ -490,11 +491,11 @@ const UserAccount: React.FC<UserAccountProps> = ({
   }
 
   return (
-    <CursorWrapper>
-      <div 
-        className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16"
-        dir={isArabic ? 'rtl' : 'ltr'}
-      >
+    <div 
+      className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16"
+      dir={isArabic ? 'rtl' : 'ltr'}
+    >
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -858,8 +859,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
       )}
-      </div>
-    </CursorWrapper>
+    </div>
   );
 };
 

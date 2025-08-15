@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, MessageCircle, Search, ChevronDown, ChevronUp, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
+import CustomCursor from './CustomCursor';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../lib/utils';
@@ -164,6 +165,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-jet-800 flex items-center justify-center">
+        <CustomCursor isDarkMode={isDarkMode} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto mb-4"></div>
           <p className="text-jet-600 dark:text-platinum-400">جاري تحميل المساعدة...</p>
@@ -174,6 +176,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
 
   return (
     <div className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16">
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

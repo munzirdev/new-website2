@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, X, CheckCircle, AlertCircle, Search, ChevronDown } from 'lucide-react';
+import CustomCursor from './CustomCursor';
 import { useAuthContext } from './AuthProvider';
 import { supabase, countryCodes, CountryCode } from '../lib/supabase';
 import { formatDisplayDate } from '../lib/utils';
@@ -115,6 +116,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({
 
   return (
     <div className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16">
+      <CustomCursor isDarkMode={isDarkMode} />
       {/* Header */}
       <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

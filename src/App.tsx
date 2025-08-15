@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, CreditCard, Building, ChevronDown, CheckCircle, Shield, Clock, LogIn, UserPlus, User, Settings, Bell, HelpCircle, LogOut, Send } from 'lucide-react';
-import { useLocation, useNavigate, Outlet, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, LogIn, UserPlus, User, Settings, HelpCircle, LogOut, Send } from 'lucide-react';
+import CustomCursor from './components/CustomCursor';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuthContext } from './components/AuthProvider';
 import { useLanguage } from './hooks/useLanguage';
 import ServicePage from './components/ServicePage';
@@ -12,7 +13,6 @@ import ServiceRequestForm from './components/ServiceRequestForm';
 import UserAccount from './components/UserAccount';
 import ProfileEdit from './components/ProfileEdit';
 import HelpSupport from './components/HelpSupport';
-import VoluntaryReturnForm from './components/VoluntaryReturnForm';
 import VoluntaryReturnPage from './components/VoluntaryReturnPage';
 import EmailVerification from './components/EmailVerification';
 import { supabase } from './lib/supabase';
@@ -25,16 +25,12 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const [isCursorVisible, setIsCursorVisible] = useState(false);
   const [isLanguageChanging, setIsLanguageChanging] = useState(false);
 
   const [currentService, setCurrentService] = useState<string | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showUserAccount, setShowUserAccount] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -62,24 +58,10 @@ function App() {
   const [contactError, setContactError] = useState<string | null>(null);
   const { user, profile, loading: authLoading, signOut, hasNotifications, clearNotifications } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
-  const isArabic = language === 'ar';
 
-  // Utility function to format phone number with RTL support for Arabic
-  const formatPhoneNumber = (phoneNumber: string, isArabic: boolean) => {
-    if (!phoneNumber) return '';
-    
-    if (isArabic) {
-      // For Arabic, format with RTL direction but keep original format
-      return (
-        <span className="phone-number" style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'bidi-override' }}>
-          {phoneNumber}
-        </span>
-      );
-    } else {
-      // For English, return original format
-      return phoneNumber;
-    }
-  };
+
+
+
 
   // Navigation definition
   const navigation = [
@@ -118,6 +100,45 @@ function App() {
       default: return 'العربية';
     }
   };
+
+  // تحسين الأداء: استخدام useMemo للخدمات
+  const services = useMemo(() => servicesData.map(service => ({
+    id: service.id,
+    icon: (() => {
+      switch (service.id) {
+        case 'health-insurance': return <Shield className="w-8 h-8 text-caribbean-500" />;
+        case 'translation': return <Users className="w-8 h-8 text-caribbean-500" />;
+        case 'travel': return <Globe className="w-8 h-8 text-caribbean-500" />;
+        case 'legal': return <Star className="w-8 h-8 text-caribbean-500" />;
+        case 'government': return <FileText className="w-8 h-8 text-caribbean-500" />;
+        case 'insurance': return <Heart className="w-8 h-8 text-caribbean-500" />;
+        default: return <Users className="w-8 h-8 text-caribbean-500" />;
+      }
+    })(),
+    title: t(service.titleKey) as string,
+    description: t(service.descriptionKey) as string,
+  })), [t]);
+
+
+
+  // تحسين الأداء
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // الاستماع لحدث فتح تسجيل الدخول من ServicePage
+    const handleOpenLogin = () => {
+      setIsLoginOpen(true);
+    };
+    
+    window.addEventListener('openLogin', handleOpenLogin);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('openLogin', handleOpenLogin);
+    };
+  }, []);
 
   // Handle route changes
   useEffect(() => {
@@ -220,56 +241,6 @@ function App() {
       (window as any).authDebugLogs.add(logKey);
     }
   }, [user, profile, authLoading, showWelcome]);
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-      setIsCursorVisible(true);
-      
-      // Simple hover detection for better performance
-      const target = e.target as HTMLElement;
-      const isInteractive = target.tagName === 'BUTTON' || 
-                           target.tagName === 'A' || 
-                           target.closest('button') !== null || 
-                           target.closest('a') !== null;
-      
-      setIsHovering(isInteractive);
-    };
-
-    const handleMouseLeave = () => {
-      // Keep cursor visible when mouse leaves window
-      // Don't hide the custom cursor
-      setIsCursorVisible(false);
-    };
-    
-    // Check if device is touch-based
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    
-    window.addEventListener('scroll', handleScroll);
-    
-    // Only add mouse events for non-touch devices
-    if (!isTouchDevice) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseleave', handleMouseLeave);
-    }
-    
-    // الاستماع لحدث فتح تسجيل الدخول من ServicePage
-    const handleOpenLogin = () => {
-      setIsLoginOpen(true);
-    };
-    
-    window.addEventListener('openLogin', handleOpenLogin);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (!isTouchDevice) {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseleave', handleMouseLeave);
-      }
-      window.removeEventListener('openLogin', handleOpenLogin);
-    };
-  }, []);
 
   // Redirect after successful authentication
   useEffect(() => {
@@ -720,24 +691,6 @@ function App() {
     }
   };
 
-  // Define services with icons and translations
-  const services = servicesData.map(service => ({
-    id: service.id,
-    icon: (() => {
-      switch (service.id) {
-        case 'health-insurance': return <Shield className="w-8 h-8 text-caribbean-500" />;
-        case 'translation': return <Users className="w-8 h-8 text-caribbean-500" />;
-        case 'travel': return <Globe className="w-8 h-8 text-caribbean-500" />;
-        case 'legal': return <Star className="w-8 h-8 text-caribbean-500" />;
-        case 'government': return <FileText className="w-8 h-8 text-caribbean-500" />;
-        case 'insurance': return <Heart className="w-8 h-8 text-caribbean-500" />;
-        default: return <Users className="w-8 h-8 text-caribbean-500" />;
-      }
-    })(),
-    title: t(service.titleKey) as string,
-    description: t(service.descriptionKey) as string,
-  }));
-
   // If a service is selected, show the service page without the main navbar
   if (currentService) {
     const service = servicesData.find(s => s.id === currentService);
@@ -745,65 +698,8 @@ function App() {
       // Special handling for health insurance service
       if (service.id === 'health-insurance') {
         return (
-          <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
-            <style dangerouslySetInnerHTML={{
-              __html: `
-                /* Hide default cursor everywhere */
-                html, body, * {
-                  cursor: none !important;
-                }
-                
-                /* Specific elements */
-                button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-                  cursor: none !important;
-                }
-                
-                /* Dropdowns and modals */
-                .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-                [class*="dropdown"], [class*="modal"], [class*="popup"] {
-                  cursor: none !important;
-                }
-                
-                /* All children elements */
-                * * {
-                  cursor: none !important;
-                }
-                
-                /* Force override any other cursor styles */
-                * {
-                  cursor: none !important;
-                }
-
-                /* Exception for logo button to allow clicks */
-                .logo-button {
-                  cursor: pointer !important;
-                }
-
-                /* Show default cursor on touch devices */
-                @media (hover: none) and (pointer: coarse) {
-                  html, body, * {
-                    cursor: auto !important;
-                  }
-                  
-                  button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-                    cursor: pointer !important;
-                  }
-                  
-                  .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-                  [class*="dropdown"], [class*="modal"], [class*="popup"] {
-                    cursor: auto !important;
-                  }
-                  
-                  * * {
-                    cursor: auto !important;
-                  }
-                  
-                  * {
-                    cursor: auto !important;
-                  }
-                }
-              `
-            }} />
+          <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
+            <CustomCursor isDarkMode={isDarkMode} />
             
             <HealthInsurancePage 
               onBack={handleBackToHome} 
@@ -834,65 +730,8 @@ function App() {
         processKey: service.processKey
       };
       return (
-        <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
-          <style dangerouslySetInnerHTML={{
-            __html: `
-              /* Hide default cursor everywhere */
-              html, body, * {
-                cursor: none !important;
-              }
-              
-              /* Specific elements */
-              button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-                cursor: none !important;
-              }
-              
-              /* Dropdowns and modals */
-              .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-              [class*="dropdown"], [class*="modal"], [class*="popup"] {
-                cursor: none !important;
-              }
-              
-              /* All children elements */
-              * * {
-                cursor: none !important;
-              }
-              
-              /* Force override any other cursor styles */
-              * {
-                cursor: none !important;
-              }
-
-              /* Exception for logo button to allow clicks */
-              .logo-button {
-                cursor: pointer !important;
-              }
-
-              /* Show default cursor on touch devices */
-              @media (hover: none) and (pointer: coarse) {
-                html, body, * {
-                  cursor: auto !important;
-                }
-                
-                button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-                  cursor: pointer !important;
-                }
-                
-                .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-                [class*="dropdown"], [class*="modal"], [class*="popup"] {
-                  cursor: auto !important;
-                }
-                
-                * * {
-                  cursor: auto !important;
-                }
-                
-                * {
-                  cursor: auto !important;
-                }
-              }
-            `
-          }} />
+        <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
+          <CustomCursor isDarkMode={isDarkMode} />
           
           <ServicePage 
             service={serviceWithIcon} 
@@ -926,6 +765,7 @@ function App() {
           {showWelcome && user && profile && (
             <WelcomeMessage
               userName={profile.full_name || user.email || 'مستخدم'}
+              userRole={profile.role}
               onClose={() => setShowWelcome(false)}
             />
           )}
@@ -980,65 +820,8 @@ function App() {
   // If voluntary return page is requested, show it
   if (location.pathname === '/voluntary-return') {
     return (
-      <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            /* Hide default cursor everywhere */
-            html, body, * {
-              cursor: none !important;
-            }
-            
-            /* Specific elements */
-            button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-              cursor: none !important;
-            }
-            
-            /* Dropdowns and modals */
-            .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-            [class*="dropdown"], [class*="modal"], [class*="popup"] {
-              cursor: none !important;
-            }
-            
-            /* All children elements */
-            * * {
-              cursor: none !important;
-            }
-            
-            /* Force override any other cursor styles */
-            * {
-              cursor: none !important;
-            }
-
-            /* Exception for logo button to allow clicks */
-            .logo-button {
-              cursor: pointer !important;
-            }
-
-            /* Show default cursor on touch devices */
-            @media (hover: none) and (pointer: coarse) {
-              html, body, * {
-                cursor: auto !important;
-              }
-              
-              button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-                cursor: pointer !important;
-              }
-              
-              .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-              [class*="dropdown"], [class*="modal"], [class*="popup"] {
-                cursor: auto !important;
-              }
-              
-              * * {
-                cursor: auto !important;
-              }
-              
-              * {
-                cursor: auto !important;
-              }
-            }
-          `
-        }} />
+      <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
+        <CustomCursor isDarkMode={isDarkMode} />
         
         <VoluntaryReturnPage 
           onBack={() => navigate('/home')} 
@@ -1062,6 +845,7 @@ function App() {
         {showWelcome && user && (
           <WelcomeMessage
             userName={profile?.full_name || user.email || 'مستخدم'}
+            userRole={profile?.role}
             onClose={() => setShowWelcome(false)}
           />
         )}
@@ -1084,67 +868,37 @@ function App() {
   if (location.pathname === '/auth/verify-email') {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} transition-colors duration-500`}>
+        <CustomCursor isDarkMode={isDarkMode} />
         <EmailVerification isDarkMode={isDarkMode} />
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`} style={{ cursor: 'none' }}>
+    <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
+      <CustomCursor isDarkMode={isDarkMode} />
       <style dangerouslySetInnerHTML={{
         __html: `
-          /* Hide default cursor everywhere */
-          html, body, * {
-            cursor: none !important;
-          }
-          
-          /* Specific elements */
-          button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-            cursor: none !important;
-          }
-          
-          /* Dropdowns and modals */
-          .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-          [class*="dropdown"], [class*="modal"], [class*="popup"] {
-            cursor: none !important;
-          }
-          
-          /* All children elements */
-          * * {
-            cursor: none !important;
-          }
-          
-          /* Force override any other cursor styles */
-          * {
-            cursor: none !important;
-          }
-
-          /* Exception for logo button to allow clicks */
-          .logo-button {
-            cursor: pointer !important;
-          }
-
-          /* Show default cursor on touch devices */
-          @media (hover: none) and (pointer: coarse) {
-            html, body, * {
-              cursor: auto !important;
+          /* تحسين الأداء: تقليل الأنيميشن على الأجهزة المحمولة */
+          @media (max-width: 768px) {
+            .animate-float,
+            .animate-float-slow,
+            .animate-float-reverse,
+            .animate-float-wide-slower {
+              animation: none !important;
             }
             
-            button, a, input, select, textarea, [role="button"], [onclick], [tabindex] {
-              cursor: pointer !important;
+            .animate-spin-slow,
+            .animate-spin-slow-reverse,
+            .animate-orbit,
+            .animate-orbit-reverse {
+              animation: none !important;
             }
             
-            .dropdown, .modal, .popup, [data-dropdown], [role="menu"], [role="listbox"], 
-            [class*="dropdown"], [class*="modal"], [class*="popup"] {
-              cursor: auto !important;
-            }
-            
-            * * {
-              cursor: auto !important;
-            }
-            
-            * {
-              cursor: auto !important;
+            .animate-speed-line,
+            .animate-speed-line-delayed,
+            .animate-speed-line-delayed-2 {
+              animation: none !important;
             }
           }
         `
@@ -1268,7 +1022,7 @@ function App() {
 
                     {/* User Dropdown Menu */}
                     {showUserDropdown && (
-                      <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md rounded-xl shadow-2xl border border-platinum-300 dark:border-jet-600 py-2 z-50" style={{ cursor: 'none' }}>
+                      <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md rounded-xl shadow-2xl border border-platinum-300 dark:border-jet-600 py-2 z-50">
                         {/* User Info Header */}
                         <div className="px-4 py-3 border-b border-platinum-200 dark:border-jet-700">
                           <div className="flex items-center">
@@ -1539,7 +1293,7 @@ function App() {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white/95 dark:bg-jet-800/95 backdrop-blur-md border-t dark:border-jet-700 max-h-[80vh] overflow-y-auto" style={{ cursor: 'none' }}>
+          <div className="md:hidden bg-white/95 dark:bg-jet-800/95 backdrop-blur-md border-t dark:border-jet-700 max-h-[80vh] overflow-y-auto">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => {
                 if (item.isSection) {
@@ -1731,57 +1485,6 @@ function App() {
         
         {/* Animated Background Elements - Reduced for mobile */}
         <div className="absolute inset-0">
-          {/* Cursor Glow - Only on desktop */}
-          {isCursorVisible && (
-            <div className="fixed w-32 h-32 bg-gradient-to-r from-caribbean-400/15 to-indigo-400/15 rounded-full blur-xl pointer-events-none transition-transform duration-300 ease-out z-0 hidden md:block" 
-                 style={{
-                   left: `${mousePosition.x}px`,
-                   top: `${mousePosition.y}px`,
-                   transform: 'translate(-50%, -50%)',
-                 }}>
-            </div>
-          )}
-          
-          {/* Modern Professional Cursor - Only on desktop */}
-          {isCursorVisible && (
-            <>
-              {!isHovering ? (
-                <>
-                  <div className="fixed w-6 h-6 border-2 border-white rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out shadow-lg cursor-element hidden md:block"
-                       style={{
-                         left: `${mousePosition.x}px`,
-                         top: `${mousePosition.y}px`,
-                         transform: 'translate(-50%, -50%)',
-                       }}>
-                  </div>
-                  <div className="fixed w-2 h-2 bg-white rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out cursor-element hidden md:block"
-                       style={{
-                         left: `${mousePosition.x}px`,
-                         top: `${mousePosition.y}px`,
-                         transform: 'translate(-50%, -50%)',
-                       }}>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="fixed w-8 h-8 border-2 border-caribbean-400 rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out shadow-xl cursor-element hidden md:block"
-                       style={{
-                         left: `${mousePosition.x}px`,
-                         top: `${mousePosition.y}px`,
-                         transform: 'translate(-50%, -50%)',
-                       }}>
-                  </div>
-                  <div className="fixed w-3 h-3 bg-caribbean-400 rounded-full pointer-events-none z-[9999] transition-transform duration-75 ease-out cursor-element hidden md:block"
-                       style={{
-                         left: `${mousePosition.x}px`,
-                         top: `${mousePosition.y}px`,
-                         transform: 'translate(-50%, -50%)',
-                       }}>
-                  </div>
-                </>
-              )}
-            </>
-          )}
 
           {/* Floating Elements - Reduced for mobile */}
           {/* Desktop only floating elements */}
@@ -2238,7 +1941,7 @@ function App() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
       <div className="flex items-center justify-center space-x-3 space-x-reverse mb-4">
         <img 
-          src="/logo.png" 
+          src="/logo-fınal.png" 
           alt="مجموعة تواصل" 
           className={`w-8 h-8 rounded-lg object-cover shadow-md ${isLanguageChanging ? 'language-change-logo' : ''}`}
         />
@@ -2270,6 +1973,7 @@ function App() {
   {showWelcome && user && profile && (
     <WelcomeMessage
       userName={profile.full_name || user.email || 'مستخدم'}
+      userRole={profile.role}
       onClose={() => setShowWelcome(false)}
     />
   )}

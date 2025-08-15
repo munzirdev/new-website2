@@ -87,6 +87,10 @@ export const router = createBrowserRouter([
         element: <Outlet />
       },
       {
+        path: 'admin/health-insurance',
+        element: <Outlet />
+      },
+      {
         path: 'auth/verify-email',
         element: <EmailVerification isDarkMode={false} />
       },

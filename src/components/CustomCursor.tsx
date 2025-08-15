@@ -1,174 +1,278 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface CustomCursorProps {
-  className?: string;
+  isDarkMode: boolean;
 }
 
-const CustomCursor: React.FC<CustomCursorProps> = ({ className = '' }) => {
-  const [isVisible, setIsVisible] = useState(false);
+const CustomCursor: React.FC<CustomCursorProps> = ({ isDarkMode }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isPointer, setIsPointer] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // دالة للتحقق من الوضع الليلي
-  const checkDarkMode = useCallback(() => {
-    const isDark = document.documentElement.classList.contains('dark') || 
-                   document.body.classList.contains('dark') ||
-                   window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setIsDarkMode(isDark);
-  }, []);
-
-  // استخدام useCallback لتحسين الأداء
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    // استخدام requestAnimationFrame لتحسين الأداء
-    requestAnimationFrame(() => {
-      setPosition({ x: e.clientX, y: e.clientY });
-      setIsVisible(true);
-    });
-  }, []);
-
-  const handleMouseEnter = useCallback(() => {
-    setIsVisible(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setIsVisible(false);
-  }, []);
-
-  const handleMouseOver = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const isClickable = target.closest('button, a, [role="button"], input, select, textarea, [tabindex], .cursor-pointer, [data-cursor="pointer"]');
-    setIsPointer(!!isClickable);
-  }, []);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isClicking, setIsClicking] = useState(false);
 
   useEffect(() => {
-    // Add event listeners with passive option for better performance
-    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    const updatePosition = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+      setIsVisible(true);
+    };
+
+    const handleMouseEnter = () => {
+      setIsVisible(true);
+    };
+
+    const handleMouseLeave = () => {
+      setIsVisible(false);
+    };
+
+    const handleMouseDown = () => {
+      setIsClicking(true);
+    };
+
+    const handleMouseUp = () => {
+      setIsClicking(false);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', updatePosition);
     document.addEventListener('mouseenter', handleMouseEnter);
     document.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('mouseover', handleMouseOver, { passive: true });
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
 
-    // Hide cursor on touch devices
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice) {
-      setIsVisible(false);
-    }
+    // Add hover detection for interactive elements
+    const interactiveElements = document.querySelectorAll(
+      'button, a, input, select, textarea, [role="button"], [onclick], [tabindex], .interactive'
+    );
 
-    // التحقق من الوضع الليلي عند التحميل
-    checkDarkMode();
+    const handleElementMouseEnter = () => {
+      setIsHovering(true);
+    };
 
-    // مراقبة تغييرات الوضع الليلي
-    const observer = new MutationObserver(() => {
-      checkDarkMode();
+    const handleElementMouseLeave = () => {
+      setIsHovering(false);
+    };
+
+    interactiveElements.forEach((element) => {
+      element.addEventListener('mouseenter', handleElementMouseEnter);
+      element.addEventListener('mouseleave', handleElementMouseLeave);
     });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    // مراقبة تغييرات النظام
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', checkDarkMode);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousemove', updatePosition);
       document.removeEventListener('mouseenter', handleMouseEnter);
       document.removeEventListener('mouseleave', handleMouseLeave);
-      document.removeEventListener('mouseover', handleMouseOver);
-      observer.disconnect();
-      mediaQuery.removeEventListener('change', checkDarkMode);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+
+      interactiveElements.forEach((element) => {
+        element.removeEventListener('mouseenter', handleElementMouseEnter);
+        element.removeEventListener('mouseleave', handleElementMouseLeave);
+      });
     };
-  }, [handleMouseMove, handleMouseEnter, handleMouseLeave, handleMouseOver, checkDarkMode]);
+  }, []);
 
   // Don't render on touch devices
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  if (typeof window !== 'undefined' && 'ontouchstart' in window) {
     return null;
   }
 
   return (
     <>
-      {/* Cursor Glow */}
-      {isVisible && (
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          /* Hide default cursor */
+          * {
+            cursor: none !important;
+          }
+          
+          /* Show default cursor on touch devices */
+          @media (hover: none) and (pointer: coarse) {
+            * {
+              cursor: auto !important;
+            }
+            .custom-cursor {
+              display: none !important;
+            }
+          }
+        `
+      }} />
+      
+      <div
+        className="custom-cursor fixed pointer-events-none z-[9999] transition-opacity duration-300"
+        style={{
+          left: position.x,
+          top: position.y,
+          opacity: isVisible ? 1 : 0,
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        {/* Main cursor dot - Using vibrant colors for better visibility */}
         <div
-          className={`fixed pointer-events-none z-[9999] will-change-transform ${className}`}
+          className={`absolute w-4 h-4 rounded-full transition-all duration-200 ease-out ${
+            isDarkMode 
+              ? 'bg-gradient-to-r from-cyan-400 to-sky-400 shadow-lg shadow-cyan-400/60 ring-2 ring-cyan-300/50' 
+              : 'bg-gradient-to-r from-cyan-500 to-sky-500 shadow-lg shadow-cyan-500/60 ring-2 ring-cyan-400/50'
+          } ${
+            isClicking ? 'scale-75' : 'scale-100'
+          }`}
           style={{
-            left: position.x - 20,
-            top: position.y - 20,
-            width: 40,
-            height: 40,
-            background: isDarkMode 
-              ? 'radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
-              : 'radial-gradient(circle, rgba(0, 123, 255, 0.3) 0%, rgba(0, 123, 255, 0.1) 50%, transparent 100%)',
-            borderRadius: '50%',
-            transform: isPointer ? 'scale(1.5)' : 'scale(1)',
-            transition: 'transform 0.1s ease-out',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
           }}
         />
-      )}
-
-      {/* Main Cursor */}
-      {isVisible && (
+        
+        {/* Inner glow ring */}
         <div
-          className={`fixed pointer-events-none z-[9999] will-change-transform ${className}`}
+          className={`absolute w-6 h-6 rounded-full transition-all duration-300 ease-out ${
+            isDarkMode 
+              ? 'border-2 border-cyan-300/60 shadow-lg shadow-cyan-400/40' 
+              : 'border-2 border-cyan-400/60 shadow-lg shadow-cyan-500/40'
+          } ${
+            isHovering ? 'scale-125 opacity-100' : 'scale-100 opacity-80'
+          }`}
           style={{
-            left: position.x - 4,
-            top: position.y - 4,
-            width: 8,
-            height: 8,
-            background: isPointer 
-              ? (isDarkMode ? '#ffffff' : '#007bff') 
-              : (isDarkMode ? '#ffffff' : '#333333'),
-            borderRadius: '50%',
-            transform: isPointer ? 'scale(1.5)' : 'scale(1)',
-            boxShadow: isPointer 
-              ? (isDarkMode 
-                  ? '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(255, 255, 255, 0.3)' 
-                  : '0 0 20px rgba(0, 123, 255, 0.5), 0 0 40px rgba(0, 123, 255, 0.3)')
-              : (isDarkMode 
-                  ? '0 0 10px rgba(255, 255, 255, 0.3)' 
-                  : '0 0 10px rgba(0, 0, 0, 0.3)'),
-            transition: 'all 0.1s ease-out',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
           }}
         />
-      )}
-
-      {/* Cursor Ring */}
-      {isVisible && (
+        
+        {/* Middle glow ring */}
         <div
-          className={`fixed pointer-events-none z-[9998] will-change-transform ${className}`}
+          className={`absolute w-12 h-12 rounded-full transition-all duration-400 ease-out ${
+            isDarkMode 
+              ? 'border border-sky-300/40 shadow-lg shadow-sky-400/30' 
+              : 'border border-sky-400/40 shadow-lg shadow-sky-500/30'
+          } ${
+            isHovering ? 'scale-150 opacity-60' : 'scale-100 opacity-40'
+          }`}
           style={{
-            left: position.x - 12,
-            top: position.y - 12,
-            width: 24,
-            height: 24,
-            border: `2px solid ${isPointer 
-              ? (isDarkMode ? '#ffffff' : '#007bff') 
-              : (isDarkMode ? '#ffffff' : '#666666')}`,
-            borderRadius: '50%',
-            opacity: isPointer ? 0.8 : 0.4,
-            transform: isPointer ? 'scale(1.2)' : 'scale(1)',
-            transition: 'all 0.15s ease-out',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
           }}
         />
-      )}
-
-      {/* Cursor Trail - إزالة للتأثير الأسرع */}
-      {/* {isVisible && (
+        
+        {/* Outer glow ring */}
         <div
-          className={`fixed pointer-events-none z-[9997] will-change-transform ${className}`}
+          className={`absolute w-20 h-20 rounded-full transition-all duration-500 ease-out ${
+            isDarkMode 
+              ? 'border border-cyan-200/30 shadow-lg shadow-cyan-400/20' 
+              : 'border border-cyan-300/30 shadow-lg shadow-cyan-500/20'
+          } ${
+            isHovering ? 'scale-175 opacity-30' : 'scale-100 opacity-20'
+          }`}
           style={{
-            left: position.x - 6,
-            top: position.y - 6,
-            width: 12,
-            height: 12,
-            background: isPointer ? 'rgba(0, 123, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-            borderRadius: '50%',
-            transform: 'scale(0.8)',
-            transition: 'all 0.2s ease-out',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
           }}
         />
-      )} */}
+        
+        {/* Click animation ring */}
+        {isClicking && (
+          <div
+            className={`absolute w-16 h-16 rounded-full animate-ping ${
+              isDarkMode 
+                ? 'bg-cyan-400/40' 
+                : 'bg-cyan-500/40'
+            }`}
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+        
+        {/* Hover effect particles - Using different colors for better contrast */}
+        {isHovering && (
+          <>
+            <div
+              className={`absolute w-1.5 h-1.5 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-cyan-300' : 'bg-cyan-400'
+              }`}
+              style={{
+                left: 'calc(50% - 10px)',
+                top: 'calc(50% - 10px)',
+                animationDelay: '0ms',
+              }}
+            />
+            <div
+              className={`absolute w-1.5 h-1.5 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-sky-300' : 'bg-sky-400'
+              }`}
+              style={{
+                left: 'calc(50% + 10px)',
+                top: 'calc(50% - 10px)',
+                animationDelay: '200ms',
+              }}
+            />
+            <div
+              className={`absolute w-1.5 h-1.5 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-cyan-300' : 'bg-cyan-400'
+              }`}
+              style={{
+                left: 'calc(50% - 10px)',
+                top: 'calc(50% + 10px)',
+                animationDelay: '400ms',
+              }}
+            />
+            <div
+              className={`absolute w-1.5 h-1.5 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-sky-300' : 'bg-sky-400'
+              }`}
+              style={{
+                left: 'calc(50% + 10px)',
+                top: 'calc(50% + 10px)',
+                animationDelay: '600ms',
+              }}
+            />
+            {/* Additional corner particles for more visual impact */}
+            <div
+              className={`absolute w-1 h-1 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-cyan-200' : 'bg-cyan-300'
+              }`}
+              style={{
+                left: 'calc(50% - 15px)',
+                top: 'calc(50% - 15px)',
+                animationDelay: '100ms',
+              }}
+            />
+            <div
+              className={`absolute w-1 h-1 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-sky-200' : 'bg-sky-300'
+              }`}
+              style={{
+                left: 'calc(50% + 15px)',
+                top: 'calc(50% - 15px)',
+                animationDelay: '300ms',
+              }}
+            />
+            <div
+              className={`absolute w-1 h-1 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-cyan-200' : 'bg-cyan-300'
+              }`}
+              style={{
+                left: 'calc(50% - 15px)',
+                top: 'calc(50% + 15px)',
+                animationDelay: '500ms',
+              }}
+            />
+            <div
+              className={`absolute w-1 h-1 rounded-full animate-pulse ${
+                isDarkMode ? 'bg-sky-200' : 'bg-sky-300'
+              }`}
+              style={{
+                left: 'calc(50% + 15px)',
+                top: 'calc(50% + 15px)',
+                animationDelay: '700ms',
+              }}
+            />
+          </>
+        )}
+      </div>
     </>
   );
 };

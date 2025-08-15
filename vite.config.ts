@@ -17,5 +17,30 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['react', 'react-dom', 'react-router-dom']
   },
+  build: {
+    // تحسين الأداء
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          icons: ['lucide-react']
+        }
+      }
+    }
+  },
+  // تحسين الأداء
+  esbuild: {
+    target: 'esnext'
+  }
 });
