@@ -494,7 +494,7 @@ const HealthInsuranceManagement: React.FC = () => {
             </h3>
             <button
               onClick={() => setShowAddCompany(true)}
-              className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
             >
               <Plus className="w-4 h-4" />
               <span>{isArabic ? 'إضافة شركة' : 'Add Company'}</span>
@@ -545,7 +545,7 @@ const HealthInsuranceManagement: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowAddPricing(true)}
-                    className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105"
+                    className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
                   >
                     <Plus className="w-4 h-4" />
                     <span>{isArabic ? 'إضافة سعر' : 'Add Price'}</span>
@@ -625,7 +625,7 @@ const HealthInsuranceManagement: React.FC = () => {
                                       </div>
                                       <button
                                         onClick={() => startInlineEdit(group.pricing1Year.id, 'price_try', group.pricing1Year.price_try.toString())}
-                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50"
+                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50 relative z-20"
                                         title={isArabic ? 'تعديل السعر' : 'Edit Price'}
                                       >
                                         <Edit className="w-3 h-3" />
@@ -639,7 +639,7 @@ const HealthInsuranceManagement: React.FC = () => {
                                       </span>
                                       <button
                                         onClick={() => handleUpdatePricing({ ...group.pricing1Year, is_active: !group.pricing1Year.is_active })}
-                                        className={`p-1 rounded transition-colors duration-200 ${
+                                        className={`p-1 rounded transition-colors duration-200 relative z-20 ${
                                           group.pricing1Year.is_active 
                                             ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
                                             : 'text-green-600 hover:text-green-900 hover:bg-green-50'
@@ -673,7 +673,7 @@ const HealthInsuranceManagement: React.FC = () => {
                                       </div>
                                       <button
                                         onClick={() => startInlineEdit(group.pricing2Years.id, 'price_try', group.pricing2Years.price_try.toString())}
-                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50"
+                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50 relative z-20"
                                         title={isArabic ? 'تعديل السعر' : 'Edit Price'}
                                       >
                                         <Edit className="w-3 h-3" />
@@ -687,7 +687,7 @@ const HealthInsuranceManagement: React.FC = () => {
                                       </span>
                                       <button
                                         onClick={() => handleUpdatePricing({ ...group.pricing2Years, is_active: !group.pricing2Years.is_active })}
-                                        className={`p-1 rounded transition-colors duration-200 ${
+                                        className={`p-1 rounded transition-colors duration-200 relative z-20 ${
                                           group.pricing2Years.is_active 
                                             ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
                                             : 'text-green-600 hover:text-green-900 hover:bg-green-50'
@@ -712,14 +712,14 @@ const HealthInsuranceManagement: React.FC = () => {
                                 <div className="flex items-center space-x-2 space-x-reverse">
                                   <button
                                     onClick={() => setShowAddPricing(true)}
-                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200"
+                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
                                     title={isArabic ? 'إضافة سعر' : 'Add Price'}
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
                                   <button
                                     onClick={() => setEditingPricing(group.pricing1Year || group.pricing2Years)}
-                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200"
+                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
                                     title={isArabic ? 'تعديل' : 'Edit'}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -840,7 +840,7 @@ const HealthInsuranceManagement: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => setEditingRequest(request)}
-                            className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200"
+                            className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -866,7 +866,7 @@ const HealthInsuranceManagement: React.FC = () => {
             </h3>
             <button
               onClick={() => setShowAddAgeGroup(true)}
-              className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
             >
               <Plus className="w-4 h-4" />
               <span>{isArabic ? 'إضافة فئة عمرية' : 'Add Age Group'}</span>
@@ -914,7 +914,7 @@ const HealthInsuranceManagement: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setEditingAgeGroup(ageGroup)}
-                      className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200"
+                      className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
                     >
                       <Edit className="w-4 h-4" />
                     </button>

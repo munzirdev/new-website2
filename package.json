@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:mobile": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
+    "build:no-lint": "tsc && vite build",
     "build:prod": "node build-for-production.cjs",
     "deploy:subdomain": "node deploy-subdomain.cjs",
     "fix:netlify": "node fix-netlify-deploy.js",

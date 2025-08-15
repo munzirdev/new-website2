@@ -1,6 +1,6 @@
 [build]
   # Build command for Vite React project
-  command = "npm run build"
+  command = "npm run build:no-lint"
   
   # Publish directory (where Vite outputs the built files)
   publish = "dist"
