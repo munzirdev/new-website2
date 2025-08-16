@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد البريد الإلكتروني - Tevasul</title>
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        /* Reset styles for email clients */
+        body, table, td, p, a, li, blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+        
+        /* Responsive styles */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .mobile-padding {
+                padding: 20px 15px !important;
+            }
+            .mobile-text-center {
+                text-align: center !important;
+            }
+            .mobile-full-width {
+                width: 100% !important;
+            }
+            .mobile-button {
+                width: 100% !important;
+                max-width: 280px !important;
+            }
+            .mobile-logo {
+                width: 150px !important;
+            }
+            .mobile-title {
+                font-size: 24px !important;
+            }
+            .mobile-subtitle {
+                font-size: 14px !important;
+            }
+            .mobile-content {
+                font-size: 14px !important;
+            }
+            .mobile-footer {
+                font-size: 12px !important;
+            }
+            .mobile-contact {
+                display: block !important;
+                margin: 5px 0 !important;
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .dark-mode-bg {
+                background-color: #1a1a1a !important;
+            }
+            .dark-mode-text {
+                color: #ffffff !important;
+            }
+        }
+        
+        /* Gmail specific fixes */
+        .gmail-fix {
+            display: none;
+            display: none !important;
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; direction: rtl; -webkit-font-smoothing: antialiased;">
+    
+    <!-- Gmail fix -->
+    <div class="gmail-fix">&#160;</div>
+    
+    <!-- Container -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; min-width: 100%;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                
+                <!-- Email Container -->
+                <table width="600" cellpadding="0" cellspacing="0" class="email-container" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); padding: 40px 30px; text-align: center;" class="mobile-padding">
+                            
+                            <!-- Logo -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 20px;">
+                                        <img src="https://tevasul.group/logo-text.png" alt="Tevasul" width="200" class="mobile-logo" style="background-color: rgba(255, 255, 255, 0.2); padding: 10px; border-radius: 8px; max-width: 100%; height: auto;">
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Title -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 10px;">
+                                        <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0; line-height: 1.2;" class="mobile-title">مرحباً بك في Tevasul</h1>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Subtitle -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 25px;">
+                                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; line-height: 1.4;" class="mobile-subtitle">تم إنشاء حسابك بنجاح! يرجى تأكيد بريدك الإلكتروني</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 20px;">
+                                        <table cellpadding="0" cellspacing="0" class="mobile-button">
+                                            <tr>
+                                                <td style="background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%); border-radius: 8px; padding: 16px 32px; text-align: center;">
+                                                    <a href="{{ .ConfirmationURL }}" style="color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; line-height: 1.2;">✅ تأكيد البريد الإلكتروني</a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Company Info -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center">
+                                        <table cellpadding="0" cellspacing="0" style="background-color: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 15px; max-width: 100%;">
+                                            <tr>
+                                                <td style="text-align: center; direction: ltr;">
+                                                    <span style="color: rgba(255, 255, 255, 0.9); font-size: 14px; margin: 0 10px; display: inline-block;" class="mobile-contact">📍 تركيا</span>
+                                                    <span style="color: rgba(255, 255, 255, 0.9); font-size: 14px; margin: 0 10px; display: inline-block;" class="mobile-contact">📞 +905349627241</span>
+                                                    <span style="color: rgba(255, 255, 255, 0.9); font-size: 14px; margin: 0 10px; display: inline-block;" class="mobile-contact">📧 info@tevasul.group</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 30px;" class="mobile-padding">
+                            
+                            <!-- Welcome Section -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px;">
+                                <tr>
+                                    <td align="center" class="mobile-text-center">
+                                        <h2 style="color: #1e293b; font-size: 22px; font-weight: 600; margin: 0 0 10px 0; line-height: 1.2;">🎉 شكراً لك على التسجيل!</h2>
+                                        <p style="color: #64748b; font-size: 15px; margin: 0; line-height: 1.5;" class="mobile-content">نحن متحمسون لرؤيتك جزءاً من مجتمعنا المتنامي.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Info Section -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+                                <tr>
+                                    <td style="background-color: #f8fafc; border-radius: 8px; padding: 20px; border-right: 4px solid #00b4d8;" class="mobile-padding">
+                                        <h3 style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 10px 0; line-height: 1.2;">🚀 بعد التأكيد يمكنك:</h3>
+                                        <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;" class="mobile-content">
+                                            • الوصول إلى جميع الخدمات المتاحة<br>
+                                            • إنشاء طلبات الخدمة<br>
+                                            • التواصل مع فريق الدعم
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Warning -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; text-align: center;" class="mobile-padding">
+                                        <p style="color: #92400e; font-size: 13px; margin: 0; line-height: 1.4;" class="mobile-footer">⚠️ إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذا البريد الإلكتروني بأمان.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #1e293b; padding: 25px; text-align: center;" class="mobile-padding">
+                            
+                            <!-- Company Details -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 15px;">
+                                <tr>
+                                    <td align="center">
+                                        <img src="https://tevasul.group/logo-final.png" alt="Tevasul" width="50" style="margin-bottom: 10px; filter: brightness(0) invert(1); max-width: 100%; height: auto;">
+                                        <h3 style="color: #ffffff; font-size: 18px; margin: 0 0 5px 0; line-height: 1.2;">Tevasul Group</h3>
+                                        <p style="color: #94a3b8; font-size: 14px; margin: 0; line-height: 1.4;" class="mobile-content">منصة الخدمات المتكاملة</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Contact Info -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 15px;">
+                                <tr>
+                                    <td align="center">
+                                        <table cellpadding="0" cellspacing="0" style="background-color: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; max-width: 100%;">
+                                            <tr>
+                                                <td style="text-align: center; direction: ltr;">
+                                                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 13px; margin: 3px 0; line-height: 1.4;" class="mobile-footer">📍 تركيا | 📞 +905349627241 | 📧 info@tevasul.group</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Social Links -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 15px;">
+                                <tr>
+                                    <td align="center" class="mobile-text-center">
+                                        <a href="https://tevasul.group" style="color: #94a3b8; text-decoration: none; font-size: 13px; margin: 0 8px; line-height: 1.4;" class="mobile-footer">الموقع الرسمي</a> |
+                                        <a href="https://tevasul.group/support" style="color: #94a3b8; text-decoration: none; font-size: 13px; margin: 0 8px; line-height: 1.4;" class="mobile-footer">الدعم الفني</a> |
+                                        <a href="https://tevasul.group/privacy" style="color: #94a3b8; text-decoration: none; font-size: 13px; margin: 0 8px; line-height: 1.4;" class="mobile-footer">سياسة الخصوصية</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Copyright -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.4;" class="mobile-footer">© 2025 Tevasul. جميع الحقوق محفوظة.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    
+</body>
+</html>

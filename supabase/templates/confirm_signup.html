@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد حسابك - Tevasul Group</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .welcome-text {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        .confirm-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: transform 0.3s ease;
+        }
+        .confirm-button:hover {
+            transform: translateY(-2px);
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: right;
+        }
+        .info-box h3 {
+            color: #495057;
+            margin-top: 0;
+        }
+        .info-box p {
+            color: #6c757d;
+            margin: 10px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .contact-info {
+            margin-top: 20px;
+        }
+        .contact-info a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+        .steps {
+            text-align: right;
+            margin: 30px 0;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">TG</div>
+            <h1>مرحباً بك في Tevasul Group</h1>
+            <p>مجموعة تواصل - خدمات متكاملة في تركيا</p>
+        </div>
+        
+        <div class="content">
+            <h2>تأكيد حسابك</h2>
+            <p class="welcome-text">
+                شكراً لك على التسجيل في Tevasul Group! 
+                <br>
+                يرجى تأكيد بريدك الإلكتروني للبدء في استخدام خدماتنا.
+            </p>
+            
+            <a href="{{ .ConfirmationURL }}" class="confirm-button">
+                تأكيد حسابي
+            </a>
+            
+            <div class="info-box">
+                <h3>ماذا يحدث بعد التأكيد؟</h3>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div>تأكيد بريدك الإلكتروني</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div>الوصول إلى جميع الخدمات</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div>طلب الخدمات والحصول على الدعم</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h3>خدماتنا</h3>
+                <p>🏠 الإقامة والجنسية التركية</p>
+                <p>🏢 الاستثمار العقاري</p>
+                <p>🏥 التأمين الصحي</p>
+                <p>⚖️ الخدمات القانونية</p>
+                <p>📋 استشارات مجانية</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذا البريد الإلكتروني.</p>
+            <p>هذا البريد الإلكتروني صالح لمدة 24 ساعة فقط.</p>
+            
+            <div class="contact-info">
+                <h4>تواصل معنا</h4>
+                <p>📞 الهاتف: <a href="tel:+902125550123">+90 212 555 0123</a></p>
+                <p>📱 واتساب: <a href="https://wa.me/905325550123">+90 532 555 0123</a></p>
+                <p>📧 البريد: <a href="mailto:info@tevasul.group">info@tevasul.group</a></p>
+                <p>🌐 الموقع: <a href="https://tevasul.group">tevasul.group</a></p>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 12px; color: #adb5bd;">
+                © 2024 Tevasul Group. جميع الحقوق محفوظة.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

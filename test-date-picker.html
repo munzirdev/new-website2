@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Picker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-input {
+            width: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Date Picker Fix Test</h1>
+    
+    <div class="test-container">
+        <h2>Test Case: "0101" Input</h2>
+        <p>This test verifies that entering "0101" no longer automatically sets the year to 2025.</p>
+        
+        <label for="testInput">Enter date (try "0101"):</label><br>
+        <input type="text" id="testInput" class="test-input" placeholder="DD/MM/YYYY (e.g., 01/01/1990)">
+        
+        <div id="result" class="result" style="display: none;"></div>
+        
+        <h3>Expected Behavior:</h3>
+        <ul>
+            <li>✅ "0101" should NOT automatically set year to 2025</li>
+            <li>✅ "01/01/1990" should work correctly</li>
+            <li>✅ "01011990" should work correctly</li>
+            <li>✅ Recent dates (within 30 days) can auto-assign current year</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2>Manual Test Instructions</h2>
+        <ol>
+            <li>Go to the health insurance calculator page</li>
+            <li>Click on the date of birth field</li>
+            <li>Try entering "0101" - it should NOT automatically set to 2025</li>
+            <li>Enter a proper date like "01/01/1990" - it should work correctly</li>
+            <li>Check that the age calculation works properly</li>
+        </ol>
+    </div>
+
+    <script>
+        // Simple test function to simulate the date parsing logic
+        function testDateParsing(input) {
+            const digitsOnly = input.replace(/\D/g, '');
+            let result = '';
+            
+            if (digitsOnly.length === 4) {
+                const day = parseInt(digitsOnly.substring(0, 2));
+                const month = parseInt(digitsOnly.substring(2, 4));
+                
+                // Check if this is a valid date format
+                const testDate = new Date(2024, month - 1, day);
+                if (testDate.getDate() === day && testDate.getMonth() === month - 1) {
+                    // Only auto-assign current year if it's a recent date (within last 30 days)
+                    const currentYear = new Date().getFullYear();
+                    const currentDate = new Date();
+                    const proposedDate = new Date(currentYear, month - 1, day);
+                    
+                    // Check if the proposed date is within the last 30 days
+                    const thirtyDaysAgo = new Date(currentDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+                    
+                    if (proposedDate >= thirtyDaysAgo && proposedDate <= currentDate) {
+                        result = `✅ Auto-assigned current year: ${proposedDate.toLocaleDateString()}`;
+                    } else {
+                        result = `❌ "0101" format detected but not auto-assigning year (good!) - please enter full date`;
+                    }
+                } else {
+                    result = `❌ Invalid date format`;
+                }
+            } else if (digitsOnly.length === 8) {
+                const day = parseInt(digitsOnly.substring(0, 2));
+                const month = parseInt(digitsOnly.substring(2, 4));
+                const year = parseInt(digitsOnly.substring(4, 8));
+                const parsedDate = new Date(year, month - 1, day);
+                result = `✅ Full date parsed: ${parsedDate.toLocaleDateString()}`;
+            } else {
+                result = `ℹ️ Please enter date in DD/MM/YYYY format`;
+            }
+            
+            return result;
+        }
+
+        document.getElementById('testInput').addEventListener('input', function(e) {
+            const result = testDateParsing(e.target.value);
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = result;
+            resultDiv.style.display = 'block';
+            
+            if (result.includes('✅')) {
+                resultDiv.className = 'result success';
+            } else if (result.includes('❌')) {
+                resultDiv.className = 'result error';
+            } else {
+                resultDiv.className = 'result info';
+            }
+        });
+    </script>
+</body>
+</html>

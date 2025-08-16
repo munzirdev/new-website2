@@ -1,0 +1,601 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Alexandria', system-ui, sans-serif;
+  }
+  
+  body {
+    font-family: 'Alexandria', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Ultra-smooth cursor optimizations */
+  .cursor-none {
+    cursor: none !important;
+  }
+  
+  /* Hardware acceleration for cursor elements */
+  .cursor-element {
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Optimized cursor container */
+  .cursor-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: opacity 0.1s ease-out;
+  }
+  
+  /* Cursor elements with hardware acceleration */
+  .cursor-glow,
+  .cursor-main {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Custom cursor styles - only apply to specific elements if needed */
+  /* * {
+    cursor: none !important;
+  } */
+  
+  /* Show default cursor on touch devices */
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      cursor: auto !important;
+    }
+    .cursor-element {
+      display: none !important;
+    }
+  }
+  
+  /* Interactive elements for cursor detection */
+  .interactive, button, a, [role="button"], input, select, textarea, [tabindex], .cursor-pointer, [data-cursor="pointer"] {
+    cursor: pointer !important;
+  }
+  
+  /* Hardware acceleration utilities */
+  .will-change-transform {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  
+  /* Smooth cursor transitions */
+  .cursor-smooth {
+    transition: none !important;
+  }
+  
+  /* Optimized hover detection */
+  .interactive:hover, button:hover, a:hover, [role="button"]:hover, .cursor-pointer:hover, [data-cursor="pointer"]:hover {
+    cursor: pointer !important;
+  }
+
+  /* Performance-optimized animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 20px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translate3d(0, 0px, 0);
+    }
+    50% {
+      transform: translate3d(0, -10px, 0);
+    }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+    will-change: transform, opacity;
+  }
+  
+  /* Hardware acceleration for all animations */
+  .animate-float-slow,
+  .animate-pulse-slow,
+  .animate-spin-slow,
+  .animate-orbit {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  
+  .animate-fade-in-delay-1 {
+    animation: fade-in 0.6s ease-out 0.1s both;
+  }
+  
+  .animate-fade-in-delay-2 {
+    animation: fade-in 0.6s ease-out 0.2s both;
+  }
+  
+  .animate-fade-in-delay-3 {
+    animation: fade-in 0.6s ease-out 0.3s both;
+  }
+  
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  @keyframes float-slow {
+    0%, 100% {
+      transform: translateY(0px) rotate(6deg);
+    }
+    50% {
+      transform: translateY(-8px) rotate(6deg);
+    }
+  }
+  
+  @keyframes float-reverse {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(8px);
+    }
+  }
+  
+  @keyframes speed-line {
+    0% {
+      transform: translateX(-50px);
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(50px);
+      opacity: 0;
+    }
+  }
+  
+  /* Glass Modal Animations - مبسطة */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(30px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  @keyframes pulse-slow {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+  }
+  
+  @keyframes bounce-in {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.95);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes expand-width {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
+  }
+  
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse-slow 2s ease-in-out infinite;
+  }
+  
+  .animate-bounce-in {
+    animation: bounce-in 0.6s ease-out;
+  }
+  
+  .animate-expand-width {
+    animation: expand-width 1.5s ease-out;
+  }
+  
+  @keyframes speed-line-delayed {
+    0% {
+      transform: translateX(-40px);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateX(40px);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes speed-line-delayed-2 {
+    0% {
+      transform: translateX(-30px);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateX(30px);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+  
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  @keyframes orbit {
+    from {
+      transform: rotate(0deg) translateX(120px) rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg) translateX(120px) rotate(-360deg);
+    }
+  }
+  
+  @keyframes orbit-reverse {
+    from {
+      transform: rotate(0deg) translateX(-120px) rotate(0deg);
+    }
+    to {
+      transform: rotate(-360deg) translateX(-120px) rotate(360deg);
+    }
+  }
+  
+  @keyframes text-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  @keyframes count-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes count-up-delayed {
+    0%, 20% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes count-up-delayed-2 {
+    0%, 40% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes grid-move {
+    0% {
+      transform: translate(0, 0);
+    }
+    100% {
+      transform: translate(25px, 25px);
+    }
+  }
+  
+  .animate-float-slow {
+    animation: float-slow 3s ease-in-out infinite;
+  }
+  
+  .animate-float-reverse {
+    animation: float-reverse 2s ease-in-out infinite;
+  }
+  
+  .animate-speed-line {
+    animation: speed-line 2s ease-in-out infinite;
+  }
+  
+  .animate-speed-line-delayed {
+    animation: speed-line-delayed 2s ease-in-out infinite 0.3s;
+  }
+  
+  .animate-speed-line-delayed-2 {
+    animation: speed-line-delayed-2 2s ease-in-out infinite 0.6s;
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+  }
+  
+  .animate-spin-slow {
+    animation: spin-slow 15s linear infinite;
+  }
+  
+  .animate-orbit {
+    animation: orbit 10s linear infinite;
+  }
+  
+  .animate-orbit-reverse {
+    animation: orbit-reverse 8s linear infinite;
+  }
+  
+  .animate-bounce-in {
+    animation: bounce-in 0.8s ease-out 0.3s both;
+  }
+  
+  .animate-fade-in-up {
+    animation: fade-in-up 0.8s ease-out;
+  }
+  
+  .animate-text-shimmer {
+    animation: text-shimmer 2s ease-in-out infinite;
+  }
+  
+  .animate-expand-width {
+    animation: expand-width 1s ease-out 0.3s both;
+  }
+  
+  .animate-expand-width-delayed {
+    animation: expand-width 1.2s ease-out 0.6s both;
+  }
+  
+  .animate-count-up {
+    animation: count-up 0.8s ease-out 0.8s both;
+  }
+  
+  .animate-count-up-delayed {
+    animation: count-up-delayed 0.8s ease-out 0.8s both;
+  }
+  
+  .animate-count-up-delayed-2 {
+    animation: count-up-delayed-2 0.8s ease-out 0.8s both;
+  }
+  
+  .animate-fade-in-delay-4 {
+    animation: fade-in 0.6s ease-out 0.4s both;
+  }
+  
+  /* تحسين الأداء: تقليل الأنيميشن المعقدة */
+  @keyframes float-wide-slower {
+    0%, 100% {
+      transform: translateY(0px) translateX(0px);
+    }
+    50% {
+      transform: translateY(-5px) translateX(2px);
+    }
+  }
+  
+  @keyframes pulse-wide-slower {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes bounce-wide-slower {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+  
+  @keyframes pulse-wide-slow {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.03);
+      opacity: 0.8;
+    }
+  }
+  
+  @keyframes spin-slow-reverse {
+    from {
+      transform: rotate(360deg);
+    }
+    to {
+      transform: rotate(0deg);
+    }
+  }
+  
+  .animate-float-wide-slower {
+    animation: float-wide-slower 4s ease-in-out infinite;
+  }
+  
+  .animate-pulse-wide-slower {
+    animation: pulse-wide-slower 3s ease-in-out infinite;
+  }
+  
+  .animate-bounce-wide-slower {
+    animation: bounce-wide-slower 3s ease-in-out infinite;
+  }
+  
+  .animate-pulse-wide-slow {
+    animation: pulse-wide-slow 4s ease-in-out infinite;
+  }
+  
+  .animate-spin-slow-reverse {
+    animation: spin-slow-reverse 20s linear infinite;
+  }
+}
+
+/* Custom scrollbar - مبسط */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-platinum-200 dark:bg-jet-800;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #0ea5e9, #3b82f6);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #0284c7, #2563eb);
+}
+
+/* RTL support improvements */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Flag styling */
+.flag-shadow {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.flag-gloss {
+  filter: brightness(1.05) contrast(1.05);
+}
+
+/* Dropdown animations - مبسطة */
+@keyframes slide-in-from-top-2 {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.slide-in-from-top-2 {
+  animation-name: slide-in-from-top-2;
+}
+
+.duration-200 {
+  animation-duration: 150ms;
+}
+
+/* تحسين الأداء: تقليل التحولات */
+* {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 100ms;
+}
+
+/* تحسين الأداء: إيقاف الأنيميشن للأجهزة الضعيفة */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* تحسين الأداء: تقليل الأنيميشن على الأجهزة المحمولة */
+@media (max-width: 768px) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-float-wide-slower {
+    animation: none;
+  }
+  
+  .animate-spin-slow,
+  .animate-spin-slow-reverse,
+  .animate-orbit,
+  .animate-orbit-reverse {
+    animation: none;
+  }
+  
+  .animate-speed-line,
+  .animate-speed-line-delayed,
+  .animate-speed-line-delayed-2 {
+    animation: none;
+  }
+}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test App Loading</title>
+</head>
+<body>
+    <h1>Testing App Loading</h1>
+    <p>If you can see this, the server is running.</p>
+    <p>Check the browser console for any JavaScript errors.</p>
+    <script>
+        // Test if the app loads
+        fetch('http://localhost:1234')
+            .then(response => {
+                console.log('Server response:', response.status);
+                if (response.ok) {
+                    console.log('✅ Server is running and responding');
+                } else {
+                    console.log('❌ Server responded with error:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Failed to connect to server:', error);
+            });
+    </script>
+</body>
+</html>
