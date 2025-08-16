@@ -416,7 +416,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => {
                     console.log('زر لوحة التحكم تم النقر عليه');
                     // يمكن إضافة منطق الانتقال للوحة التحكم هنا
-                    window.location.href = '/DASHBOARD';
+                    window.location.href = '/admin';
                   }}
                   className="flex items-center px-4 py-2 text-white hover:text-caribbean-300 transition-all duration-300 font-medium"
                   title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
@@ -518,7 +518,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={() => {
                     console.log('زر لوحة التحكم تم النقر عليه');
-                    window.location.href = '/DASHBOARD';
+                    window.location.href = '/admin';
                   }}
                   className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300"
                   title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
@@ -753,7 +753,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     <button
                       onClick={() => {
                         handleMobileMenuClose();
-                        window.location.href = '/DASHBOARD';
+                        window.location.href = '/admin';
                       }}
                       className="w-full flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-all duration-200"
                     >
