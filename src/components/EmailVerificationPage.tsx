@@ -4,6 +4,7 @@ import { CheckCircle, AlertCircle, Mail, RefreshCw, Loader2, ArrowLeft } from 'l
 import { supabase } from '../lib/supabase';
 import { EmailService } from '../services/emailService';
 import CustomCursor from './CustomCursor';
+import { useAuthContext } from './AuthProvider';
 
 interface EmailVerificationPageProps {
   isDarkMode: boolean;
@@ -17,6 +18,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
   const [email, setEmail] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [progress, setProgress] = useState(0);
+  const { user, profile } = useAuthContext();
 
   useEffect(() => {
     const handleEmailVerification = async () => {
@@ -41,6 +43,22 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
           } else {
             setVerificationStatus('verifying');
             setEmail(data.user?.email || null);
+            
+            // تحديث الجلسة بعد التحقق
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) {
+              console.error('Session error after verification:', sessionError);
+            } else if (session) {
+              console.log('✅ تم تحديث الجلسة بعد التحقق بنجاح');
+              console.log('👤 المستخدم:', session.user.email);
+              console.log('📧 حالة تأكيد البريد الإلكتروني:', session.user.email_confirmed_at ? 'مؤكد' : 'غير مؤكد');
+              
+              // إعادة تحميل الصفحة لتحديث حالة المصادقة
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
+            }
+            
             startSuccessAnimation();
           }
         } else {
@@ -86,9 +104,30 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
         if (prev >= 100) {
           clearInterval(progressInterval);
           setVerificationStatus('success');
-          // التوجيه بعد النجاح
-          setTimeout(() => {
-            navigate('/home');
+          // التوجيه بعد النجاح مع تأكيد الجلسة
+          setTimeout(async () => {
+            try {
+              // تأكيد الجلسة مرة أخرى قبل التوجيه
+              const { data: { session }, error } = await supabase.auth.getSession();
+              if (error) {
+                console.error('خطأ في جلب الجلسة:', error);
+              }
+              
+              if (session?.user) {
+                console.log('✅ تم تأكيد الجلسة قبل التوجيه للصفحة الرئيسية');
+                console.log('👤 المستخدم:', session.user.email);
+                console.log('📧 حالة تأكيد البريد الإلكتروني:', session.user.email_confirmed_at ? 'مؤكد' : 'غير مؤكد');
+                
+                // إعادة تحميل الصفحة لتحديث حالة المصادقة ثم التوجيه
+                window.location.href = '/';
+              } else {
+                console.log('⚠️ لم يتم العثور على جلسة، التوجيه للصفحة الرئيسية');
+                navigate('/', { replace: true });
+              }
+            } catch (error) {
+              console.error('خطأ في التوجيه للصفحة الرئيسية:', error);
+              navigate('/', { replace: true });
+            }
           }, 2000);
           return 100;
         }
@@ -122,8 +161,29 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
     }
   };
 
-  const handleGoBack = () => {
-    navigate('/');
+  const handleGoBack = async () => {
+    try {
+      // تأكيد الجلسة قبل التوجيه
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('خطأ في جلب الجلسة:', error);
+      }
+      
+      if (session?.user) {
+        console.log('✅ تم تأكيد الجلسة قبل العودة للصفحة الرئيسية');
+        console.log('👤 المستخدم:', session.user.email);
+        console.log('📧 حالة تأكيد البريد الإلكتروني:', session.user.email_confirmed_at ? 'مؤكد' : 'غير مؤكد');
+        
+        // إعادة تحميل الصفحة لتحديث حالة المصادقة ثم التوجيه
+        window.location.href = '/';
+      } else {
+        console.log('⚠️ لم يتم العثور على جلسة، العودة للصفحة الرئيسية');
+        navigate('/', { replace: true });
+      }
+    } catch (error) {
+      console.error('خطأ في العودة للصفحة الرئيسية:', error);
+      navigate('/', { replace: true });
+    }
   };
 
   if (verificationStatus === 'loading') {
@@ -193,6 +253,13 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="font-medium">جاري التوجيه إلى الصفحة الرئيسية...</span>
               </div>
+              
+              <button
+                onClick={handleGoBack}
+                className="block w-full mt-4 px-4 py-2 bg-transparent border border-jet-300 dark:border-jet-600 text-jet-600 dark:text-platinum-400 rounded-lg hover:bg-jet-50 dark:hover:bg-jet-700 transition-colors duration-300"
+              >
+                الذهاب للصفحة الرئيسية الآن
+              </button>
             </div>
           </>
         )}
@@ -236,6 +303,13 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
                   </>
                 )}
               </button>
+              
+              <button
+                onClick={handleGoBack}
+                className="block w-full mt-3 px-4 py-2 bg-transparent border border-jet-300 dark:border-jet-600 text-jet-600 dark:text-platinum-400 rounded-lg hover:bg-jet-50 dark:hover:bg-jet-700 transition-colors duration-300"
+              >
+                العودة للصفحة الرئيسية
+              </button>
             </div>
           </>
         )}
@@ -274,6 +348,13 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="font-medium">جاري التوجيه إلى الصفحة الرئيسية...</span>
               </div>
+              
+              <button
+                onClick={handleGoBack}
+                className="block w-full mt-4 px-4 py-2 bg-transparent border border-jet-300 dark:border-jet-600 text-jet-600 dark:text-platinum-400 rounded-lg hover:bg-jet-50 dark:hover:bg-jet-700 transition-colors duration-300"
+              >
+                الذهاب للصفحة الرئيسية الآن
+              </button>
             </div>
           </>
         )}

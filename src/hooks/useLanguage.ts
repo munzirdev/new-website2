@@ -235,7 +235,7 @@ const translations = {
     'contact.form.sending': 'جاري الإرسال...',
     'contact.info.phone': 'الهاتف',
     'contact.info.email': 'البريد الإلكتروني',
-    'contact.info.address': 'العنوان',
+    'contact.info.address': 'CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin',
     'contact.info.hours': 'ساعات العمل',
 
     // Auth
@@ -269,7 +269,7 @@ const translations = {
     'hero.stats.clients': 'عميل راضٍ',
     'hero.stats.service': 'خدمة على مدار الساعة',
     'hero.stats.experience': 'سنوات خبرة',
-    'hero.trust.licensed': ' نحمي معلوماتك الشخصية',
+    'hero.trust.licensed': ' نحمي معلوماتك',
     'hero.trust.fast': 'خدمة سريعة',
     'hero.trust.excellent': 'تقييم ممتاز',
     'hero.available': 'متاح الآن',
@@ -289,7 +289,7 @@ const translations = {
     'about.features.team': 'فريق متخصص',
     'about.features.speed': 'سرعة في الإنجاز',
     'about.features.security': 'أمان وخصوصية',
-    'about.features.care': 'رعاية شاملة',
+    'about.features.care': 'أسعار منافسة',
     'about.vision.title': 'رؤيتنا',
     'about.vision.description': 'أن نكون الشريك الأول والأكثر ثقة للعرب في تركيا، ونقدم خدمات متميزة تسهل عليهم حياتهم وتحقق أهدافهم بكل يسر وسهولة.',
 
@@ -306,7 +306,9 @@ const translations = {
 
     // Footer
     'footer.description': 'شريكك الموثوق لإنجاز جميع خدماتك في تركيا',
-    'footer.copyright': '© 2024 مجموعة تواصل. جميع الحقوق محفوظة. صنع بـ ❤️ في تركيا',
+    'footer.copyright': '© 2025 مجموعة تواصل. جميع الحقوق محفوظة. صنع بـ ❤️ بأيدي سوريـّة',
+    'footer.quickLinks': 'روابط سريعة',
+    'footer.contactInfo': 'معلومات التواصل',
 
     // User Menu
     'user.profile': 'تعديل الملف الشخصي',
@@ -345,6 +347,19 @@ const translations = {
 
     // Brand
     'brand.name': 'أنجز',
+
+    // Legal Terms
+    'legal.acceptTerms': 'أوافق على شروط الاستخدام',
+    'legal.acceptPrivacy': 'أوافق على سياسة الخصوصية',
+    'legal.readTerms': 'قراءة شروط الاستخدام',
+    'legal.readPrivacy': 'قراءة سياسة الخصوصية',
+    'legal.required': 'يجب الموافقة على الشروط والخصوصية للمتابعة',
+
+    // Background Music
+    'music.mute': 'كتم الصوت',
+    'music.unmute': 'إلغاء الكتم',
+    'music.playing': 'الموسيقى تعمل',
+    'music.stopped': 'الموسيقى متوقفة',
   },
   tr: {
     // Navbar
@@ -533,7 +548,7 @@ const translations = {
     'contact.form.sending': 'Gönderiliyor...',
     'contact.info.phone': 'Telefon',
     'contact.info.email': 'E-posta',
-    'contact.info.address': 'Adres',
+    'contact.info.address': 'CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin',
     'contact.info.hours': 'Çalışma Saatleri',
 
     // Auth
@@ -605,6 +620,8 @@ const translations = {
     // Footer
     'footer.description': 'Türkiye\'deki tüm hizmetlerinizi tamamlamak için güvenilir ortağınız',
     'footer.copyright': '© 2024 Tevasul Group. Tüm hakları saklıdır. Türkiye\'de ❤️ ile yapıldı',
+    'footer.quickLinks': 'Hızlı Bağlantılar',
+    'footer.contactInfo': 'İletişim Bilgileri',
 
     // User Menu
     'user.profile': 'Profil Düzenle',
@@ -655,6 +672,19 @@ const translations = {
     'services.cards.government.description': 'Türkiye\'deki tüm resmi işlemleri hızlı ve yüksek verimlilikle tamamlama',
     'services.cards.insurance.title': 'Sağlık Sigortası ve Araç Sigortası Hizmetleri',
     'services.cards.insurance.description': 'En iyi fiyatlarla sağlık sigortası ve araç sigortası alma konusunda yardım',
+
+    // Legal Terms
+    'legal.acceptTerms': 'Kullanım Şartlarını Kabul Ediyorum',
+    'legal.acceptPrivacy': 'Gizlilik Politikasını Kabul Ediyorum',
+    'legal.readTerms': 'Kullanım Şartlarını Oku',
+    'legal.readPrivacy': 'Gizlilik Politikasını Oku',
+    'legal.required': 'Devam etmek için şartları ve gizlilik politikasını kabul etmelisiniz',
+
+    // Background Music
+    'music.mute': 'Sesi Kapat',
+    'music.unmute': 'Sesi Aç',
+    'music.playing': 'Müzik Çalıyor',
+    'music.stopped': 'Müzik Durdu',
   },
   en: {
     // Navbar
@@ -871,7 +901,7 @@ const translations = {
     'contact.form.sending': 'Sending...',
     'contact.info.phone': 'Phone',
     'contact.info.email': 'Email',
-    'contact.info.address': 'Address',
+    'contact.info.address': 'CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin',
     'contact.info.hours': 'Working Hours',
 
     // Auth
@@ -943,6 +973,8 @@ const translations = {
     // Footer
     'footer.description': 'Your trusted partner to complete all your services in Turkey',
     'footer.copyright': '© 2024 Tevasul Group. All rights reserved. Made with ❤️ in Turkey',
+    'footer.quickLinks': 'Quick Links',
+    'footer.contactInfo': 'Contact Info',
 
     // User Menu
     'user.profile': 'Edit Profile',
@@ -995,6 +1027,19 @@ const translations = {
     'services.cards.government.description': 'Complete all official transactions in Turkey quickly and with high efficiency',
     'services.cards.insurance.title': 'Health Insurance and Vehicle Insurance Services',
     'services.cards.insurance.description': 'Assistance in obtaining health insurance and vehicle insurance at the best prices',
+
+    // Legal Terms
+    'legal.acceptTerms': 'I Accept the Terms of Service',
+    'legal.acceptPrivacy': 'I Accept the Privacy Policy',
+    'legal.readTerms': 'Read Terms of Service',
+    'legal.readPrivacy': 'Read Privacy Policy',
+    'legal.required': 'You must accept the terms and privacy policy to continue',
+
+    // Background Music
+    'music.mute': 'Mute',
+    'music.unmute': 'Unmute',
+    'music.playing': 'Music Playing',
+    'music.stopped': 'Music Stopped',
   }
 };
 

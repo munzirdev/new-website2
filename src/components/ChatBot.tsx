@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, User, Bot, Phone, Minimize2, Maximize2 } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { supabase } from '../lib/supabase';
+import { webhookService } from '../services/webhookService';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Message {
@@ -504,16 +505,19 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
 
       // Send notification to Telegram
       try {
-        await fetch('http://localhost:3001/api/telegram/notify-support', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        await webhookService.sendChatSupportWebhook({
+          session_id: sessionId,
+          user_info: {
+            name: user?.user_metadata?.full_name || 'مستخدم',
+            email: user?.email || 'غير محدد',
+            phone: user?.user_metadata?.phone || 'غير محدد'
           },
-          body: JSON.stringify({
-            sessionId,
-            message: supportMessage.content,
-            language
-          }),
+          last_message: supportMessage.content,
+          last_message_time: new Date().toISOString(),
+          message_count: messages.length,
+          priority: 'medium',
+          status: 'pending',
+          language: language
         });
       } catch (error) {
         console.error('Error sending Telegram notification:', error);

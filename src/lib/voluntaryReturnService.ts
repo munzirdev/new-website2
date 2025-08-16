@@ -24,7 +24,7 @@ export const voluntaryReturnService = {
 
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -117,7 +117,7 @@ export const voluntaryReturnService = {
       
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -176,7 +176,7 @@ export const voluntaryReturnService = {
       
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -235,7 +235,7 @@ export const voluntaryReturnService = {
       
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -295,7 +295,7 @@ export const voluntaryReturnService = {
       
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -381,7 +381,7 @@ export const voluntaryReturnService = {
       
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();

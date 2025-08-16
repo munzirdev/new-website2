@@ -1,0 +1,90 @@
+{
+  "name": "Tevasul Group - خدمات التأمين الصحي والاستشارات القانونية في تركيا",
+  "short_name": "Tevasul Group",
+  "description": "شركة Tevasul Group تقدم خدمات متكاملة في تركيا: التأمين الصحي، الاستشارات القانونية، العودة الطوعية، الترجمة المحلفة، والخدمات الحكومية. خبرة 10+ سنوات في خدمة العملاء العرب.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["business", "productivity", "utilities", "finance", "legal"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-fınal.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-fınal.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "التأمين الصحي",
+      "short_name": "تأمين صحي",
+      "description": "خدمات التأمين الصحي الشامل",
+      "url": "/health-insurance",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "العودة الطوعية",
+      "short_name": "عودة طوعية",
+      "description": "خدمات العودة الطوعية والمساعدة القانونية",
+      "url": "/voluntary-return",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "الخدمات",
+      "short_name": "خدمات",
+      "description": "جميع خدماتنا المتاحة",
+      "url": "/services",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo-fınal.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "الصفحة الرئيسية - Tevasul Group"
+    },
+    {
+      "src": "/logo-fınal.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "الصفحة الرئيسية - Tevasul Group"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

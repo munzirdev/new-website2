@@ -88,6 +88,12 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   const handleManualInputChange = (inputValue: string) => {
     setManualInputValue(inputValue);
+    // No auto-completion - user must manually confirm with Enter key
+  };
+
+  const handleManualInputConfirm = () => {
+    const inputValue = manualInputValue.trim();
+    if (!inputValue) return;
     
     // Remove all non-digit characters for flexible parsing
     const digitsOnly = inputValue.replace(/\D/g, '');
@@ -111,38 +117,13 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       const fullYear = year < 30 ? 2000 + year : 1900 + year;
       parsedDate = new Date(fullYear, month - 1, day);
     }
-    // Format 3: DDMM (4 digits) - e.g., 0101
-    // For birth dates, we should not auto-assign current year as it's likely a past date
-    // Only auto-assign current year for recent dates (within last 30 days) to avoid confusion
-    else if (digitsOnly.length === 4) {
-      const day = parseInt(digitsOnly.substring(0, 2));
-      const month = parseInt(digitsOnly.substring(2, 4));
-      
-      // Check if this is a valid date format
-      const testDate = new Date(2024, month - 1, day); // Use a test year to validate format
-      if (testDate.getDate() === day && testDate.getMonth() === month - 1) {
-        // Only auto-assign current year if it's a recent date (within last 30 days)
-        const currentYear = new Date().getFullYear();
-        const currentDate = new Date();
-        const proposedDate = new Date(currentYear, month - 1, day);
-        
-        // Check if the proposed date is within the last 30 days
-        const thirtyDaysAgo = new Date(currentDate.getTime() - (30 * 24 * 60 * 60 * 1000));
-        
-        if (proposedDate >= thirtyDaysAgo && proposedDate <= currentDate) {
-          parsedDate = proposedDate;
-        }
-        // For dates that are not recent, don't auto-assign - user should enter full date
-      }
-    }
-    // Format 4: Traditional formats with separators
+    // Format 3: Traditional formats with separators
     else {
       // Try various separator patterns
       const patterns = [
-        /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/,
-        /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/,
+        /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/, // DD/MM/YYYY
+        /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/, // DD/MM/YY
         /^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/, // YYYY-MM-DD
-        /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/ // DD-MM-YY
       ];
       
       for (const pattern of patterns) {
@@ -150,7 +131,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         if (match) {
           let day, month, year;
           
-          if (pattern.source.includes('(\\d{4})')) {
+          if (pattern.source.includes('(\\d{4})') && pattern.source.startsWith('^(\\d{4})')) {
             // YYYY-MM-DD format
             year = parseInt(match[1]);
             month = parseInt(match[2]);
@@ -282,9 +263,18 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                 setIsManualInput(false);
                 setManualInputValue('');
               }
+              if (e.key === 'Enter') {
+                // Try to parse the current input and set the date
+                handleManualInputConfirm();
+              }
             }}
-            placeholder={isArabic ? 'يوم/شهر/سنة (مثال: 01/01/1990)' : 'DD/MM/YYYY (e.g., 01/01/1990)'}
-            className="w-full px-4 py-3 pr-12 border border-caribbean-500 dark:border-caribbean-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white text-right font-medium shadow-sm"
+            placeholder={isArabic ? 'أدخل التاريخ (مثال: 01/01/1990 أو 01011990)' : 'Enter date (e.g., 01/01/1990 or 01011990)'}
+            className="w-full px-4 py-3 pr-12 border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-300 bg-white/20 backdrop-blur-md text-white placeholder-white/70 shadow-lg hover:bg-white/25 hover:border-white/50 text-right font-medium"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.25) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)'
+            }}
             autoFocus
           />
         ) : (
@@ -297,7 +287,12 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
              }}
              readOnly
              placeholder={placeholder}
-             className="w-full px-4 py-3 pr-12 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white text-right font-medium shadow-sm group-hover:shadow-md group-hover:border-caribbean-300 dark:group-hover:border-caribbean-500 focus:shadow-lg cursor-text"
+             className="w-full px-4 py-3 pr-12 border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-300 bg-white/20 backdrop-blur-md text-white placeholder-white/70 shadow-lg hover:bg-white/25 hover:border-white/50 cursor-text"
+             style={{
+               background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.25) 100%)',
+               backdropFilter: 'blur(10px)',
+               WebkitBackdropFilter: 'blur(10px)'
+             }}
            />
          )}
         
@@ -307,7 +302,12 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                e.stopPropagation();
                setIsOpen(!isOpen);
              }}
-             className="p-2 bg-gradient-to-r from-caribbean-500 to-indigo-600 rounded-lg hover:from-caribbean-600 hover:to-indigo-700 transition-all duration-300 shadow-sm hover:shadow-md"
+             className="p-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-lg hover:bg-white/30 hover:border-white/50 transition-all duration-300 shadow-lg hover:shadow-xl"
+             style={{
+               background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.3) 100%)',
+               backdropFilter: 'blur(10px)',
+               WebkitBackdropFilter: 'blur(10px)'
+             }}
            >
              <Calendar className="w-4 h-4 text-white" />
            </button>
@@ -321,7 +321,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
               setSelectedDate(null);
               onChange('');
             }}
-            className="absolute inset-y-0 right-0 pr-12 flex items-center text-jet-400 hover:text-jet-600 dark:text-jet-500 dark:hover:text-jet-300 transition-colors"
+            className="absolute inset-y-0 right-0 pr-12 flex items-center text-white/70 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -329,6 +329,15 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         
         
       </div>
+
+      {/* Help text for manual input */}
+      {isManualInput && (
+        <div className="absolute top-full left-0 mt-1 z-40 bg-white/90 dark:bg-jet-800/90 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+          <div className="text-xs text-jet-600 dark:text-jet-300">
+            {isArabic ? 'اضغط Enter لتأكيد التاريخ' : 'Press Enter to confirm the date'}
+          </div>
+        </div>
+      )}
 
       {/* Calendar Popup */}
       {isOpen && (

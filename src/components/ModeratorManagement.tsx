@@ -339,7 +339,7 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3 space-x-reverse">

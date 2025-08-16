@@ -14,6 +14,7 @@ import {
 import { useLanguage } from '../hooks/useLanguage';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
+import { webhookService } from '../services/webhookService';
 import { formatDisplayDate } from '../lib/utils';
 
 interface HealthInsuranceFormData {
@@ -111,6 +112,23 @@ const HealthInsuranceActivationForm: React.FC<{ isDarkMode: boolean }> = ({ isDa
       const successMessage = forceArabic ? 'تم حفظ النموذج بنجاح!' : 'Form başarıyla kaydedildi!';
       setSaveMessage(successMessage);
       setTimeout(() => setSaveMessage(''), 5000);
+      
+      // إرسال إشعار التيليجرام
+      try {
+        const savedFormData = {
+          id: Date.now().toString(), // معرف مؤقت
+          full_name: fullName,
+          kimlik_no: identityNumber,
+          phone: phoneNumber,
+          address: address,
+          user_id: user.id,
+          created_at: new Date().toISOString()
+        };
+        
+        await webhookService.sendHealthInsuranceActivationWebhook(savedFormData);
+      } catch (webhookError) {
+        console.error('Error sending webhook notification:', webhookError);
+      }
       
       // إعادة تعيين النموذج بعد الحفظ الناجح
       setFormData({

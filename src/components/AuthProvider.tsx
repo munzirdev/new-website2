@@ -16,6 +16,7 @@ interface AuthContextType {
   forceClearAuth: () => void;
   testSignOut: () => Promise<{ error: any }>;
   simpleSignOut: () => void;
+  signInWithGoogle: () => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

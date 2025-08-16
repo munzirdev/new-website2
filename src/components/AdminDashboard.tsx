@@ -39,7 +39,6 @@ import {
   MapPin,
   Building,
   ChevronDown,
-  LogIn,
   UserPlus,
   User,
   Settings,
@@ -59,6 +58,7 @@ import VoluntaryReturnChart from './VoluntaryReturnChart';
 import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
 import AdminChatSupport from './AdminChatSupport';
+import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 
@@ -111,7 +111,8 @@ interface FAQ {
 interface AdminDashboardProps {
   onBack: () => void;
   isDarkMode: boolean;
-  onToggleDarkMode?: () => void;
+  onToggleDarkMode: () => void;
+  onSignOut?: () => void;
 }
 
 // دالة لتنسيق رقم الهاتف للواتساب
@@ -138,7 +139,7 @@ const formatPhoneForWhatsApp = (phone: string): string => {
   return cleanPhone.substring(0, 12);
 };
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onToggleDarkMode }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onToggleDarkMode, onSignOut }) => {
   const { user, profile } = useAuthContext();
   const { t, language } = useLanguage();
   const location = useLocation();
@@ -151,7 +152,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support' | 'webhooks'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
   const [editingRequest, setEditingRequest] = useState<ServiceRequest | null>(null);
@@ -271,7 +272,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search, formParam, viewParam]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support' | 'webhooks') => {
     setActiveTab(tab);
     switch (tab) {
       case 'requests':
@@ -294,6 +295,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         break;
       case 'health-insurance':
         navigate('/admin/health-insurance');
+        break;
+      case 'webhooks':
+        navigate('/admin/webhooks');
         break;
     }
   };
@@ -1070,6 +1074,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         onBack={onBack}
         isDarkMode={isDarkMode}
         onToggleDarkMode={onToggleDarkMode}
+        onSignOut={onSignOut}
       />
 
       <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
@@ -1195,6 +1200,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               <div className="flex items-center">
                 <MessageCircle className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
                 <span className="text-sm md:text-base">الشات بوت</span>
+              </div>
+            </button>
+            <button
+              onClick={() => navigateToTab('webhooks')}
+              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'webhooks'
+                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
+                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+              }`}
+            >
+              <div className="flex items-center">
+                <Zap className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
+                <span className="text-sm md:text-base">الـ Webhooks</span>
               </div>
             </button>
           </div>
@@ -2508,7 +2526,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             <>
               {/* Health Insurance Header */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8 space-y-4 md:space-y-0">
-                <h2 className="text-xl md:text-2xl font-bold text-jet-800 dark:text-white text-center md:text-right">إدارة التأمين الصحي</h2>
               </div>
 
               {/* Health Insurance Content */}
@@ -2580,6 +2597,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                   <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
                     <p className="text-sm text-jet-600 dark:text-platinum-400">
                       هذه الصفحة مخصصة لإدارة الشات بوت وتتطلب صلاحيات أدمن أو مشرف
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Webhooks Tab */}
+      {activeTab === 'webhooks' && (
+        <>
+          {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+            <WebhookSettings isDarkMode={isDarkMode} />
+          )}
+          
+          {/* Show access denied for non-admin/moderator users */}
+          {(profile?.role !== 'admin' && profile?.role !== 'moderator') && (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                {/* Access Denied Message */}
+                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                  <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                    🔒 الوصول مرفوض
+                  </h2>
+                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                    فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
+                  </p>
+                  <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                      هذه الصفحة مخصصة لإدارة إعدادات الـ webhooks وتتطلب صلاحيات أدمن أو مشرف
                     </p>
                   </div>
                 </div>

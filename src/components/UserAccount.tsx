@@ -8,7 +8,6 @@ import {
   XCircle,
   Search,
   Edit,
-  Trash2,
   Calendar,
   Phone,
   Mail,
@@ -17,13 +16,20 @@ import {
   Plus,
   Eye,
   Download,
-  Lock
+  Lock,
+  Home,
+  ArrowLeft,
+  Send,
+  Upload,
+  Image
 } from 'lucide-react';
 import CustomCursor from './CustomCursor';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
 import { formatDisplayDate } from '../lib/utils';
+import { UserAvatar } from './UserAvatar';
+import { servicesData } from '../data/services';
 
 interface ServiceRequest {
   id: string;
@@ -78,8 +84,21 @@ const UserAccount: React.FC<UserAccountProps> = ({
     title: '',
     description: ''
   });
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  
+  // New request creation state
+  const [showNewRequestModal, setShowNewRequestModal] = useState(false);
+  const [selectedServiceType, setSelectedServiceType] = useState('');
+  const [newRequestForm, setNewRequestForm] = useState({
+    title: '',
+    description: '',
+    file: null as File | null,
+    fileUrl: '',
+    fileName: ''
+  });
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [creatingRequest, setCreatingRequest] = useState(false);
+  const [newRequestSuccess, setNewRequestSuccess] = useState(false);
 
   // دوال عرض وتحميل الملفات
   const handleFileView = async (fileUrl: string, fileName: string, requestId?: string) => {
@@ -307,6 +326,231 @@ const UserAccount: React.FC<UserAccountProps> = ({
     }
   };
 
+  // New request creation functions
+  const handleNewRequestFileUpload = async (file: File): Promise<{
+    url: string;
+    name: string;
+    path: string;
+    isBase64?: boolean;
+    base64Data?: string;
+  } | null> => {
+    if (!file) return null;
+
+    if (!user) {
+      console.error('المستخدم غير مسجل الدخول');
+      return null;
+    }
+
+    setUploadingFile(true);
+
+    try {
+      console.log('بدء رفع الملف:', { 
+        originalName: file.name, 
+        fileSize: file.size, 
+        fileType: file.type,
+        userId: user.id
+      });
+
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        
+        reader.onload = async () => {
+          try {
+            const base64Data = reader.result as string;
+            const base64String = base64Data.split(',')[1];
+            
+            console.log('تم تحويل الملف إلى Base64، الحجم:', base64String.length);
+            
+            if (base64String.length > 1024 * 1024) {
+              console.error('حجم الملف كبير جداً بعد التحويل إلى Base64');
+              resolve(null);
+              return;
+            }
+            
+            try {
+              console.log('محاولة حفظ الملف في file_attachments للمستخدم:', user.id);
+              
+              const { data: insertData, error: insertError } = await supabase
+                .from('file_attachments')
+                .insert({
+                  user_id: user.id,
+                  file_name: file.name,
+                  file_type: file.type,
+                  file_size: file.size,
+                  file_data: base64String,
+                  created_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+              
+              if (insertError) {
+                console.error('خطأ في حفظ الملف في file_attachments:', insertError);
+                resolve({
+                  url: `base64://service_requests/${file.name}`,
+                  name: file.name,
+                  path: `base64/service_requests/${file.name}`,
+                  isBase64: true,
+                  base64Data: base64String
+                });
+                return;
+              } else {
+                console.log('تم حفظ الملف في file_attachments بنجاح:', insertData.id);
+                resolve({
+                  url: `base64://${insertData.id}`,
+                  name: file.name,
+                  path: `base64/${insertData.id}`,
+                  isBase64: true
+                });
+              }
+            } catch (error) {
+              console.log('فشل في حفظ الملف في file_attachments، محاولة حفظ في service_requests...');
+              resolve({
+                url: `base64://service_requests/${file.name}`,
+                name: file.name,
+                path: `base64/service_requests/${file.name}`,
+                isBase64: true,
+                base64Data: base64String
+              });
+            }
+          } catch (error) {
+            console.error('خطأ في معالجة الملف:', error);
+            resolve(null);
+          }
+        };
+        
+        reader.onerror = () => {
+          console.error('خطأ في قراءة الملف');
+          resolve(null);
+        };
+        
+        reader.readAsDataURL(file);
+      });
+
+    } catch (error) {
+      console.error('خطأ غير متوقع في رفع الملف:', error);
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleNewRequestFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/gif', 
+      'application/pdf', 
+      'text/plain', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      alert('نوع الملف غير مدعوم. يرجى اختيار صورة (JPG, PNG, GIF) أو ملف PDF أو Word');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('حجم الملف كبير جداً. الحد الأقصى 2 ميجابايت');
+      return;
+    }
+
+    console.log('تم اختيار الملف:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    setNewRequestForm({...newRequestForm, file});
+  };
+
+  const handleCreateNewRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      alert('يجب تسجيل الدخول أولاً');
+      return;
+    }
+
+    if (!selectedServiceType) {
+      alert('يرجى اختيار نوع الخدمة');
+      return;
+    }
+
+    if (!newRequestForm.title.trim()) {
+      alert('يرجى إدخال عنوان الطلب');
+      return;
+    }
+
+    setCreatingRequest(true);
+
+    let fileUrl = '';
+    let fileName = '';
+    let fileData = null;
+
+    if (newRequestForm.file) {
+      console.log('بدء رفع الملف...');
+      const uploadResult = await handleNewRequestFileUpload(newRequestForm.file);
+      if (uploadResult) {
+        fileUrl = uploadResult.url || '';
+        fileName = uploadResult.name || '';
+        fileData = uploadResult.base64Data || null;
+      }
+    }
+
+    try {
+      console.log('محاولة إرسال الطلب للمستخدم:', user.id);
+      
+      const { error: insertError } = await supabase
+        .from('service_requests')
+        .insert({
+          user_id: user.id,
+          service_type: selectedServiceType,
+          title: newRequestForm.title.trim(),
+          description: newRequestForm.description.trim() || null,
+          priority: 'medium',
+          status: 'pending',
+          file_url: fileUrl || null,
+          file_name: fileName || null,
+          file_data: fileData
+        });
+
+      if (insertError) {
+        console.error('خطأ في إرسال الطلب:', insertError);
+        alert('حدث خطأ في إرسال الطلب. يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
+      setNewRequestSuccess(true);
+      setNewRequestForm({ 
+        title: '', 
+        description: '', 
+        file: null,
+        fileUrl: '',
+        fileName: ''
+      });
+      setSelectedServiceType('');
+      
+      // Refresh the requests list
+      await fetchUserRequests();
+      
+      setTimeout(() => {
+        setNewRequestSuccess(false);
+        setShowNewRequestModal(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('خطأ غير متوقع:', error);
+      alert('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setCreatingRequest(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchUserRequests();
@@ -383,30 +627,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
     }
   };
 
-  const handleDelete = async (requestId: string) => {
-    try {
-      const { error } = await supabase
-        .from('service_requests')
-        .delete()
-        .eq('id', requestId);
 
-      if (error) {
-        console.error('خطأ في حذف الطلب:', error);
-        return;
-      }
-
-      await fetchUserRequests();
-      setDeleteConfirm(null);
-      
-      // عرض رسالة النجاح
-      setDeleteSuccess(true);
-      setTimeout(() => {
-        setDeleteSuccess(false);
-      }, 2000);
-    } catch (error) {
-      console.error('خطأ غير متوقع:', error);
-    }
-  };
 
   const filteredRequests = requests.filter(request => {
     const matchesSearch = 
@@ -450,13 +671,26 @@ const UserAccount: React.FC<UserAccountProps> = ({
 
   const getServiceTypeArabic = (serviceType: string) => {
     const serviceTypes: { [key: string]: string } = {
+      'health-insurance': 'التأمين الصحي للأجانب',
       'translation': 'خدمات الترجمة المحلفة',
       'travel': 'خدمات السفر والسياحة',
       'legal': 'الاستشارات القانونية',
       'government': 'الخدمات الحكومية',
-      'insurance': 'خدمات التأمين'
+      'insurance': 'خدمات التأمين الصحي وتأمين المركبات'
     };
     return serviceTypes[serviceType] || serviceType;
+  };
+
+  const getServiceName = (serviceId: string) => {
+    const service = servicesData.find(s => s.id === serviceId);
+    if (service) {
+      return language === 'ar' ? getServiceTypeArabic(serviceId) : service.titleKey;
+    }
+    return serviceId;
+  };
+
+  const canUploadFile = (serviceType: string) => {
+    return serviceType === 'translation' || serviceType === 'insurance' || serviceType === 'health-insurance';
   };
 
   const getStatusArabic = (status: string) => {
@@ -493,61 +727,120 @@ const UserAccount: React.FC<UserAccountProps> = ({
 
   return (
     <div 
-      className="min-h-screen bg-platinum-50 dark:bg-jet-900 pt-16"
+      className="min-h-screen bg-gradient-to-br from-platinum-50/80 via-caribbean-50/60 to-indigo-50/80 dark:from-jet-900/90 dark:via-caribbean-900/80 dark:to-indigo-900/90 relative overflow-hidden"
       dir={isArabic ? 'rtl' : 'ltr'}
     >
+      {/* Glass Background Pattern */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(60,110,113,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(60,110,113,0.2),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(122,146,171,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_80%_20%,rgba(122,146,171,0.15),transparent_50%)]"></div>
+      
       <CustomCursor isDarkMode={isDarkMode} />
-      {/* Header */}
-      <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-jet-800 dark:text-white">
+      
+      {/* Navigation Bar - Enhanced Glass Effect */}
+      <nav className="fixed top-0 left-0 right-0 z-[9999] bg-white/70 dark:bg-jet-800/70 backdrop-blur-2xl border-b border-white/30 dark:border-jet-700/30 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Back to Home Button - Enhanced Glass */}
+            <button
+              onClick={onBack}
+              className={`flex items-center px-3 py-2 text-caribbean-600 dark:text-caribbean-400 hover:text-caribbean-700 dark:hover:text-caribbean-300 hover:bg-caribbean-50/80 dark:hover:bg-caribbean-900/20 rounded-xl transition-all duration-300 backdrop-blur-sm border border-white/20 dark:border-jet-700/20`}
+            >
+              <ArrowLeft className={`w-5 h-5 ${isArabic ? 'ml-2' : 'mr-2'}`} />
+              <Home className={`w-5 h-5 ${isArabic ? 'ml-1' : 'mr-1'}`} />
+              <span className="hidden sm:inline">العودة للصفحة الرئيسية</span>
+            </button>
+
+            {/* Page Title - Enhanced */}
+            <h1 className="text-lg sm:text-xl font-bold text-jet-800 dark:text-white bg-gradient-to-r from-caribbean-600 to-indigo-700 bg-clip-text text-transparent">
               حسابي
             </h1>
-            <div className="flex items-center space-x-4 space-x-reverse">
-              <div className="text-sm text-jet-600 dark:text-platinum-400">
-                مرحباً، {profile?.full_name}
-              </div>
+
+            {/* User Info and Logout - Enhanced Glass */}
+            <div className="flex items-center space-x-2 sm:space-x-4 space-x-reverse">
+              <UserAvatar 
+                user={user} 
+                profile={profile} 
+                size="sm" 
+                showName={false}
+                className="text-jet-600 dark:text-platinum-300"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await supabase.auth.signOut();
+                    window.location.href = '/';
+                  } catch (error) {
+                    console.error('خطأ في تسجيل الخروج:', error);
+                  }
+                }}
+                className="flex items-center px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50/80 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300 backdrop-blur-sm border border-white/20 dark:border-jet-700/20"
+                title="تسجيل الخروج"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="hidden sm:inline mr-2">تسجيل الخروج</span>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* User Info Card */}
-        <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-caribbean-100 dark:bg-caribbean-900/20 rounded-lg ml-4">
-                <User className="w-8 h-8 text-caribbean-600 dark:text-caribbean-400" />
+
+
+      {/* Main Content Container - Mobile Friendly */}
+      <div className="pt-32 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Profile Header Card - Enhanced Glass Effect */}
+        <div className="bg-gradient-to-r from-caribbean-600/80 via-indigo-700/80 to-caribbean-700/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-3xl shadow-2xl mb-6 sm:mb-8 text-white border border-white/30 relative overflow-hidden">
+          {/* Glass Pattern Overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+          
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-6 sm:space-x-reverse">
+              <div className="relative flex justify-center sm:justify-start">
+                <UserAvatar 
+                  user={user} 
+                  profile={profile} 
+                  size="xl" 
+                  showName={false}
+                  className="ring-4 ring-white/40 backdrop-blur-sm shadow-2xl"
+                />
+                {/* Badge for Google users */}
+                {user?.user_metadata?.provider === 'google' && (
+                  <div className="absolute -bottom-1 -right-1 bg-white/90 backdrop-blur-sm rounded-full p-1 shadow-lg border border-white/30">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                  </div>
+                )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-jet-800 dark:text-white mb-2">معلومات الحساب</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">الاسم</p>
-                    <p className="font-medium text-jet-800 dark:text-white">{profile?.full_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">البريد الإلكتروني</p>
-                    <p className="font-medium text-jet-800 dark:text-white email-address">{profile?.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">رقم الهاتف</p>
-                    <p className="font-medium text-jet-800 dark:text-white font-mono">
-                      {profile?.phone ? 
-                        formatPhoneNumber(`${profile.country_code}${profile.phone}`, isArabic) : 
-                        'غير محدد'
-                      }
-                    </p>
-                  </div>
+              <div className="text-center sm:text-right">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-white drop-shadow-lg">{profile?.full_name || 'مستخدم'}</h1>
+                <p className="text-caribbean-100 text-base sm:text-lg">{profile?.email}</p>
+                <div className="flex flex-wrap justify-center sm:justify-start items-center mt-2 space-x-2 sm:space-x-4 space-x-reverse">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 backdrop-blur-sm border border-white/30">
+                    <User className="w-4 h-4 ml-1" />
+                    {profile?.role === 'admin' ? 'مدير' : profile?.role === 'moderator' ? 'مشرف' : 'مستخدم'}
+                  </span>
+                  {user?.user_metadata?.provider === 'google' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 backdrop-blur-sm border border-white/30">
+                      <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      </svg>
+                      Google
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex flex-col space-y-2">
+            <div className="flex justify-center sm:justify-end">
               <button
                 onClick={() => window.location.href = '/reset-password'}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-caribbean-600 dark:text-caribbean-400 bg-caribbean-50 dark:bg-caribbean-900/20 border border-caribbean-200 dark:border-caribbean-700 rounded-lg hover:bg-caribbean-100 dark:hover:bg-caribbean-900/30 transition-colors duration-200"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-caribbean-600 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-105 border border-white/30"
               >
                 <Lock className="w-4 h-4 ml-2" />
                 تغيير كلمة المرور
@@ -556,56 +849,66 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
-            <div className="flex items-center">
-              <div className="p-3 bg-caribbean-100 dark:bg-caribbean-900/20 rounded-lg">
-                <FileText className="w-6 h-6 text-caribbean-600 dark:text-caribbean-400" />
+
+
+        {/* Stats - Enhanced Glass Effect */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5"></div>
+            <div className="relative flex items-center">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-caribbean-500/20 to-indigo-500/20 backdrop-blur-sm rounded-2xl border border-caribbean-200/30 dark:border-caribbean-700/30">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-caribbean-600 dark:text-caribbean-400" />
               </div>
-              <div className="mr-4">
-                <p className="text-sm text-jet-600 dark:text-platinum-400">إجمالي الطلبات</p>
-                <p className="text-2xl font-bold text-jet-800 dark:text-white stat-number">{requests.length}</p>
+              <div className="mr-3 sm:mr-4">
+                <p className="text-xs sm:text-sm text-jet-600 dark:text-platinum-300">إجمالي الطلبات</p>
+                <p className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white stat-number">{requests.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+          <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5"></div>
+            <div className="relative flex items-center">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-sm rounded-2xl border border-amber-200/30 dark:border-amber-700/30">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
               </div>
-              <div className="mr-4">
-                <p className="text-sm text-jet-600 dark:text-platinum-400">قيد الانتظار</p>
-                <p className="text-2xl font-bold text-jet-800 dark:text-white stat-number">
+              <div className="mr-3 sm:mr-4">
+                <p className="text-xs sm:text-sm text-jet-600 dark:text-platinum-300">قيد الانتظار</p>
+                <p className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white stat-number">
                   {requests.filter(r => r.status === 'pending').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-blue-500/5"></div>
+            <div className="relative flex items-center">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-sky-500/20 to-blue-500/20 backdrop-blur-sm rounded-2xl border border-sky-200/30 dark:border-sky-700/30">
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-sky-600 dark:text-sky-400" />
               </div>
-              <div className="mr-4">
-                <p className="text-sm text-jet-600 dark:text-platinum-400">قيد التنفيذ</p>
-                <p className="text-2xl font-bold text-jet-800 dark:text-white stat-number">
+              <div className="mr-3 sm:mr-4">
+                <p className="text-xs sm:text-sm text-jet-600 dark:text-platinum-300">قيد التنفيذ</p>
+                <p className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white stat-number">
                   {requests.filter(r => r.status === 'in_progress').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-green-500/5"></div>
+            <div className="relative flex items-center">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-sm rounded-2xl border border-emerald-200/30 dark:border-emerald-700/30">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <div className="mr-4">
-                <p className="text-sm text-jet-600 dark:text-platinum-400">مكتملة</p>
-                <p className="text-2xl font-bold text-jet-800 dark:text-white stat-number">
+              <div className="mr-3 sm:mr-4">
+                <p className="text-xs sm:text-sm text-jet-600 dark:text-platinum-300">مكتملة</p>
+                <p className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white stat-number">
                   {requests.filter(r => r.status === 'completed').length}
                 </p>
               </div>
@@ -613,9 +916,27 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Create New Request Button - Enhanced Glass */}
+        <div className="mb-6 sm:mb-8">
+          <button
+            onClick={() => setShowNewRequestModal(true)}
+            className="w-full bg-gradient-to-r from-caribbean-600/80 via-indigo-700/80 to-caribbean-700/80 backdrop-blur-2xl text-white py-4 px-6 rounded-3xl font-semibold hover:from-caribbean-700 hover:via-indigo-800 hover:to-caribbean-800 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl flex items-center justify-center border border-white/30 relative overflow-hidden"
+          >
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+            <span className="relative flex items-center">
+              <Plus className="w-5 h-5 ml-2" />
+              إنشاء طلب جديد
+            </span>
+          </button>
+        </div>
+
+        {/* Filters - Enhanced Glass Effect */}
+        <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 mb-6 sm:mb-8 relative overflow-hidden">
+          {/* Glass Pattern */}
+          <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5"></div>
+          <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-jet-400 dark:text-platinum-500 w-5 h-5" />
               <input
@@ -623,14 +944,14 @@ const UserAccount: React.FC<UserAccountProps> = ({
                 placeholder="البحث في طلباتك..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                className="w-full pl-10 pr-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white placeholder-jet-500 dark:placeholder-platinum-400"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+              className="px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
             >
               <option value="all">جميع الحالات</option>
               <option value="pending">قيد الانتظار</option>
@@ -641,29 +962,35 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
 
-        {/* Requests List */}
-        <div className="space-y-6">
+        {/* Requests List - Enhanced Glass Effect */}
+        <div className="space-y-4 sm:space-y-6">
           {filteredRequests.length === 0 ? (
-            <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 p-12 text-center">
-              <FileText className="w-16 h-16 text-jet-400 dark:text-platinum-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-jet-800 dark:text-white mb-2">لا توجد طلبات</h3>
-              <p className="text-jet-600 dark:text-platinum-400">لم تقم بإنشاء أي طلبات بعد</p>
+            <div className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 p-8 sm:p-12 text-center relative overflow-hidden">
+              {/* Glass Pattern */}
+              <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5"></div>
+              <div className="relative">
+                <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-jet-400 dark:text-platinum-500 mx-auto mb-4" />
+                <h3 className="text-lg sm:text-xl font-semibold text-jet-800 dark:text-white mb-2">لا توجد طلبات</h3>
+                <p className="text-jet-600 dark:text-platinum-400">لم تقم بإنشاء أي طلبات بعد</p>
+              </div>
             </div>
           ) : (
             filteredRequests.map((request) => (
-              <div key={request.id} className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 p-6">
-                <div className="flex items-start justify-between mb-4">
+              <div key={request.id} className="bg-white/60 dark:bg-jet-800/60 backdrop-blur-2xl rounded-3xl shadow-xl border border-white/30 dark:border-jet-700/30 p-4 sm:p-6 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+                {/* Glass Pattern */}
+                <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/3 to-indigo-500/3"></div>
+                <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 sm:space-y-0">
                   <div className="flex-1">
-                    <div className="flex items-center mb-2">
-                      <h3 className="text-xl font-bold text-jet-800 dark:text-white ml-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 sm:space-x-reverse mb-3 sm:mb-2">
+                      <h3 className="text-lg sm:text-xl font-bold text-jet-800 dark:text-white">
                         {request.title}
                       </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)} backdrop-blur-sm border border-white/20`}>
                         {getStatusIcon(request.status)}
                         <span className="mr-1">{getStatusArabic(request.status)}</span>
                       </span>
                     </div>
-                    <p className="font-medium text-jet-800 dark:text-white font-mono" dir="ltr">
+                    <p className="font-medium text-jet-800 dark:text-white font-mono text-sm" dir="ltr">
                       {new Date(request.updated_at).toLocaleString('en-US', {
                         year: 'numeric',
                         month: '2-digit',
@@ -674,32 +1001,32 @@ const UserAccount: React.FC<UserAccountProps> = ({
                       })}
                     </p>
                     {request.description && (
-                      <p className="text-jet-700 dark:text-platinum-300 mb-3">
+                      <p className="text-jet-700 dark:text-platinum-300 mb-3 text-sm sm:text-base">
                         {request.description}
                       </p>
                     )}
-                    <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 sm:space-x-reverse text-sm text-jet-500 dark:text-platinum-400">
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 ml-1" />
-                        <span className="font-mono" dir="ltr">
+                        <span className="font-mono text-xs sm:text-sm" dir="ltr">
                           {formatDisplayDate(request.created_at)}
                         </span>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)} backdrop-blur-sm border border-white/20`}>
                         {getPriorityArabic(request.priority)}
                       </span>
                     </div>
                     {request.admin_notes && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-lg border border-emerald-200 dark:border-emerald-700/30">
+                      <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-emerald-900/20 dark:to-teal-900/20 backdrop-blur-sm rounded-2xl border border-emerald-200/50 dark:border-emerald-700/30">
                         <p className="text-sm text-emerald-800 dark:text-emerald-300">
                           <strong>ملاحظات الإدارة:</strong> {request.admin_notes}
                         </p>
                       </div>
                     )}
                     
-                    {/* File Display */}
+                    {/* File Display - Enhanced Glass */}
                     {request.file_url && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 rounded-lg border border-amber-200 dark:border-amber-700/30">
+                      <div className="mt-3 p-3 bg-gradient-to-r from-amber-50/80 to-orange-50/80 dark:from-amber-900/20 dark:to-orange-900/20 backdrop-blur-sm rounded-2xl border border-amber-200/50 dark:border-amber-700/30">
                         <p className="text-sm text-amber-800 dark:text-amber-300 mb-2">
                           <strong>الملف المرفق:</strong> {request.file_name || 'ملف مرفق'}
                           {request.file_url.startsWith('base64://') && (
@@ -708,17 +1035,17 @@ const UserAccount: React.FC<UserAccountProps> = ({
                             </span>
                           )}
                         </p>
-                        <div className="flex space-x-3 space-x-reverse">
+                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 sm:space-x-reverse">
                           <button
                             onClick={() => handleFileView(request.file_url!, request.file_name || 'file', request.id)}
-                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                            className="group flex items-center justify-center px-4 py-2 bg-gradient-to-r from-amber-500/90 to-orange-500/90 backdrop-blur-sm text-white text-sm rounded-2xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform border border-white/20"
                           >
                             <Eye className="w-4 h-4 ml-2 group-hover:animate-pulse" />
                             <span className="font-semibold">عرض</span>
                           </button>
                           <button
                             onClick={() => handleFileDownload(request.file_url!, request.file_name || 'file', request.id)}
-                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                            className="group flex items-center justify-center px-4 py-2 bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm text-white text-sm rounded-2xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform border border-white/20"
                           >
                             <Download className="w-4 h-4 ml-2 group-hover:animate-bounce" />
                             <span className="font-semibold">تحميل</span>
@@ -727,23 +1054,14 @@ const UserAccount: React.FC<UserAccountProps> = ({
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
+                  <div className="flex justify-center sm:justify-end">
                     {(request.status === 'pending' || request.status === 'in_progress') && (
                       <button
                         onClick={() => handleEdit(request)}
-                        className="p-2 text-caribbean-600 hover:text-caribbean-700 dark:text-caribbean-400 dark:hover:text-caribbean-300 hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 rounded-lg transition-colors duration-200"
+                        className="p-2 text-caribbean-600 hover:text-caribbean-700 dark:text-caribbean-400 dark:hover:text-caribbean-300 hover:bg-caribbean-50/80 dark:hover:bg-caribbean-900/20 backdrop-blur-sm rounded-2xl transition-all duration-300 border border-white/20"
                         title="تعديل الطلب"
                       >
                         <Edit className="w-4 h-4" />
-                      </button>
-                    )}
-                    {request.status === 'pending' && (
-                      <button
-                        onClick={() => setDeleteConfirm(request.id)}
-                        className="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
-                        title="حذف الطلب"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -754,119 +1072,246 @@ const UserAccount: React.FC<UserAccountProps> = ({
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Enhanced Glass Effect */}
       {editingRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingRequest(null)}></div>
-          <div className="relative bg-white dark:bg-jet-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 border border-platinum-300 dark:border-jet-600">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white">تعديل الطلب</h2>
-              <button
-                onClick={() => setEditingRequest(null)}
-                className="text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
-                  عنوان الطلب
-                </label>
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
-                  وصف الطلب
-                </label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
-                />
-              </div>
-
-
-
-              <div className="flex space-x-4 space-x-reverse pt-4">
-                <button
-                  onClick={handleSaveEdit}
-                  className="flex-1 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 flex items-center justify-center"
-                >
-                  <Save className="w-4 h-4 ml-2" />
-                  حفظ التغييرات
-                </button>
+          <div className="relative bg-white/80 dark:bg-jet-800/80 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-md mx-auto p-6 sm:p-8 border border-white/30 dark:border-jet-700/30 relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white">تعديل الطلب</h2>
                 <button
                   onClick={() => setEditingRequest(null)}
-                  className="flex-1 bg-gray-200 dark:bg-jet-600 text-jet-800 dark:text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors duration-300"
+                  className="text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200 p-2 hover:bg-platinum-100/50 dark:hover:bg-jet-700/50 rounded-2xl transition-all duration-300"
                 >
-                  إلغاء
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                    عنوان الطلب
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                    className="w-full px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                    وصف الطلب
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 sm:space-x-reverse pt-4">
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex-1 bg-gradient-to-r from-caribbean-600/90 to-indigo-700/90 backdrop-blur-sm text-white py-3 px-6 rounded-2xl font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-105 border border-white/20"
+                  >
+                    <Save className="w-4 h-4 ml-2" />
+                    حفظ التغييرات
+                  </button>
+                  <button
+                    onClick={() => setEditingRequest(null)}
+                    className="flex-1 bg-platinum-200/80 dark:bg-jet-600/80 backdrop-blur-sm text-jet-800 dark:text-white py-3 px-6 rounded-2xl font-semibold hover:bg-platinum-300/80 dark:hover:bg-jet-500/80 transition-all duration-300 border border-white/20"
+                  >
+                    إلغاء
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}></div>
-          <div className="relative bg-white dark:bg-jet-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 border border-platinum-300 dark:border-jet-600">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-8 h-8 text-red-600 dark:text-red-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
-                تأكيد الحذف
-              </h2>
-              <p className="text-jet-600 dark:text-platinum-400 mb-6">
-                هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.
-              </p>
-              <div className="flex space-x-4 space-x-reverse">
-                <button
-                  onClick={() => handleDelete(deleteConfirm)}
-                  className="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 transition-colors duration-300"
-                >
-                  حذف الطلب
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 bg-gray-200 dark:bg-jet-600 text-jet-800 dark:text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors duration-300"
-                >
-                  إلغاء
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* New Request Modal - Enhanced Glass Effect */}
+      {showNewRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowNewRequestModal(false)}></div>
+          
+          <div className="relative bg-white/80 dark:bg-jet-800/80 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-md mx-auto p-6 sm:p-8 border border-white/30 dark:border-jet-700/30 max-h-[90vh] overflow-y-auto relative overflow-hidden">
+            {/* Glass Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5"></div>
+            <div className="relative">
+              <button
+                onClick={() => setShowNewRequestModal(false)}
+                className="absolute top-4 right-4 p-2 text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200 transition-colors duration-300 hover:bg-platinum-100/50 dark:hover:bg-jet-700/50 rounded-2xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-      {/* Delete Success Message */}
-      {deleteSuccess && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-6 text-center animate-fade-in">
-            <div className="w-16 h-16 bg-green-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-in">
-              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h3 className="text-lg font-bold text-jet-800 dark:text-white mb-2">
-              تم الحذف بنجاح! ✨
-            </h3>
-            <p className="text-jet-600 dark:text-platinum-400 text-sm">
-              تم حذف طلبك من النظام
-            </p>
-            
-            {/* Progress bar */}
-            <div className="mt-4 w-full bg-white/20 dark:bg-jet-700/20 rounded-full h-1 overflow-hidden">
-              <div className="h-full bg-green-500/60 rounded-full animate-expand-width"></div>
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-caribbean-500/20 to-indigo-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30">
+                  <FileText className="w-6 h-6 text-caribbean-600 dark:text-caribbean-400" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white mb-2">
+                  طلب خدمة جديد
+                </h2>
+                <p className="text-jet-600 dark:text-platinum-400 text-sm sm:text-base">
+                  اختر نوع الخدمة وأدخل تفاصيل طلبك
+                </p>
+              </div>
+
+              {newRequestSuccess ? (
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30">
+                    <FileText className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white mb-2">
+                    تم إرسال الطلب بنجاح!
+                  </h2>
+                  <p className="text-jet-600 dark:text-platinum-400 mb-4 text-sm sm:text-base">
+                    سيتم التواصل معك قريباً لمتابعة طلبك
+                  </p>
+                  <div className="w-full bg-emerald-200/80 dark:bg-emerald-900/30 backdrop-blur-sm rounded-full h-2">
+                    <div className="bg-emerald-600 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleCreateNewRequest} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                      نوع الخدمة *
+                    </label>
+                    <select
+                      value={selectedServiceType}
+                      onChange={(e) => setSelectedServiceType(e.target.value)}
+                      className="w-full px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent transition-all duration-300 bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
+                      required
+                    >
+                      <option value="">اختر نوع الخدمة</option>
+                      {servicesData.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {getServiceName(service.id)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                      عنوان الطلب *
+                    </label>
+                    <input
+                      type="text"
+                      value={newRequestForm.title}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, title: e.target.value})}
+                      className="w-full px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent transition-all duration-300 bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
+                      placeholder="مثال: ترجمة شهادة الميلاد"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                      وصف الطلب
+                    </label>
+                    <textarea
+                      value={newRequestForm.description}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, description: e.target.value})}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-jet-300/50 dark:border-jet-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-caribbean-500/50 focus:border-transparent transition-all duration-300 bg-white/50 dark:bg-jet-700/50 backdrop-blur-sm text-jet-900 dark:text-white"
+                      placeholder="اكتب تفاصيل إضافية عن طلبك..."
+                    />
+                  </div>
+
+                  {/* File Upload - only for specific services */}
+                  {selectedServiceType && canUploadFile(selectedServiceType) && (
+                    <div>
+                      <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                        {selectedServiceType === 'translation' ? 'صورة الوثيقة المطلوب ترجمتها' : 'صورة جواز السفر أو الإقامة'}
+                      </label>
+                      <div className="relative border-2 border-dashed border-jet-300/50 dark:border-jet-600/50 rounded-2xl p-6 text-center hover:border-caribbean-500/50 dark:hover:border-caribbean-400/50 transition-all duration-300 bg-white/30 dark:bg-jet-700/30 backdrop-blur-sm">
+                        {newRequestForm.file ? (
+                          <div className="flex items-center justify-center space-x-2 space-x-reverse">
+                            <Image className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
+                              {newRequestForm.file.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setNewRequestForm({...newRequestForm, file: null})}
+                              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-12 h-12 text-jet-400 dark:text-platinum-500 mx-auto mb-4" />
+                            <p className="text-jet-600 dark:text-platinum-400 mb-2 text-sm">
+                              اضغط لاختيار ملف أو اسحبه هنا
+                            </p>
+                            <p className="text-xs text-jet-500 dark:text-platinum-500">
+                              JPG, PNG, GIF, PDF (حتى 2 ميجابايت)
+                            </p>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          onChange={handleNewRequestFileChange}
+                          accept="image/*,.pdf"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          disabled={uploadingFile}
+                        />
+                      </div>
+                      <p className="text-xs text-jet-500 dark:text-platinum-500 mt-1">
+                        {selectedServiceType === 'translation' 
+                          ? 'رفع صورة الوثيقة يساعدنا في تقديم عرض سعر دقيق'
+                          : 'رفع صورة الوثائق يسرع من عملية معالجة طلبك'
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-platinum-50/80 dark:bg-jet-700/80 backdrop-blur-sm p-4 rounded-2xl border border-platinum-200/50 dark:border-jet-600/50">
+                    <h4 className="font-medium text-jet-800 dark:text-white mb-2">معلومات التواصل</h4>
+                    <div className="text-sm text-jet-600 dark:text-platinum-400 space-y-1">
+                      <p><strong>الاسم:</strong> {profile?.full_name}</p>
+                      <p><strong>البريد الإلكتروني:</strong> {profile?.email}</p>
+                      {profile?.phone && (
+                        <p><strong>الهاتف:</strong> {profile.country_code} {profile.phone}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={creatingRequest || uploadingFile}
+                    className="w-full bg-gradient-to-r from-caribbean-600/90 to-indigo-700/90 backdrop-blur-sm text-white py-3 px-6 rounded-2xl font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center border border-white/20"
+                  >
+                    {creatingRequest || uploadingFile ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white ml-2"></div>
+                        {uploadingFile ? 'جاري رفع الملف...' : 'جاري الإرسال...'}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5 ml-2" />
+                        إرسال الطلب
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              <div className="mt-6 text-center">
+                <p className="text-xs text-jet-500 dark:text-platinum-500">
+                  سيتم التواصل معك خلال 24 ساعة لمتابعة طلبك
+                </p>
+              </div>
             </div>
           </div>
         </div>

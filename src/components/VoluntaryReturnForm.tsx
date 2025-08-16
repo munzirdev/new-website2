@@ -3,6 +3,7 @@ import { ArrowRight, FileText, Download, Printer, Plus, X, Users, Globe, Shield,
 import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { useAuthContext } from './AuthProvider';
+import { webhookService } from '../services/webhookService';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../lib/utils';
 
@@ -154,6 +155,15 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       const successMessage = language === 'ar' ? 'تم حفظ النموذج بنجاح!' : 'Form başarıyla kaydedildi!';
       setSaveMessage(successMessage);
       setTimeout(() => setSaveMessage(''), 5000);
+      
+      // إرسال إشعار التيليجرام
+      try {
+        if (data) {
+          await webhookService.sendVoluntaryReturnWebhook(data);
+        }
+      } catch (webhookError) {
+        console.error('Error sending webhook notification:', webhookError);
+      }
       
       // إعادة تعيين النموذج بعد الحفظ الناجح
       setFormData({

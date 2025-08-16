@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Send, FileText, AlertCircle, Upload, Image } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
+import { webhookService } from '../services/webhookService';
 
 interface ServiceRequestFormProps {
   isOpen: boolean;
@@ -337,6 +338,28 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({
         fileUrl: '',
         fileName: ''
       });
+      
+      // إرسال إشعار التيليجرام
+      try {
+        const requestData = {
+          id: Date.now().toString(), // معرف مؤقت
+          user_id: user.id,
+          service_type: serviceType,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          priority: 'medium',
+          status: 'pending',
+          file_url: fileUrl,
+          file_name: fileName,
+          created_at: new Date().toISOString()
+        };
+        
+        // استخدام webhookService لإرسال الإشعار
+        await webhookService.sendServiceRequestWebhook(requestData);
+        console.log('✅ تم إرسال إشعار التيليجرام بنجاح');
+      } catch (webhookError) {
+        console.error('Error sending webhook notification:', webhookError);
+      }
       
       // إغلاق النافذة بعد 2 ثانية
       setTimeout(() => {

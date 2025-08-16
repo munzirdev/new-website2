@@ -3,6 +3,7 @@ import { HelpCircle, MessageCircle, Search, ChevronDown, ChevronUp, Send, X, Che
 import CustomCursor from './CustomCursor';
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
+import { webhookService } from '../services/webhookService';
 import { formatDisplayDate } from '../lib/utils';
 
 interface FAQ {
@@ -150,6 +151,25 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         return;
       }
 
+      // إرسال إشعار التيليجرام
+      try {
+        const messageData = {
+          id: Date.now().toString(),
+          user_id: user.id,
+          title: contactForm.subject.trim(),
+          description: contactForm.message.trim(),
+          priority: 'medium',
+          status: 'pending',
+          service_type: 'support_message',
+          created_at: new Date().toISOString()
+        };
+        
+        await webhookService.sendServiceRequestWebhook(messageData);
+        console.log('✅ تم إرسال إشعار التيليجرام بنجاح');
+      } catch (webhookError) {
+        console.error('Error sending webhook notification:', webhookError);
+      }
+
       setContactSuccess(true);
       setContactForm({ subject: '', message: '' });
       
@@ -205,7 +225,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
       
       {/* Modern Header */}
       <div className="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4 space-x-reverse">
               <button
@@ -239,65 +259,65 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-4">
             كيف يمكننا مساعدتك؟
           </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
             ابحث في الأسئلة المتكررة أو تواصل مع فريق الدعم للحصول على مساعدة مخصصة
           </p>
         </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-4 md:p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">الأسئلة</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalFaqs}</p>
+                <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium">الأسئلة</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{stats.totalFaqs}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
-                <HelpCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
+                <HelpCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-4 md:p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">الفئات</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalCategories}</p>
+                <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium">الفئات</p>
+                <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{stats.totalCategories}</p>
               </div>
-              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </div>
           
           {user && (
             <>
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-4 md:p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">محلولة</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.resolvedMessages}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium">محلولة</p>
+                    <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{stats.resolvedMessages}</p>
                   </div>
-                  <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg p-4 md:p-6 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">قيد الانتظار</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.pendingMessages}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium">قيد الانتظار</p>
+                    <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{stats.pendingMessages}</p>
                   </div>
-                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center">
+                    <Clock className="w-5 h-5 md:w-6 md:h-6 text-amber-600 dark:text-amber-400" />
                   </div>
                 </div>
               </div>
@@ -306,33 +326,33 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6">
-              <Search className="w-8 h-8" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6 md:p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <Search className="w-6 h-6 md:w-8 md:h-8" />
             </div>
-            <h3 className="text-xl font-bold mb-3">البحث السريع</h3>
-            <p className="text-blue-100 leading-relaxed">
+            <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3">البحث السريع</h3>
+            <p className="text-blue-100 leading-relaxed text-sm md:text-base">
               ابحث في الأسئلة المتكررة للحصول على إجابة فورية
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-emerald-500 to-green-600 text-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6">
-              <MessageCircle className="w-8 h-8" />
+          <div className="bg-gradient-to-br from-emerald-500 to-green-600 text-white p-6 md:p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <MessageCircle className="w-6 h-6 md:w-8 md:h-8" />
             </div>
-            <h3 className="text-xl font-bold mb-3">تواصل مباشر</h3>
-            <p className="text-emerald-100 leading-relaxed">
+            <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3">تواصل مباشر</h3>
+            <p className="text-emerald-100 leading-relaxed text-sm md:text-base">
               تواصل مع فريق الدعم للحصول على مساعدة مخصصة
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6">
-              <Clock className="w-8 h-8" />
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6 md:p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <Clock className="w-6 h-6 md:w-8 md:h-8" />
             </div>
-            <h3 className="text-xl font-bold mb-3">متابعة الطلبات</h3>
-            <p className="text-purple-100 leading-relaxed">
+            <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3">متابعة الطلبات</h3>
+            <p className="text-purple-100 leading-relaxed text-sm md:text-base">
               تابع حالة طلباتك السابقة والردود عليها
             </p>
           </div>
@@ -340,27 +360,27 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
 
         {/* User Messages Section - only show if user has messages */}
         {user && userMessages.length > 0 && (
-          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 mb-12">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mr-4">
-                  <MessageCircle className="w-5 h-5 text-white" />
+          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 mb-12">
+            <div className="flex items-center justify-between mb-6 md:mb-8">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mr-3 md:mr-4">
+                  <MessageCircle className="w-4 h-4 md:w-5 md:h-5 text-white" />
                 </div>
                 رسائلك السابقة
               </h2>
-              <span className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium">
+              <span className="px-3 md:px-4 py-1 md:py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs md:text-sm font-medium">
                 {userMessages.length} رسالة
               </span>
             </div>
-            <div className="grid gap-6">
+            <div className="grid gap-4 md:gap-6">
               {userMessages.slice(0, 3).map((message) => (
-                <div key={message.id} className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-700/50 dark:to-blue-900/20 rounded-2xl p-6 border border-slate-200/50 dark:border-slate-600/50 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-start justify-between mb-4">
+                <div key={message.id} className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-700/50 dark:to-blue-900/20 rounded-2xl p-4 md:p-6 border border-slate-200/50 dark:border-slate-600/50 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-start justify-between mb-3 md:mb-4">
                     <div className="flex-1">
-                      <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-2">{message.subject}</h3>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-base md:text-lg mb-2">{message.subject}</h3>
                       <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{message.message}</p>
                     </div>
-                    <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                    <span className={`px-3 md:px-4 py-1 md:py-2 rounded-full text-xs font-bold ${
                       message.status === 'resolved' 
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
                         : message.status === 'in_progress'
@@ -372,16 +392,16 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                     </span>
                   </div>
                   {message.admin_reply && (
-                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 p-4 rounded-xl mt-4 border-r-4 border-emerald-500">
+                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 p-3 md:p-4 rounded-xl mt-3 md:mt-4 border-r-4 border-emerald-500">
                       <div className="flex items-start space-x-3 space-x-reverse">
-                        <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-emerald-800 dark:text-emerald-300 text-sm leading-relaxed font-medium">
+                          <p className="text-emerald-800 dark:text-emerald-300 text-xs md:text-sm leading-relaxed font-medium">
                             رد الإدارة:
                           </p>
-                          <p className="text-emerald-700 dark:text-emerald-400 text-sm leading-relaxed mt-1">
+                          <p className="text-emerald-700 dark:text-emerald-400 text-xs md:text-sm leading-relaxed mt-1">
                             {message.admin_reply}
                           </p>
                           {message.admin_reply_date && (
@@ -394,12 +414,12 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-600/50">
+                  <div className="flex items-center justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-slate-200/50 dark:border-slate-600/50">
                     <p className="text-slate-500 dark:text-slate-400 text-xs flex items-center">
                       <Clock className="w-3 h-3 ml-1" />
                       {formatDisplayDate(message.created_at)}
                     </p>
-                    <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200">
+                    <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs md:text-sm font-medium transition-colors duration-200">
                       عرض التفاصيل
                     </button>
                   </div>
@@ -410,17 +430,17 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         )}
 
         {/* Search and Filter Section */}
-        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 mb-12">
+          <div className="text-center mb-6 md:mb-8">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-2 md:mb-3">
               ابحث في الأسئلة المتكررة
             </h2>
-            <p className="text-slate-600 dark:text-slate-400">
+            <p className="text-slate-600 dark:text-slate-400 text-sm md:text-base">
               ابحث عن إجابات لأسئلتك الشائعة أو تصفح الفئات المختلفة
             </p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             {/* Search Input */}
             <div className="lg:col-span-2">
               <div className="relative group">
@@ -430,7 +450,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
                   placeholder="اكتب سؤالك هنا..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 border-2 border-slate-300 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500 text-lg"
+                  className="w-full pl-12 pr-12 py-3 md:py-4 border-2 border-slate-300 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500 text-base md:text-lg"
                 />
                 {searchTerm && (
                   <button
@@ -448,7 +468,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-4 border-2 border-slate-300 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500 appearance-none cursor-pointer text-lg"
+                className="w-full px-4 py-3 md:py-4 border-2 border-slate-300 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500 appearance-none cursor-pointer text-base md:text-lg"
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -464,14 +484,14 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
           
           {/* Search Results Summary */}
           {searchTerm && (
-            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200/50 dark:border-blue-800/50">
+            <div className="mt-4 md:mt-6 p-3 md:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200/50 dark:border-blue-800/50">
               <div className="flex items-center justify-between">
-                <p className="text-blue-800 dark:text-blue-300 text-sm font-medium">
-                  تم العثور على <span className="font-bold text-lg">{filteredFaqs.length}</span> نتيجة لـ "{searchTerm}"
+                <p className="text-blue-800 dark:text-blue-300 text-xs md:text-sm font-medium">
+                  تم العثور على <span className="font-bold text-base md:text-lg">{filteredFaqs.length}</span> نتيجة لـ "{searchTerm}"
                 </p>
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs md:text-sm font-medium transition-colors duration-200"
                 >
                   مسح البحث
                 </button>
@@ -481,14 +501,14 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
 
           {/* Category Pills */}
           {selectedCategory === 'الكل' && categories.length > 1 && (
-            <div className="mt-6">
-              <p className="text-slate-600 dark:text-slate-400 text-sm font-medium mb-3">تصفية سريعة:</p>
+            <div className="mt-4 md:mt-6">
+              <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium mb-2 md:mb-3">تصفية سريعة:</p>
               <div className="flex flex-wrap gap-2">
                 {categories.slice(1).map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 border border-slate-200 dark:border-slate-600"
+                    className="px-3 md:px-4 py-1 md:py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs md:text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 border border-slate-200 dark:border-slate-600"
                   >
                     {category}
                   </button>
@@ -501,89 +521,85 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         {/* FAQs Section */}
         <div className="mb-12">
           {filteredFaqs.length === 0 ? (
-            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 p-16 text-center">
-              <div className="w-32 h-32 bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-700 dark:to-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-8">
-                <HelpCircle className="w-16 h-16 text-slate-400 dark:text-slate-500" />
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 p-8 md:p-16 text-center">
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-700 dark:to-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8">
+                <HelpCircle className="w-12 h-12 md:w-16 md:h-16 text-slate-400 dark:text-slate-500" />
               </div>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">لا توجد أسئلة</h3>
-              <p className="text-slate-600 dark:text-slate-400 text-xl mb-8 max-w-md mx-auto">
+              <h3 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-3 md:mb-4">لا توجد أسئلة</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-base md:text-xl mb-6 md:mb-8 max-w-md mx-auto">
                 لم نجد أسئلة تطابق بحثك. جرب كلمات مختلفة أو تواصل معنا مباشرة
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg text-sm md:text-base"
                 >
                   مسح البحث
                 </button>
                 <button
                   onClick={() => setShowContactModal(true)}
-                  className="px-8 py-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all duration-300 border border-slate-200 dark:border-slate-600"
+                  className="px-6 md:px-8 py-3 md:py-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all duration-300 border border-slate-200 dark:border-slate-600 text-sm md:text-base"
                 >
                   تواصل معنا
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {filteredFaqs.map((faq, index) => (
                 <div 
                   key={faq.id} 
                   className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50 overflow-hidden transition-all duration-500 hover:shadow-2xl transform hover:scale-[1.02]"
-                  style={{ 
-                    animationDelay: `${index * 100}ms`,
-                    animation: 'fadeInUp 0.6s ease-out forwards'
-                  }}
                 >
                   <button
                     onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-                    className="w-full px-8 py-8 text-right hover:bg-gradient-to-r hover:from-slate-50 hover:to-blue-50 dark:hover:from-slate-700/50 dark:hover:to-blue-900/20 transition-all duration-300 flex items-center justify-between group"
+                    className="w-full px-6 md:px-8 py-6 md:py-8 text-right hover:bg-gradient-to-r hover:from-slate-50 hover:to-blue-50 dark:hover:from-slate-700/50 dark:hover:to-blue-900/20 transition-all duration-300 flex items-center justify-between group"
                   >
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 leading-relaxed group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+                      <h3 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white mb-3 md:mb-4 leading-relaxed group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
                         {faq.question}
                       </h3>
                       <div className="flex items-center space-x-3 space-x-reverse">
-                        <span className="inline-block px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-full font-bold">
+                        <span className="inline-block px-3 md:px-4 py-1 md:py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-400 text-xs md:text-sm rounded-full font-bold">
                           {faq.category}
                         </span>
-                        <span className="text-slate-500 dark:text-slate-400 text-sm">
+                        <span className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">
                           اضغط للعرض
                         </span>
                       </div>
                     </div>
-                    <div className="mr-6">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                    <div className="mr-4 md:mr-6">
+                      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                         expandedFaq === faq.id 
                           ? 'bg-blue-100 dark:bg-blue-900/30' 
                           : 'bg-slate-100 dark:bg-slate-700'
                       }`}>
                         {expandedFaq === faq.id ? (
-                          <ChevronUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <ChevronUp className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <ChevronDown className="w-6 h-6 text-slate-400 dark:text-slate-400 group-hover:text-blue-500" />
+                          <ChevronDown className="w-5 h-5 md:w-6 md:h-6 text-slate-400 dark:text-slate-400 group-hover:text-blue-500" />
                         )}
                       </div>
                     </div>
                   </button>
                   
                   {expandedFaq === faq.id && (
-                    <div className="px-8 pb-8 border-t border-slate-200/50 dark:border-slate-700/50">
-                      <div className="pt-8">
-                        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-700/50 dark:to-blue-900/20 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line text-lg">
+                    <div className="px-6 md:px-8 pb-6 md:pb-8 border-t border-slate-200/50 dark:border-slate-700/50">
+                      <div className="pt-6 md:pt-8">
+                        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-700/50 dark:to-blue-900/20 p-4 md:p-6 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line text-base md:text-lg">
                             {faq.answer}
                           </p>
                         </div>
-                        <div className="mt-6 pt-6 border-t border-slate-200/50 dark:border-slate-700/50">
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                        <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mb-3 md:mb-4">
                             هل هذه الإجابة مفيدة؟
                           </p>
-                          <div className="flex space-x-4 space-x-reverse">
-                            <button className="px-6 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors duration-200">
+                          <div className="flex space-x-3 md:space-x-4 space-x-reverse">
+                            <button className="px-4 md:px-6 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs md:text-sm font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors duration-200">
                               نعم، مفيدة
                             </button>
-                            <button className="px-6 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200">
+                            <button className="px-4 md:px-6 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full text-xs md:text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200">
                               لا، غير مفيدة
                             </button>
                           </div>
@@ -598,26 +614,26 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         </div>
 
         {/* Contact CTA */}
-        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white p-12 rounded-3xl text-center shadow-2xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white p-8 md:p-12 rounded-3xl text-center shadow-2xl relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-purple-600/20"></div>
           <div className="relative z-10">
-            <h2 className="text-4xl font-bold mb-6">لم تجد ما تبحث عنه؟</h2>
-            <p className="text-white/90 mb-10 text-xl leading-relaxed max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 md:mb-6">لم تجد ما تبحث عنه؟</h2>
+            <p className="text-white/90 mb-8 md:mb-10 text-lg md:text-xl leading-relaxed max-w-3xl mx-auto">
               تواصل معنا مباشرة وسيقوم فريق الدعم المختص بالرد عليك في أقرب وقت ممكن
             </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center">
               <button
                 onClick={() => setShowContactModal(true)}
-                className="bg-white text-blue-700 px-10 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
+                className="bg-white text-blue-700 px-8 md:px-10 py-3 md:py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center text-base md:text-lg"
               >
-                <MessageCircle className="w-6 h-6 ml-3" />
+                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
                 تواصل معنا الآن
               </button>
               <button
                 onClick={() => window.open('mailto:support@tevasul.group', '_blank')}
-                className="bg-white/20 backdrop-blur-sm text-white px-10 py-4 rounded-2xl font-bold hover:bg-white/30 transition-all duration-300 transform hover:scale-105 border-2 border-white/30 flex items-center justify-center text-lg"
+                className="bg-white/20 backdrop-blur-sm text-white px-8 md:px-10 py-3 md:py-4 rounded-2xl font-bold hover:bg-white/30 transition-all duration-300 transform hover:scale-105 border-2 border-white/30 flex items-center justify-center text-base md:text-lg"
               >
-                <Mail className="w-6 h-6 ml-3" />
+                <Mail className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
                 إرسال بريد إلكتروني
               </button>
             </div>
@@ -726,18 +742,6 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };

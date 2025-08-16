@@ -129,12 +129,29 @@ export const useAuth = () => {
             const isAdminUser = session.user.email === 'admin@tevasul.group';
             const isModeratorUser = session.user.email?.includes('moderator') || session.user.email?.includes('moderator@');
             
+            // محاولة استخراج الاسم من user_metadata
+            const googleData = session.user.user_metadata;
+            let fallbackName = 'مستخدم';
+            
+            if (googleData?.full_name) {
+              fallbackName = googleData.full_name;
+            } else if (googleData?.name) {
+              fallbackName = googleData.name;
+            } else if (googleData?.display_name) {
+              fallbackName = googleData.display_name;
+            } else if (googleData?.given_name && googleData?.family_name) {
+              fallbackName = `${googleData.given_name} ${googleData.family_name}`;
+            } else if (googleData?.given_name) {
+              fallbackName = googleData.given_name;
+            }
+            
             const fallbackProfile = {
               id: session.user.id,
               email: session.user.email || '',
-              full_name: session.user.email?.split('@')[0] || 'مستخدم',
+              full_name: fallbackName,
               phone: undefined,
               country_code: '+90',
+              avatar_url: session.user.user_metadata?.avatar_url || null,
               role: (isAdminUser ? 'admin' : (isModeratorUser ? 'moderator' : 'user')) as 'user' | 'moderator' | 'admin',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
@@ -187,18 +204,23 @@ export const useAuth = () => {
           console.log('✅ جلسة نشطة - تحديث الحالة...');
           console.log('👤 معرف المستخدم من الجلسة:', session.user.id);
           console.log('📧 حالة تأكيد البريد الإلكتروني:', session.user.email_confirmed_at ? 'مؤكد' : 'غير مؤكد');
+          console.log('🔗 مزود المصادقة:', session.user.user_metadata?.provider || 'email');
           
-          // التحقق من تأكيد البريد الإلكتروني باستخدام middleware
-          const { isVerified, shouldBlock } = await checkEmailVerification(session.user);
-          
-          if (shouldBlock) {
-            console.error('❌ محاولة وصول بدون تأكيد البريد الإلكتروني في onAuthStateChange');
-            console.log('🚪 تسجيل الخروج تلقائياً...');
+          // التحقق من تأكيد البريد الإلكتروني فقط للمستخدمين العاديين
+          if (session.user.user_metadata?.provider !== 'google') {
+            const { isVerified, shouldBlock } = await checkEmailVerification(session.user);
             
-            // تسجيل الخروج فوراً
-            await forceSignOutUnverified();
-            
-            return;
+            if (shouldBlock) {
+              console.error('❌ محاولة وصول بدون تأكيد البريد الإلكتروني في onAuthStateChange');
+              console.log('🚪 تسجيل الخروج تلقائياً...');
+              
+              // تسجيل الخروج فوراً
+              await forceSignOutUnverified();
+              
+              return;
+            }
+          } else {
+            console.log('✅ مستخدم Google - تخطي التحقق من تأكيد البريد الإلكتروني');
           }
           
           // Only set user if verification passed
@@ -246,14 +268,31 @@ export const useAuth = () => {
             const isAdminUser = session.user.email === 'admin@tevasul.group';
             const isModeratorUser = session.user.email?.includes('moderator') || session.user.email?.includes('moderator@');
             
+            // محاولة استخراج الاسم من user_metadata
+            const googleData = session.user.user_metadata;
+            let fallbackName = 'مستخدم';
+            
+            if (googleData?.full_name) {
+              fallbackName = googleData.full_name;
+            } else if (googleData?.name) {
+              fallbackName = googleData.name;
+            } else if (googleData?.display_name) {
+              fallbackName = googleData.display_name;
+            } else if (googleData?.given_name && googleData?.family_name) {
+              fallbackName = `${googleData.given_name} ${googleData.family_name}`;
+            } else if (googleData?.given_name) {
+              fallbackName = googleData.given_name;
+            }
+            
             const fallbackState = {
               user: session.user,
               profile: {
                 id: session.user.id,
                 email: session.user.email || '',
-                full_name: session.user.email?.split('@')[0] || 'مستخدم',
+                full_name: fallbackName,
                 phone: undefined,
                 country_code: '+90',
+                avatar_url: session.user.user_metadata?.avatar_url || null,
                 role: (isAdminUser ? 'admin' : (isModeratorUser ? 'moderator' : 'user')) as 'user' | 'moderator' | 'admin',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -299,7 +338,7 @@ export const useAuth = () => {
       // Add timeout to profile loading
       const profilePromise = getUserProfile(authState.user.id);
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile loading timeout')), 500); // 0.5 second timeout (reduced from 0.8)
+        setTimeout(() => reject(new Error('Profile loading timeout')), 2000); // 2 second timeout (increased from 0.5)
       });
       
       Promise.race([profilePromise, timeoutPromise]).then(profile => {
@@ -313,7 +352,7 @@ export const useAuth = () => {
           
           const createPromise = createProfileFromMetadata(authState.user);
           const createTimeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Profile creation timeout')), 500); // 0.5 second timeout (reduced from 0.8)
+            setTimeout(() => reject(new Error('Profile creation timeout')), 2000); // 2 second timeout (increased from 0.5)
           });
           
           Promise.race([createPromise, createTimeoutPromise]).then(newProfile => {
@@ -379,15 +418,32 @@ export const useAuth = () => {
       const isAdminUser = user.email === 'admin@tevasul.group';
       const isModeratorUser = user.email?.includes('moderator') || user.email?.includes('moderator@');
       
+      // محاولة استخراج الاسم من user_metadata
+      const googleData = user.user_metadata;
+      let fullName = 'مستخدم';
+      
+      if (googleData?.full_name) {
+        fullName = googleData.full_name;
+      } else if (googleData?.name) {
+        fullName = googleData.name;
+      } else if (googleData?.display_name) {
+        fullName = googleData.display_name;
+      } else if (googleData?.given_name && googleData?.family_name) {
+        fullName = `${googleData.given_name} ${googleData.family_name}`;
+      } else if (googleData?.given_name) {
+        fullName = googleData.given_name;
+      }
+      
       // Add timeout to the profile creation
       const createPromise = supabase
-        .from('user_profiles')
+        .from('profiles')
         .upsert({
           id: user.id,
           email: user.email,
-          full_name: user.user_metadata.full_name || user.email?.split('@')[0] || 'مستخدم',
+          full_name: fullName,
           phone: user.user_metadata.phone || null,
           country_code: user.user_metadata.country_code || '+90',
+          avatar_url: user.user_metadata.avatar_url || null,
           role: isAdminUser ? 'admin' : (isModeratorUser ? 'moderator' : 'user'),
         })
         .select()
@@ -435,7 +491,7 @@ export const useAuth = () => {
         
         // Add a timeout to the database query
         const queryPromise = supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
@@ -462,12 +518,29 @@ export const useAuth = () => {
           const isAdminUser = user.email === 'admin@tevasul.group';
           const isModeratorUser = user.email?.includes('moderator') || user.email?.includes('moderator@');
           
+          // محاولة استخراج الاسم من user_metadata
+          const googleData = user.user_metadata;
+          let fallbackName = 'مستخدم';
+          
+          if (googleData?.full_name) {
+            fallbackName = googleData.full_name;
+          } else if (googleData?.name) {
+            fallbackName = googleData.name;
+          } else if (googleData?.display_name) {
+            fallbackName = googleData.display_name;
+          } else if (googleData?.given_name && googleData?.family_name) {
+            fallbackName = `${googleData.given_name} ${googleData.family_name}`;
+          } else if (googleData?.given_name) {
+            fallbackName = googleData.given_name;
+          }
+          
           return {
             id: userId,
             email: user.email || '',
-            full_name: user.email?.split('@')[0] || 'مستخدم',
+            full_name: fallbackName,
             phone: undefined,
             country_code: '+90',
+            avatar_url: user.user_metadata?.avatar_url || null,
             role: isAdminUser ? 'admin' : (isModeratorUser ? 'moderator' : 'user'),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -484,12 +557,29 @@ export const useAuth = () => {
         const isAdminUser = user.email === 'admin@tevasul.group';
         const isModeratorUser = user.email?.includes('moderator') || user.email?.includes('moderator@');
         
+        // محاولة استخراج الاسم من user_metadata
+        const googleData = user.user_metadata;
+        let fallbackName = 'مستخدم';
+        
+        if (googleData?.full_name) {
+          fallbackName = googleData.full_name;
+        } else if (googleData?.name) {
+          fallbackName = googleData.name;
+        } else if (googleData?.display_name) {
+          fallbackName = googleData.display_name;
+        } else if (googleData?.given_name && googleData?.family_name) {
+          fallbackName = `${googleData.given_name} ${googleData.family_name}`;
+        } else if (googleData?.given_name) {
+          fallbackName = googleData.given_name;
+        }
+        
         return {
           id: userId,
           email: user.email || '',
-          full_name: user.email?.split('@')[0] || 'مستخدم',
+          full_name: fallbackName,
           phone: undefined,
           country_code: '+90',
+          avatar_url: user.user_metadata?.avatar_url || null,
           role: isAdminUser ? 'admin' : (isModeratorUser ? 'moderator' : 'user'),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -506,6 +596,12 @@ export const useAuth = () => {
     try {
       console.log('🔔 التحقق من الإشعارات للمستخدم:', userId);
       
+      // Skip notifications check for now since table doesn't exist
+      console.log('ℹ️ تخطي التحقق من الإشعارات - الجدول غير موجود');
+      return false;
+      
+      // TODO: Uncomment when notifications table is created
+      /*
       // Add timeout to the notifications check
       const notificationsPromise = supabase
         .from('notifications')
@@ -529,6 +625,7 @@ export const useAuth = () => {
       console.log('🔔 الإشعارات:', hasNotifications ? 'موجودة' : 'غير موجودة');
       
       return hasNotifications;
+      */
     } catch (error) {
       console.error('❌ خطأ في التحقق من الإشعارات:', error);
       return false;
@@ -617,7 +714,7 @@ export const useAuth = () => {
       // Test connection first
       try {
         const { data: connectionTest, error: connectionError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('id')
           .limit(1);
           
@@ -745,15 +842,32 @@ export const useAuth = () => {
           };
         }
         
+        // محاولة استخراج الاسم من user_metadata
+        const googleData = data.user.user_metadata;
+        let fallbackName = 'مستخدم';
+        
+        if (googleData?.full_name) {
+          fallbackName = googleData.full_name;
+        } else if (googleData?.name) {
+          fallbackName = googleData.name;
+        } else if (googleData?.display_name) {
+          fallbackName = googleData.display_name;
+        } else if (googleData?.given_name && googleData?.family_name) {
+          fallbackName = `${googleData.given_name} ${googleData.family_name}`;
+        } else if (googleData?.given_name) {
+          fallbackName = googleData.given_name;
+        }
+        
         // Create immediate auth state without waiting for profile
         const immediateAuthState = {
           user: data.user,
           profile: {
             id: data.user.id,
             email: data.user.email || '',
-            full_name: data.user.email?.split('@')[0] || 'مستخدم',
+            full_name: fallbackName,
             phone: undefined,
             country_code: '+90',
+            avatar_url: data.user.user_metadata?.avatar_url || null,
             role: (data.user.email === 'admin@tevasul.group' ? 'admin' : 'user') as 'user' | 'moderator' | 'admin',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -882,9 +996,24 @@ export const useAuth = () => {
     try {
       console.log('🔍 التحقق من تأكيد البريد الإلكتروني للمستخدم:', user.email);
       
+      // Skip email verification for Google users
+      if (user.user_metadata?.provider === 'google') {
+        console.log('✅ مستخدم Google - تخطي التحقق من تأكيد البريد الإلكتروني');
+        return { isVerified: true, shouldBlock: false };
+      }
+      
+      // Skip email verification for users with confirmed email
+      if (user.email_confirmed_at) {
+        console.log('✅ البريد الإلكتروني مؤكد بالفعل - تخطي التحقق');
+        return { isVerified: true, shouldBlock: false };
+      }
+      
+      // Only check email verification for regular users without confirmed email
+      console.log('🔍 التحقق من تأكيد البريد الإلكتروني في قاعدة البيانات...');
+      
       // Add timeout to the verification check
       const verificationPromise = supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('email_verified')
         .eq('id', user.id)
         .single();
@@ -1085,6 +1214,35 @@ export const useAuth = () => {
     }
   };
 
+  // إضافة دالة لتسجيل الدخول عبر Google
+  const signInWithGoogle = async () => {
+    try {
+      console.log('🔐 بدء تسجيل الدخول عبر Google...');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        console.error('❌ خطأ في تسجيل الدخول عبر Google:', error);
+        return { error };
+      }
+
+      console.log('✅ تم بدء عملية تسجيل الدخول عبر Google');
+      return { data, error: null };
+    } catch (error) {
+      console.error('❌ خطأ غير متوقع في تسجيل الدخول عبر Google:', error);
+      return { error };
+    }
+  };
+
   return {
     ...authState,
     signUp,
@@ -1098,5 +1256,6 @@ export const useAuth = () => {
     canAccessProtectedPages,
     getVerificationStatus,
     resendVerificationEmail,
+    signInWithGoogle,
   };
 };

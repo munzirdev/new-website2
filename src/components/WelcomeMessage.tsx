@@ -60,19 +60,19 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ userName, userRole, onC
   const userInfo = getUserInfo();
 
   return (
-    <div className={`fixed top-4 right-4 z-50 transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[9999] transition-all duration-300 ${
       isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
     }`}>
-      <div className={`bg-gradient-to-r ${userInfo.bgColor} text-white p-6 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-sm max-w-sm`}>
-        <div className="flex items-start justify-between mb-4">
+      <div className={`bg-gradient-to-r ${userInfo.bgColor} text-white p-4 md:p-6 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-sm max-w-xs md:max-w-sm`}>
+        <div className="flex items-start justify-between mb-3 md:mb-4">
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center ml-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-full flex items-center justify-center ml-2 md:ml-3">
               {userInfo.icon}
             </div>
             <div>
-              <h3 className="text-lg font-bold">{userInfo.title}</h3>
-              <div className="flex items-center text-white/80 text-sm">
-                <User className="w-4 h-4 ml-1" />
+              <h3 className="text-base md:text-lg font-bold">{userInfo.title}</h3>
+              <div className="flex items-center text-white/80 text-xs md:text-sm">
+                <User className="w-3 h-3 md:w-4 md:h-4 ml-1" />
                 <span>{userName}</span>
               </div>
             </div>
@@ -81,21 +81,21 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ userName, userRole, onC
             onClick={handleClose}
             className="text-white/60 hover:text-white transition-colors duration-200 p-1"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         </div>
         
-        <p className="text-white/90 text-sm leading-relaxed mb-4">
+        <p className="text-white/90 text-xs md:text-sm leading-relaxed mb-3 md:mb-4">
           {userInfo.message}
         </p>
         
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <div className={`bg-gradient-to-r ${userInfo.badgeColor} text-white px-3 py-1 rounded-full text-xs font-medium flex items-center`}>
+            <div className={`bg-gradient-to-r ${userInfo.badgeColor} text-white px-2 md:px-3 py-1 rounded-full text-xs font-medium flex items-center`}>
               {userRole === 'admin' && <Crown className="w-3 h-3 ml-1" />}
               {userRole === 'moderator' && <Shield className="w-3 h-3 ml-1" />}
               {(!userRole || userRole === 'user') && <Star className="w-3 h-3 ml-1" />}
-              <span>{userInfo.badge}</span>
+              <span className="text-xs">{userInfo.badge}</span>
             </div>
           </div>
           <div className="text-white/60 text-xs">
@@ -104,7 +104,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ userName, userRole, onC
         </div>
         
         {/* Progress bar for auto-hide */}
-        <div className="mt-4 w-full bg-white/20 rounded-full h-1 overflow-hidden">
+        <div className="mt-3 md:mt-4 w-full bg-white/20 rounded-full h-1 overflow-hidden">
           <div 
             className="h-full bg-white/60 rounded-full transition-all duration-[5000ms] ease-linear"
             style={{ width: isVisible ? '0%' : '100%' }}

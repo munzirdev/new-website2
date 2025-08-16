@@ -98,7 +98,7 @@ const CustomCursor: React.FC<CustomCursorProps> = ({ isDarkMode }) => {
       }} />
       
       <div
-        className="custom-cursor fixed pointer-events-none z-[9999] transition-opacity duration-300"
+        className="custom-cursor fixed pointer-events-none z-[99999] transition-opacity duration-300"
         style={{
           left: position.x,
           top: position.y,

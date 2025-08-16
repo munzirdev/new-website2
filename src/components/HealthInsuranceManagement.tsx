@@ -98,6 +98,10 @@ const HealthInsuranceManagement: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string, type: 'request' | 'company' | 'ageGroup' | 'pricing'} | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Success message states
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  
   // File preview modal
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{url: string, name: string, type: string} | null>(null);
@@ -193,17 +197,6 @@ const HealthInsuranceManagement: React.FC = () => {
         company_name: r.insurance_companies?.name || '',
         age_group_name: r.age_groups?.name || ''
       })) || [];
-      
-      // Debug: فحص بيانات الطلبات
-      console.log('🔍 بيانات الطلبات المحملة:', formattedRequests);
-      formattedRequests.forEach((request, index) => {
-        console.log(`طلب ${index + 1}:`, {
-          id: request.id,
-          contact_name: request.contact_name,
-          passport_image_url: request.passport_image_url,
-          hasFile: !!request.passport_image_url
-        });
-      });
       
       setRequests(formattedRequests);
 
@@ -561,21 +554,38 @@ const HealthInsuranceManagement: React.FC = () => {
     setShowDeleteModal(true);
   };
 
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setShowSuccessMessage(true);
+    setTimeout(() => {
+      setShowSuccessMessage(false);
+      setSuccessMessage('');
+    }, 3000);
+  };
+
   const performDeleteRequest = async (requestId: string) => {
     try {
       setIsDeleting(true);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('health_insurance_requests')
         .delete()
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        setRequests(prevRequests => prevRequests.filter(request => request.id !== requestId));
+        showSuccess(isArabic ? 'تم حذف الطلب بنجاح' : 'Request deleted successfully');
+      } else {
+        setRequests(prevRequests => prevRequests.filter(request => request.id !== requestId));
+        showSuccess(isArabic ? 'تم حذف الطلب بنجاح' : 'Request deleted successfully');
+      }
       
-      loadData();
-      alert(isArabic ? 'تم حذف الطلب بنجاح' : 'Request deleted successfully');
     } catch (error) {
-      console.error('Error deleting request:', error);
       alert(isArabic ? 'حدث خطأ في حذف الطلب' : 'Error deleting request');
     } finally {
       setIsDeleting(false);
@@ -778,11 +788,21 @@ const HealthInsuranceManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 md:px-6 lg:px-8">
+    <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 animate-bounce">
+          <div className="flex items-center space-x-2 space-x-reverse">
+            <Check className="w-5 h-5" />
+            <span>{successMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center space-x-4 space-x-reverse">
+      <div className="flex items-center space-x-4 space-x-reverse mb-8">
         <Shield className="w-8 h-8 text-caribbean-600 dark:text-caribbean-400" />
-        <h2 className="text-2xl font-bold text-jet-900 dark:text-white">
+        <h2 className="text-3xl font-bold text-jet-900 dark:text-white">
           {isArabic ? 'إدارة التأمين الصحي' : 'Health Insurance Management'}
         </h2>
       </div>
@@ -1247,18 +1267,23 @@ const HealthInsuranceManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {(() => {
-                            console.log('🔍 فحص الملف للطلب:', request.contact_name, {
-                              passport_image_url: request.passport_image_url,
-                              hasFile: !!request.passport_image_url
-                            });
                             return request.passport_image_url ? (
                             <div className="flex items-center space-x-2 space-x-reverse">
                               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-2 hover:shadow-md transition-all duration-200 cursor-pointer"
                                    onClick={() => {
+                                     // تحديد نوع الملف بناءً على امتداده
+                                     const fileExtension = request.passport_image_url?.split('.').pop()?.toLowerCase();
+                                     let fileType = 'image';
+                                     if (fileExtension === 'pdf') {
+                                       fileType = 'pdf';
+                                     } else if (['doc', 'docx'].includes(fileExtension || '')) {
+                                       fileType = 'document';
+                                     }
+                                     
                                      setSelectedFile({
                                        url: `https://fctvityawavmuethxxix.supabase.co/storage/v1/object/public/passport-images/${request.passport_image_url}`,
                                        name: `Passport_${request.contact_name}_${request.id}`,
-                                       type: 'image'
+                                       type: fileType
                                      });
                                      setShowFilePreview(true);
                                    }}>
@@ -1314,6 +1339,7 @@ const HealthInsuranceManagement: React.FC = () => {
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
+
                           </div>
                         </td>
                       </tr>

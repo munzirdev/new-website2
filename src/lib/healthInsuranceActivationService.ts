@@ -110,7 +110,7 @@ class HealthInsuranceActivationService {
 
       // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
@@ -169,7 +169,7 @@ class HealthInsuranceActivationService {
       // التحقق من الصلاحيات
       if (data.user_id !== user.id) {
         const { data: profile } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
@@ -215,7 +215,7 @@ class HealthInsuranceActivationService {
       // التحقق من الصلاحيات
       if (existingForm.user_id !== user.id) {
         const { data: profile } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
@@ -273,7 +273,7 @@ class HealthInsuranceActivationService {
       // التحقق من الصلاحيات
       if (existingForm.user_id !== user.id) {
         const { data: profile } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();

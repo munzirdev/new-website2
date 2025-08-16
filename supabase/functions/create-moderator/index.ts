@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // Check if user is admin
     const { data: profile } = await supabaseClient
-      .from('user_profiles')
+      .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
@@ -89,7 +89,7 @@ serve(async (req) => {
 
     // Update the user profile to have moderator role
     const { error: profileError } = await supabaseClient
-      .from('user_profiles')
+      .from('profiles')
       .update({ role: 'moderator' })
       .eq('id', authData.user.id)
 

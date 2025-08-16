@@ -5,40 +5,27 @@ import {
   Send, 
   User, 
   Bot, 
-  Phone, 
   Search, 
-  Filter, 
   RefreshCw, 
   Bell, 
   X, 
   AlertCircle, 
   CheckCircle, 
   Clock, 
-  Users, 
-  FileText,
   Eye,
-  Archive,
-  Star,
-  MoreVertical,
-  Download,
   Settings,
-  Volume2,
-  VolumeX,
-  Calendar,
-  TrendingUp,
-  Activity,
   Zap,
-  Shield,
   Heart,
   Smile,
   Frown,
   Meh,
-  MessageSquare
+  ArrowLeft
 } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { telegramService } from '../services/telegramService';
+import { webhookService } from '../services/webhookService';
 import TelegramSettingsModal from './TelegramSettingsModal';
 import BulkDeleteModal from './BulkDeleteModal';
 
@@ -50,6 +37,9 @@ interface ChatMessage {
   created_at: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   is_urgent?: boolean;
+  is_read?: boolean;
+  attachments?: string[];
+  reaction?: 'like' | 'dislike' | 'heart' | 'thumbs_up' | 'thumbs_down';
 }
 
 interface ChatSession {
@@ -58,7 +48,7 @@ interface ChatSession {
   last_message_time: string;
   message_count: number;
   language: string;
-  status: 'active' | 'closed' | 'waiting_support' | 'archived';
+  status: 'active' | 'closed' | 'waiting_support' | 'archived' | 'pending';
   user_info?: {
     name?: string;
     email?: string;
@@ -66,6 +56,9 @@ interface ChatSession {
     country?: string;
     ip_address?: string;
     user_agent?: string;
+    avatar?: string;
+    last_seen?: string;
+    is_online?: boolean;
   };
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   tags?: string[];
@@ -73,17 +66,24 @@ interface ChatSession {
   response_time_avg?: number;
   created_at: string;
   updated_at: string;
+  assigned_to?: string;
+  category?: 'general' | 'technical' | 'billing' | 'support' | 'sales';
+  source?: 'web' | 'mobile' | 'telegram' | 'whatsapp' | 'email';
+  estimated_resolution_time?: number;
+  customer_satisfaction?: 'very_satisfied' | 'satisfied' | 'neutral' | 'dissatisfied' | 'very_dissatisfied';
 }
 
 interface Notification {
   id: string;
-  type: 'support_request' | 'new_message' | 'session_status' | 'urgent_message' | 'satisfaction_rating';
+  type: 'support_request' | 'new_message' | 'session_status' | 'urgent_message' | 'satisfaction_rating' | 'assignment' | 'mention' | 'system';
   title: string;
   message: string;
   sessionId?: string;
   timestamp: Date;
   isRead: boolean;
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  action_url?: string;
+  metadata?: Record<string, any>;
 }
 
 interface ChatStats {
@@ -97,6 +97,33 @@ interface ChatStats {
   satisfactionScore: number;
   messagesToday: number;
   newSessionsToday: number;
+  resolvedToday: number;
+  avgResolutionTime: number;
+  customerSatisfactionRate: number;
+  responseRate: number;
+  peakHours: string[];
+  busyDays: string[];
+}
+
+interface QuickResponse {
+  id: string;
+  title: string;
+  content: string;
+  category: 'greeting' | 'farewell' | 'support' | 'technical' | 'billing' | 'custom';
+  language: 'ar' | 'en';
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatFilter {
+  status: 'all' | 'active' | 'closed' | 'waiting_support' | 'archived' | 'pending';
+  priority: 'all' | 'low' | 'medium' | 'high' | 'urgent';
+  language: 'all' | 'ar' | 'en';
+  category: 'all' | 'general' | 'technical' | 'billing' | 'support' | 'sales';
+  source: 'all' | 'web' | 'mobile' | 'telegram' | 'whatsapp' | 'email';
+  assigned: 'all' | 'me' | 'unassigned' | 'others';
+  dateRange: 'all' | 'today' | 'yesterday' | 'week' | 'month';
 }
 
 const AdminChatSupport: React.FC = () => {
@@ -108,7 +135,7 @@ const AdminChatSupport: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'closed' | 'waiting_support' | 'archived'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'closed' | 'waiting_support' | 'archived' | 'urgent'>('all');
   const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high' | 'urgent'>('all');
   const [filterLanguage, setFilterLanguage] = useState<'all' | 'ar' | 'en'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -124,14 +151,20 @@ const AdminChatSupport: React.FC = () => {
     avgResponseTime: 0,
     satisfactionScore: 0,
     messagesToday: 0,
-    newSessionsToday: 0
+    newSessionsToday: 0,
+    resolvedToday: 0,
+    avgResolutionTime: 0,
+    customerSatisfactionRate: 0,
+    responseRate: 0,
+    peakHours: [],
+    busyDays: []
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<'none' | 'archive' | 'close' | 'delete'>('none');
+  const [bulkAction, setBulkAction] = useState<'none' | 'archive' | 'close' | 'delete' | 'assign' | 'tag'>('none');
   const [showSessionDetails, setShowSessionDetails] = useState(false);
   const [sessionDetails, setSessionDetails] = useState<ChatSession | null>(null);
   const [messageSearchTerm, setMessageSearchTerm] = useState('');
@@ -145,6 +178,39 @@ const AdminChatSupport: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
   const [bulkDeleteSessionIds, setBulkDeleteSessionIds] = useState<string[]>([]);
+  
+  // New modern state variables
+  const [chatFilter, setChatFilter] = useState<ChatFilter>({
+    status: 'all',
+    priority: 'all',
+    language: 'all',
+    category: 'all',
+    source: 'all',
+    assigned: 'all',
+    dateRange: 'all'
+  });
+  const [quickResponses, setQuickResponses] = useState<QuickResponse[]>([]);
+  const [showQuickResponses, setShowQuickResponses] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'compact'>('list');
+  const [sortBy, setSortBy] = useState<'latest' | 'priority' | 'status' | 'customer'>('latest');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>(['urgent', 'vip', 'technical', 'billing', 'support', 'new-customer', 'returning']);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingIndicator, setTypingIndicator] = useState<string>('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [chatLayout, setChatLayout] = useState<'split' | 'full' | 'minimal'>('split');
+  const [showCustomerInfo, setShowCustomerInfo] = useState(false);
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [showRelatedChats, setShowRelatedChats] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [showVoiceMessage, setShowVoiceMessage] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -488,16 +554,16 @@ const AdminChatSupport: React.FC = () => {
     setUnreadCount(notifications.filter(n => !n.isRead).length);
   }, [notifications]);
 
-  // التمرير إلى أسفل عند تغيير الرسائل (فقط عند إضافة رسائل جديدة)
-  useEffect(() => {
-    // فقط إذا كان هناك رسائل وكانت الجلسة محددة
-    if (messages.length > 0 && selectedSession) {
-      // تأخير قليل للتأكد من أن الرسائل تم تحميلها
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
-  }, [messages, selectedSession]);
+  // إزالة التمرير التلقائي - لا نريد سكرول تلقائي
+  // useEffect(() => {
+  //   // فقط إذا كان هناك رسائل وكانت الجلسة محددة
+  //   if (messages.length > 0 && selectedSession) {
+  //     // تأخير قليل للتأكد من أن الرسائل تم تحميلها
+  //     setTimeout(() => {
+  //       scrollToBottom();
+  //     }, 100);
+  //   }
+  // }, [messages, selectedSession]);
 
   // تحميل الجلسات
   const loadSessions = async () => {
@@ -518,8 +584,8 @@ const AdminChatSupport: React.FC = () => {
         console.log('Sessions loaded from database:', data);
         if (data && data.length > 0) {
           setSessions(data);
-          // فحص الجلسات الجديدة التي تطلب دعم
-          checkForSupportRequests(data);
+          // فحص الجلسات الجديدة التي تطلب دعم - معطل لتجنب الإرسال عند التحديث
+          // checkForSupportRequests(data);
         } else {
           console.log('No sessions in database, using mock data...');
           setSessions(mockSessions);
@@ -532,8 +598,15 @@ const AdminChatSupport: React.FC = () => {
     }
   };
 
-  // فحص طلبات الدعم وإرسال إشعارات التلقرام
+  // فحص طلبات الدعم وإرسال إشعارات التلقرام - معطل لتجنب الإرسال عند التحديث
   const checkForSupportRequests = async (sessionsData: ChatSession[]) => {
+    // معطل - لا نريد إرسال إشعارات عند تحميل البيانات
+    // سيتم إرسال الإشعارات فقط عند إرسال رسالة جديدة من العميل
+    console.log('checkForSupportRequests معطل لتجنب الإرسال عند تحديث الصفحة');
+    return;
+    
+    // الكود الأصلي معطل
+    /*
     try {
       const supportRequests = sessionsData.filter(session => 
         session.status === 'waiting_support' && 
@@ -565,6 +638,7 @@ const AdminChatSupport: React.FC = () => {
     } catch (error) {
       console.error('Error checking for support requests:', error);
     }
+    */
   };
 
   // تحميل الرسائل
@@ -594,8 +668,8 @@ const AdminChatSupport: React.FC = () => {
           }));
           setMessages(messagesWithSentiment);
           
-          // فحص الرسائل المستعجلة
-          checkForUrgentMessages(messagesWithSentiment, sessionId);
+          // فحص الرسائل المستعجلة - معطل لتجنب الإرسال عند التحديث
+          // checkForUrgentMessages(messagesWithSentiment, sessionId);
         } else {
           console.log('No messages in database, using mock messages...');
           const sessionMessages = mockMessages.filter(msg => msg.session_id === sessionId);
@@ -610,8 +684,15 @@ const AdminChatSupport: React.FC = () => {
     }
   };
 
-  // فحص الرسائل المستعجلة وإرسال إشعارات التلقرام
+  // فحص الرسائل المستعجلة وإرسال إشعارات التلقرام - معطل لتجنب الإرسال عند التحديث
   const checkForUrgentMessages = async (messagesData: ChatMessage[], sessionId: string) => {
+    // معطل - لا نريد إرسال إشعارات عند تحميل الرسائل
+    // سيتم إرسال الإشعارات فقط عند إرسال رسالة جديدة من العميل
+    console.log('checkForUrgentMessages معطل لتجنب الإرسال عند تحديث الصفحة');
+    return;
+    
+    // الكود الأصلي معطل
+    /*
     try {
       const urgentMessages = messagesData.filter(message => 
         message.is_urgent && 
@@ -623,7 +704,7 @@ const AdminChatSupport: React.FC = () => {
         const session = sessions.find(s => s.session_id === sessionId);
         if (session) {
           // إرسال إشعار تلقرام للرسائل المستعجلة
-          await telegramService.sendUrgentMessageNotification(session, message.content);
+          await webhookService.sendUrgentMessageWebhook(session, message.content);
           
           // إضافة إشعار محلي
           addNotification({
@@ -642,6 +723,7 @@ const AdminChatSupport: React.FC = () => {
     } catch (error) {
       console.error('Error checking for urgent messages:', error);
     }
+    */
   };
 
   // تحميل الإشعارات
@@ -743,7 +825,13 @@ const AdminChatSupport: React.FC = () => {
       avgResponseTime, 
       satisfactionScore, 
       messagesToday, 
-      newSessionsToday 
+      newSessionsToday,
+      resolvedToday: 0,
+      avgResolutionTime: 0,
+      customerSatisfactionRate: 0,
+      responseRate: 0,
+      peakHours: [],
+      busyDays: []
     });
   };
 
@@ -821,15 +909,15 @@ const AdminChatSupport: React.FC = () => {
         console.error('Error updating session status:', error);
       }
 
-      // إرسال إشعار تلقرام للعميل (إذا كان مفعلاً)
-      try {
-        const session = sessions.find(s => s.session_id === selectedSession);
-        if (session) {
-          await telegramService.sendNewMessageNotification(session, newMessage.trim());
+              // إرسال إشعار تلقرام للعميل (إذا كان مفعلاً)
+        try {
+          const session = sessions.find(s => s.session_id === selectedSession);
+          if (session) {
+            await telegramService.sendNewMessageNotification(session, newMessage.trim());
+          }
+        } catch (telegramError) {
+          console.error('Error sending Telegram notification:', telegramError);
         }
-      } catch (telegramError) {
-        console.error('Error sending Telegram notification:', telegramError);
-      }
 
     } catch (error) {
       console.error('Error sending admin message:', error);
@@ -845,6 +933,87 @@ const AdminChatSupport: React.FC = () => {
       id: uuidv4()
     };
     setNotifications(prev => [newNotification, ...prev.slice(0, 49)]);
+  };
+
+  // دالة جديدة لإرسال الإشعارات عند إرسال رسالة جديدة من العميل
+  const handleNewCustomerMessage = async (message: ChatMessage, session: ChatSession) => {
+    try {
+      console.log('🔔 معالجة رسالة جديدة من العميل:', message.content);
+      
+      // فحص إذا كانت الرسالة مستعجلة
+      if (message.is_urgent) {
+        console.log('🚨 رسالة مستعجلة - إرسال إشعار تلقرام');
+        
+        // إرسال إشعار تلقرام للرسائل المستعجلة
+        await webhookService.sendUrgentMessageWebhook(session, message.content);
+        
+        // إضافة إشعار محلي
+        addNotification({
+          type: 'urgent_message',
+          title: language === 'ar' ? 'رسالة مستعجلة!' : 'Urgent Message!',
+          message: language === 'ar' 
+            ? `رسالة مستعجلة من: ${session.user_info?.name || 'غير محدد'}`
+            : `Urgent message from: ${session.user_info?.name || 'Unknown'}`,
+          sessionId: session.session_id,
+          priority: 'urgent',
+          timestamp: new Date(),
+          isRead: false
+        });
+      }
+      
+      // فحص إذا كان العميل يطلب ممثل خدمة عملاء
+      const isRequestingRepresentative = 
+        message.content.toLowerCase().includes('ممثل') ||
+        message.content.toLowerCase().includes('إنسان') ||
+        message.content.toLowerCase().includes('حقيقي') ||
+        message.content.toLowerCase().includes('representative') ||
+        message.content.toLowerCase().includes('human') ||
+        message.content.toLowerCase().includes('real');
+      
+      if (isRequestingRepresentative) {
+        console.log('👤 طلب ممثل خدمة عملاء - إرسال إشعار تلقرام');
+        
+        // إرسال إشعار تلقرام لطلب ممثل
+        await telegramService.sendSupportRequestNotification(session);
+        
+        // إضافة إشعار محلي
+        addNotification({
+          type: 'support_request',
+          title: language === 'ar' ? 'طلب ممثل خدمة عملاء' : 'Customer Service Request',
+          message: language === 'ar' 
+            ? `عميل يطلب التحدث مع ممثل: ${session.user_info?.name || 'غير محدد'}`
+            : `Customer requesting representative: ${session.user_info?.name || 'Unknown'}`,
+          sessionId: session.session_id,
+          priority: session.priority || 'medium',
+          timestamp: new Date(),
+          isRead: false
+        });
+      }
+      
+      // إرسال إشعار عام للرسالة الجديدة (إذا لم تكن مستعجلة أو طلب ممثل)
+      if (!message.is_urgent && !isRequestingRepresentative) {
+        console.log('📨 رسالة عادية - إرسال إشعار تلقرام');
+        
+        // إرسال إشعار تلقرام للرسالة الجديدة
+        await telegramService.sendNewMessageNotification(session, message.content);
+        
+        // إضافة إشعار محلي
+        addNotification({
+          type: 'new_message',
+          title: language === 'ar' ? 'رسالة جديدة' : 'New Message',
+          message: language === 'ar' 
+            ? `رسالة جديدة من: ${session.user_info?.name || 'غير محدد'}`
+            : `New message from: ${session.user_info?.name || 'Unknown'}`,
+          sessionId: session.session_id,
+          priority: 'low',
+          timestamp: new Date(),
+          isRead: false
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في معالجة رسالة العميل الجديدة:', error);
+    }
   };
 
   // تحديد الإشعارات كمقروءة
@@ -1069,13 +1238,13 @@ const AdminChatSupport: React.FC = () => {
         setSessionDetails(session);
       }
       
-      // إعادة تعيين موضع التمرير في منطقة المحادثة
-      setTimeout(() => {
-        const chatArea = document.querySelector('.chat-messages-area');
-        if (chatArea) {
-          chatArea.scrollTop = 0;
-        }
-      }, 50);
+      // لا نريد إعادة تعيين موضع التمرير - إزالة السكرول التلقائي
+      // setTimeout(() => {
+      //   const chatArea = document.querySelector('.chat-messages-area');
+      //   if (chatArea) {
+      //     chatArea.scrollTop = 0;
+      //   }
+      // }, 50);
     }
   };
 
@@ -1089,18 +1258,19 @@ const AdminChatSupport: React.FC = () => {
     setShowNotifications(false);
   };
 
-  // التمرير إلى أسفل
+  // التمرير إلى أسفل - معطل لتجنب السكرول التلقائي
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      // فقط إذا كان المستخدم في أسفل المحادثة أو إذا كانت رسائل جديدة
-      const chatArea = document.querySelector('.chat-messages-area') as HTMLElement;
-      if (chatArea) {
-        const isAtBottom = chatArea.scrollTop + chatArea.clientHeight >= chatArea.scrollHeight - 100;
-        if (isAtBottom) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
-    }
+    // معطل لتجنب السكرول التلقائي غير المرغوب فيه
+    // if (messagesEndRef.current) {
+    //   // فقط إذا كان المستخدم في أسفل المحادثة أو إذا كانت رسائل جديدة
+    //   const chatArea = document.querySelector('.chat-messages-area') as HTMLElement;
+    //   if (chatArea) {
+    //     const isAtBottom = chatArea.scrollTop + chatArea.clientHeight >= chatArea.scrollHeight - 100;
+    //     if (isAtBottom) {
+    //       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    //     }
+    //   }
+    // }
   };
 
   // معالجة الضغط على المفتاح
@@ -1217,580 +1387,215 @@ const AdminChatSupport: React.FC = () => {
     };
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative z-30">
-      {/* Audio element for notifications */}
-      <audio ref={audioRef} src="/notification-sound.mp3" preload="auto" />
-      
-      {/* New Header Design */}
-      <div className="relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
-        
-        {/* Header Content */}
-        <div className="relative p-4 md:p-6 lg:p-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8 space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-3 md:space-x-4 space-x-reverse">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-2xl transform rotate-12 hover:rotate-0 transition-all duration-500">
-                <MessageSquare className="w-6 h-6 md:w-8 md:h-8 text-white" />
+    return (
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0 h-16">
+        <div className="px-4 py-3 h-full">
+          <div className="flex items-center justify-between h-full">
+            {/* Left Section */}
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <button
+                onClick={() => navigate('/admin')}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+                    {language === 'ar' ? 'مركز المحادثات' : 'Chat Center'}
+                  </h1>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    {language === 'ar' ? 'إدارة المحادثات والرسائل' : 'Manage conversations and messages'}
+                  </p>
+                </div>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-black text-white mb-1 md:mb-2 tracking-tight">
-                  {language === 'ar' ? 'مركز المحادثات' : 'Chat Hub'}
-                </h1>
-                <p className="text-sm md:text-base text-cyan-200 font-medium">
-                  {language === 'ar' ? 'إدارة المحادثات المتقدمة' : 'Advanced Conversation Management'}
-                </p>
+            
+            {/* Center Section - Stats */}
+            <div className="hidden md:flex items-center space-x-4 space-x-reverse">
+              <div className="flex items-center space-x-1 space-x-reverse">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {stats.active} {language === 'ar' ? 'نشط' : 'Active'}
+                 </span>
+              </div>
+              <div className="flex items-center space-x-1 space-x-reverse">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {stats.waiting} {language === 'ar' ? 'في الانتظار' : 'Waiting'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1 space-x-reverse">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {stats.urgent} {language === 'ar' ? 'مستعجل' : 'Urgent'}
+                </span>
               </div>
             </div>
-            
-            {/* Action Buttons */}
-            <div className="flex items-center justify-center md:justify-end space-x-2 md:space-x-4 space-x-reverse">
-              {/* Sound Toggle */}
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-3 md:p-4 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 ${
-                  soundEnabled 
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg shadow-green-500/25' 
-                    : 'bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
-                }`}
-                title={soundEnabled ? (language === 'ar' ? 'إيقاف الصوت' : 'Mute') : (language === 'ar' ? 'تشغيل الصوت' : 'Unmute')}
-              >
-                {soundEnabled ? <Volume2 size={20} className="md:w-6 md:h-6 text-white" /> : <VolumeX size={20} className="md:w-6 md:h-6 text-white" />}
-              </button>
-              
-              {/* Auto-refresh Toggle */}
-              <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`p-3 md:p-4 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 ${
-                  autoRefresh 
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/25' 
-                    : 'bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
-                }`}
-                title={autoRefresh ? (language === 'ar' ? 'إيقاف التحديث التلقائي' : 'Disable Auto-refresh') : (language === 'ar' ? 'تشغيل التحديث التلقائي' : 'Enable Auto-refresh')}
-              >
-                <RefreshCw size={20} className={`md:w-6 md:h-6 text-white ${autoRefresh ? 'animate-spin' : ''}`} />
-              </button>
-              
-              {/* Export Button */}
-              <button
-                onClick={exportSessions}
-                className="p-3 md:p-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 shadow-lg shadow-purple-500/25"
-                title={language === 'ar' ? 'تصدير البيانات' : 'Export Data'}
-              >
-                <Download size={20} className="md:w-6 md:h-6 text-white" />
-              </button>
-              
-              {/* Notifications Button */}
-              <div className="relative">
+
+            {/* Right Section - Actions */}
+            <div className="flex items-center space-x-1 space-x-reverse">
+              {/* Notifications */}
+               <div className="relative">
+                 <button
+                   onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200 relative"
+                 >
+                  <Bell className="w-4 h-4" />
+                   {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                       {unreadCount > 99 ? '99+' : unreadCount}
+                     </span>
+                   )}
+                           </button>
+                     </div>
+                     
+              {/* Settings */}
+               <button
+                 onClick={() => setShowTelegramModal(true)}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
+               >
+                <Settings className="w-4 h-4" />
+               </button>
+
+              {/* Refresh */}
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-3 md:p-4 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 shadow-lg shadow-orange-500/25 relative"
+                  onClick={loadSessions}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
                 >
-                  <Bell size={20} className="md:w-6 md:h-6 text-white" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 md:h-6 md:w-6 flex items-center justify-center font-bold animate-pulse">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
+                <RefreshCw className="w-4 h-4" />
                 </button>
-                
-                {/* Enhanced Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="absolute top-full right-0 mt-4 w-80 md:w-96 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl md:rounded-3xl shadow-2xl border border-slate-700 z-50 max-h-80 md:max-h-96 overflow-y-auto backdrop-blur-xl">
-                    <div className="p-6 border-b border-slate-700">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-white text-lg">
-                          {language === 'ar' ? 'الإشعارات' : 'Notifications'}
-                        </h3>
-                        <div className="flex items-center space-x-3 space-x-reverse">
-                          <button
-                            onClick={markAllNotificationsAsRead}
-                            className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
-                          >
-                            {language === 'ar' ? 'تحديد الكل كمقروء' : 'Mark all read'}
-                          </button>
-                          <button
-                            onClick={() => setNotifications([])}
-                            className="text-sm text-red-400 hover:text-red-300 transition-colors font-medium"
-                          >
-                            {language === 'ar' ? 'مسح الكل' : 'Clear all'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4">
-                      {notifications.length === 0 ? (
-                        <div className="text-center py-8">
-                          <div className="w-16 h-16 bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <Bell className="w-8 h-8 text-slate-400" />
-                          </div>
-                          <p className="text-slate-400 font-medium">
-                            {language === 'ar' ? 'لا توجد إشعارات' : 'No notifications'}
-                          </p>
-                        </div>
-                      ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={`p-4 rounded-2xl cursor-pointer transition-all duration-300 mb-3 ${
-                              notification.isRead 
-                                ? 'bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700' 
-                                : 'bg-gradient-to-r from-blue-900/50 to-indigo-900/50 hover:from-blue-800/50 hover:to-indigo-800/50 border border-blue-500/30'
-                            }`}
-                          >
-                            <div className="flex items-start space-x-3 space-x-reverse">
-                              <div className={`p-2 rounded-xl ${getNotificationColor(notification.type)}`}>
-                                {getNotificationIcon(notification.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="text-sm font-bold text-white">
-                                    {notification.title}
-                                  </p>
-                                  <span className={`text-xs px-3 py-1 rounded-full font-bold ${
-                                    notification.priority === 'urgent' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                                    notification.priority === 'high' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
-                                    notification.priority === 'medium' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                                    'bg-slate-500/20 text-slate-300 border border-slate-500/30'
-                                  }`}>
-                                    {getPriorityText(notification.priority)}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-slate-300 mb-2">
-                                  {notification.message}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {notification.timestamp.toLocaleString()}
-                                </p>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeNotification(notification.id);
-                                }}
-                                className="text-slate-400 hover:text-red-400 transition-colors p-1"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
-              
-              {/* Refresh Button */}
-              <button
-                onClick={loadSessions}
-                className="p-4 bg-gradient-to-r from-emerald-500 to-green-500 rounded-2xl transition-all duration-300 transform hover:scale-110 shadow-lg shadow-emerald-500/25"
-                title={language === 'ar' ? 'تحديث البيانات' : 'Refresh Data'}
-              >
-                <RefreshCw size={24} className="text-white" />
-              </button>
-              
-              {/* Telegram Settings Button */}
-              <button
-                onClick={() => setShowTelegramModal(true)}
-                className="p-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl transition-all duration-300 transform hover:scale-110 shadow-lg shadow-teal-500/25"
-                title={language === 'ar' ? 'إعدادات التلقرام' : 'Telegram Settings'}
-              >
-                <Bot size={24} className="text-white" />
-              </button>
             </div>
-          </div>
+            </div>
+      </header>
 
-          {/* New Stats Cards Design */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-4">
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Users className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-cyan-200 font-bold text-center mb-2">{language === 'ar' ? 'إجمالي' : 'Total'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.total}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-green-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-green-200 font-bold text-center mb-2">{language === 'ar' ? 'نشط' : 'Active'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.active}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <AlertCircle className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-orange-200 font-bold text-center mb-2">{language === 'ar' ? 'في الانتظار' : 'Waiting'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.waiting}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-500 to-gray-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-slate-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <FileText className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-slate-200 font-bold text-center mb-2">{language === 'ar' ? 'مغلق' : 'Closed'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.closed}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-purple-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Archive className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-purple-200 font-bold text-center mb-2">{language === 'ar' ? 'مؤرشف' : 'Archived'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.archived}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-red-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Zap className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-red-200 font-bold text-center mb-2">{language === 'ar' ? 'مستعجل' : 'Urgent'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.urgent}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-blue-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <TrendingUp className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-blue-200 font-bold text-center mb-2">{language === 'ar' ? 'متوسط الاستجابة' : 'Avg Response'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.avgResponseTime.toFixed(0)}s</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-yellow-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Heart className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-yellow-200 font-bold text-center mb-2">{language === 'ar' ? 'درجة الرضا' : 'Satisfaction'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.satisfactionScore.toFixed(1)}/5</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-indigo-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-indigo-200 font-bold text-center mb-2">{language === 'ar' ? 'رسائل اليوم' : 'Today Msgs'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.messagesToday}</p>
-              </div>
-            </div>
-            
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500"></div>
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-3xl p-6 border border-slate-700/50 hover:border-teal-500/50 transition-all duration-500 transform hover:scale-105">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Activity className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <p className="text-teal-200 font-bold text-center mb-2">{language === 'ar' ? 'جلسات جديدة' : 'New Sessions'}</p>
-                <p className="text-3xl font-black text-white text-center">{stats.newSessionsToday}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-        {/* New Sessions List Design */}
-        <div className="w-full lg:w-1/3 border-b lg:border-b-0 lg:border-r border-slate-700/50 flex flex-col min-w-0 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl">
-          {/* Mobile Session Header - Show when no session is selected */}
-          {!selectedSession && (
-            <div className="lg:hidden p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/90 to-slate-900/90">
-              <h2 className="text-lg font-bold text-white">
-                {language === 'ar' ? 'المحادثات' : 'Conversations'}
-              </h2>
-              <p className="text-sm text-slate-400">
-                {filteredSessions.length} {language === 'ar' ? 'محادثة' : 'conversations'}
-              </p>
-            </div>
-          )}
-          {/* New Search and Filter Design */}
-          <div className="p-4 md:p-6 border-b border-slate-700/50 flex-shrink-0">
-            <div className="relative mb-4 md:mb-6">
-              <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+      {/* Main Content */}
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar - Chat List */}
+        <div className="w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col flex-shrink-0">
+          {/* Search and Filters */}
+          <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <div className="relative mb-3">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder={language === 'ar' ? 'البحث في المحادثات...' : 'Search conversations...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 rounded-2xl md:rounded-3xl focus:outline-none focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 text-white text-base md:text-lg transition-all duration-300 placeholder-slate-400"
+                className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
               />
             </div>
             
-            {/* New Status Filters */}
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mb-4 md:mb-6">
-              {(['all', 'active', 'waiting_support', 'closed', 'archived'] as const).map((status) => (
+            {/* Quick Filters */}
+            <div className="flex flex-wrap gap-1">
+              {(['all', 'active', 'waiting_support', 'urgent'] as const).map((filter) => (
                 <button
-                  key={status}
-                  onClick={() => setFilterStatus(status)}
-                  className={`px-2 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all duration-300 transform hover:scale-105 ${
-                    filterStatus === status
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
-                      : 'bg-gradient-to-r from-slate-700/50 to-slate-800/50 text-slate-300 hover:from-slate-600/50 hover:to-slate-700/50 hover:text-white border border-slate-600/50'
+                  key={filter}
+                  onClick={() => setFilterStatus(filter)}
+                  className={`px-2 py-1 text-xs font-medium rounded-full transition-colors duration-200 ${
+                    filterStatus === filter
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
-                  {status === 'all' 
+                  {filter === 'all' 
                     ? (language === 'ar' ? 'الكل' : 'All')
-                    : getStatusText(status)
+                    : filter === 'active'
+                    ? (language === 'ar' ? 'نشط' : 'Active')
+                    : filter === 'waiting_support'
+                    ? (language === 'ar' ? 'في الانتظار' : 'Waiting')
+                    : (language === 'ar' ? 'مستعجل' : 'Urgent')
                   }
                 </button>
               ))}
             </div>
-
-            {/* New Advanced Filters Toggle */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="flex items-center space-x-2 space-x-reverse text-sm text-cyan-300 hover:text-cyan-200 transition-colors duration-300 font-medium"
-              >
-                <Filter size={16} />
-                <span>{language === 'ar' ? 'فلترة متقدمة' : 'Advanced Filters'}</span>
-              </button>
-              
-              {/* New Bulk Actions */}
-              {selectedSessions.size > 0 && (
-                <div className="flex items-center space-x-3 space-x-reverse bg-gradient-to-r from-orange-500/20 to-red-500/20 p-4 rounded-2xl border border-orange-500/30">
-                  <span className="text-sm text-orange-200 font-bold">
-                    {language === 'ar' ? `${selectedSessions.size} محادثة محددة` : `${selectedSessions.size} conversations selected`}
-                  </span>
-                  <select
-                    value={bulkAction}
-                    onChange={(e) => setBulkAction(e.target.value as any)}
-                    className="text-sm bg-gradient-to-r from-slate-700/50 to-slate-800/50 border border-slate-600/50 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-orange-500"
-                  >
-                    <option value="none">{language === 'ar' ? 'اختر إجراء' : 'Select Action'}</option>
-                    <option value="archive">{language === 'ar' ? 'أرشفة' : 'Archive'}</option>
-                    <option value="close">{language === 'ar' ? 'إغلاق' : 'Close'}</option>
-                    <option value="delete">{language === 'ar' ? 'حذف' : 'Delete'}</option>
-                  </select>
-                  <button
-                    onClick={handleBulkAction}
-                    disabled={bulkAction === 'none'}
-                    className="text-sm bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-pink-600 disabled:from-slate-600 disabled:to-slate-700 transition-all duration-300 transform hover:scale-105 disabled:transform-none font-bold"
-                  >
-                    {language === 'ar' ? 'تطبيق' : 'Apply'}
-                  </button>
-                </div>
-              )}
             </div>
 
-            {/* New Advanced Filters */}
-            {showAdvancedFilters && (
-              <div className="space-y-6 p-6 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl border border-slate-600/50">
-                {/* Priority Filter */}
-                <div>
-                  <label className="block text-sm font-bold text-cyan-200 mb-3">
-                    {language === 'ar' ? 'الأولوية' : 'Priority'}
-                  </label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {(['all', 'low', 'medium', 'high', 'urgent'] as const).map((priority) => (
-                      <button
-                        key={priority}
-                        onClick={() => setFilterPriority(priority)}
-                        className={`px-3 py-2 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-105 ${
-                          filterPriority === priority
-                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
-                            : 'bg-gradient-to-r from-slate-600/50 to-slate-700/50 text-slate-300 hover:from-slate-500/50 hover:to-slate-600/50 hover:text-white border border-slate-500/50'
-                        }`}
-                      >
-                        {priority === 'all' 
-                          ? (language === 'ar' ? 'الكل' : 'All')
-                          : getPriorityText(priority)
-                        }
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Language Filter */}
-                <div>
-                  <label className="block text-sm font-bold text-cyan-200 mb-3">
-                    {language === 'ar' ? 'اللغة' : 'Language'}
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['all', 'ar', 'en'] as const).map((lang) => (
-                      <button
-                        key={lang}
-                        onClick={() => setFilterLanguage(lang)}
-                        className={`px-3 py-2 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-105 ${
-                          filterLanguage === lang
-                            ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/25'
-                            : 'bg-gradient-to-r from-slate-600/50 to-slate-700/50 text-slate-300 hover:from-slate-500/50 hover:to-slate-600/50 hover:text-white border border-slate-500/50'
-                        }`}
-                      >
-                        {lang === 'all' 
-                          ? (language === 'ar' ? 'الكل' : 'All')
-                          : lang === 'ar' 
-                            ? 'العربية' 
-                            : 'English'
-                        }
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Auto-refresh Settings */}
-                <div>
-                  <label className="block text-sm font-bold text-cyan-200 mb-3">
-                    {language === 'ar' ? 'فترة التحديث التلقائي' : 'Auto-refresh Interval'}
-                  </label>
-                  <select
-                    value={refreshInterval}
-                    onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                    className="w-full text-sm bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-xl px-4 py-3 text-white focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-300"
-                  >
-                    <option value={10}>10 {language === 'ar' ? 'ثانية' : 'seconds'}</option>
-                    <option value={30}>30 {language === 'ar' ? 'ثانية' : 'seconds'}</option>
-                    <option value={60}>1 {language === 'ar' ? 'دقيقة' : 'minute'}</option>
-                    <option value={300}>5 {language === 'ar' ? 'دقائق' : 'minutes'}</option>
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* New Sessions List */}
-          <div className="flex-1 overflow-y-auto min-h-0 p-3 md:p-4">
+          {/* Chat List */}
+          <div className="flex-1 overflow-y-auto min-h-0">
             {filteredSessions.length === 0 ? (
-              <div className="p-12 text-center text-slate-400">
-                <div className="w-24 h-24 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <MessageCircle className="w-12 h-12 text-slate-500" />
-                </div>
-                <p className="text-xl font-bold mb-4">{language === 'ar' ? 'لا توجد محادثات' : 'No conversations'}</p>
-                <button
-                  onClick={loadSessions}
-                  className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-2xl font-bold hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-cyan-500/25"
-                >
-                  {language === 'ar' ? 'تحديث' : 'Refresh'}
-                </button>
+              <div className="p-6 text-center">
+                <MessageCircle className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {language === 'ar' ? 'لا توجد محادثات' : 'No conversations'}
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="divide-y divide-slate-200 dark:divide-slate-700">
                 {filteredSessions.map((session) => {
                   const hasUnreadNotifications = notifications.some(
                     n => n.sessionId === session.session_id && !n.isRead
                   );
-                  const isSelected = selectedSessions.has(session.session_id);
                   
                   return (
                     <div
                       key={session.session_id}
-                      className={`group relative p-4 md:p-6 rounded-2xl md:rounded-3xl cursor-pointer transition-all duration-500 transform hover:scale-[1.02] ${
-                        selectedSession === session.session_id
-                          ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/25'
-                          : 'bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 hover:border-slate-500/50 hover:shadow-xl'
-                      } ${hasUnreadNotifications ? 'ring-2 ring-orange-500/50' : ''} ${
-                        isSelected ? 'bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/50' : ''
-                      }`}
                       onClick={() => handleSessionClick(session.session_id)}
+                      className={`p-3 cursor-pointer transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                        selectedSession === session.session_id
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500'
+                          : ''
+                      }`}
                     >
-                      {/* Glow Effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
-                      
-                      <div className="relative">
-                        <div className="flex items-center justify-between mb-3 md:mb-4">
-                          <div className="flex items-center space-x-2 md:space-x-3 space-x-reverse">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleSessionSelection(session.session_id);
-                              }}
-                              className="w-4 h-4 md:w-5 md:h-5 rounded-lg border-2 border-slate-400 text-cyan-500 focus:ring-cyan-500 focus:ring-2 transition-all duration-300"
-                            />
-                            <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
-                              <div className="w-2 h-2 md:w-3 md:h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
-                              <span className="text-xs md:text-sm font-bold text-white">
-                                {session.session_id.slice(0, 8)}...
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
-                            {hasUnreadNotifications && (
-                              <div className="w-2 h-2 md:w-3 md:h-3 bg-gradient-to-r from-orange-400 to-red-500 rounded-full animate-pulse"></div>
-                            )}
-                            <span className={`px-2 md:px-3 py-1 rounded-lg md:rounded-xl text-xs font-bold text-white shadow-lg ${getStatusColor(session.status)}`}>
-                              {getStatusText(session.status)}
-                            </span>
-                            {session.priority && (
-                              <span className={`px-2 md:px-3 py-1 rounded-lg md:rounded-xl text-xs font-bold text-white shadow-lg ${getPriorityColor(session.priority)}`}>
-                                {getPriorityText(session.priority)}
-                              </span>
-                            )}
-                          </div>
+                      <div className="flex items-start space-x-2 space-x-reverse">
+                        {/* Avatar */}
+                        <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-white" />
                         </div>
                         
-                        <div className="mb-3 md:mb-4">
-                          <p className="text-xs md:text-sm text-slate-300 leading-relaxed line-clamp-2">
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                              {session.user_info?.name || session.session_id.slice(0, 8)}
+                            </h3>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">
+                              {new Date(session.last_message_time).toLocaleTimeString()}
+                              </span>
+                        </div>
+                        
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate mb-2">
                             {session.last_message}
                           </p>
-                        </div>
                         
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2 md:space-x-4 space-x-reverse">
-                            <span className="text-xs text-slate-400 font-bold">
-                              {new Date(session.last_message_time).toLocaleString()}
+                            <div className="flex items-center space-x-1 space-x-reverse">
+                              {session.priority && (
+                                <span className={`px-1 py-0.5 text-xs font-medium rounded-full ${
+                                  session.priority === 'urgent'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                    : session.priority === 'high'
+                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                                    : session.priority === 'medium'
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                                    : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                }`}>
+                                  {getPriorityText(session.priority)}
                             </span>
-                            <span className="text-xs text-slate-400 font-bold">
-                              {session.message_count} {language === 'ar' ? 'رسالة' : 'messages'}
+                              )}
+                              
+                              <span className={`px-1 py-0.5 text-xs font-medium rounded-full ${
+                                session.status === 'active'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                  : session.status === 'waiting_support'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                                  : session.status === 'closed'
+                                  ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                  : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                              }`}>
+                                {getStatusText(session.status)}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
-                            {session.satisfaction_rating && (
-                              <div className="flex items-center space-x-1 space-x-reverse bg-gradient-to-r from-red-500/20 to-pink-500/20 px-2 md:px-3 py-1 rounded-lg md:rounded-xl border border-red-500/30">
-                                <Heart className="w-3 h-3 md:w-4 md:h-4 text-red-400" />
-                                <span className="text-xs font-bold text-red-200">{session.satisfaction_rating}/5</span>
-                              </div>
+                            
+                            {hasUnreadNotifications && (
+                              <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
                             )}
                           </div>
                         </div>
@@ -1803,644 +1608,192 @@ const AdminChatSupport: React.FC = () => {
           </div>
         </div>
 
-        {/* Enhanced Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0 w-full lg:w-2/3 bg-gradient-to-br from-slate-800/90 to-slate-900/90">
-          {/* Mobile Back Button - Show when session is selected */}
-          {selectedSession && (
-            <div className="lg:hidden p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/90 to-slate-900/90 sticky top-0 z-50">
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="flex items-center space-x-2 space-x-reverse text-white hover:text-cyan-300 transition-colors duration-300"
-              >
-                <X className="w-5 h-5" />
-                <span className="text-sm font-medium">
-                  {language === 'ar' ? 'العودة إلى المحادثات' : 'Back to Conversations'}
-                </span>
-              </button>
-            </div>
-          )}
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 min-h-0">
           {selectedSession ? (
             <>
-              {/* New Chat Header - Fixed */}
-              <div className="p-4 md:p-6 border-b border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl flex-shrink-0 sticky top-0 z-40" style={{ position: 'sticky', top: 0 }}>
+              {/* Chat Header */}
+              <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3 md:space-x-4 space-x-reverse">
-                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-2xl">
-                      <MessageSquare className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg md:text-2xl font-black text-white mb-1 md:mb-2">
-                        {language === 'ar' ? 'المحادثة' : 'Conversation'}: {selectedSession.slice(0, 8)}...
-                      </h3>
-                      <p className="text-sm md:text-base text-cyan-200 font-medium">
-                        {filteredMessages.length} / {messages.length} {language === 'ar' ? 'رسالة' : 'messages'}
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {sessionDetails?.user_info?.name || selectedSession.slice(0, 8)}
+                      </h2>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {sessionDetails?.user_info?.email || 'No email provided'}
                       </p>
                     </div>
-                    {sessionDetails && (
-                      <div className="flex items-center space-x-3 space-x-reverse">
-                        {sessionDetails.priority && (
-                          <span className={`px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg ${getPriorityColor(sessionDetails.priority)}`}>
-                            {getPriorityText(sessionDetails.priority)}
-                          </span>
-                        )}
-                        {sessionDetails.satisfaction_rating && (
-                          <div className="flex items-center space-x-2 space-x-reverse bg-gradient-to-r from-red-500/20 to-pink-500/20 px-4 py-2 rounded-xl border border-red-500/30">
-                            <Heart className="w-5 h-5 text-red-400" />
-                            <span className="text-sm font-bold text-red-200">
-                              {sessionDetails.satisfaction_rating}/5
-                            </span>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2 md:space-x-3 space-x-reverse">
-                    <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
+                  
+                  <div className="flex items-center space-x-1 space-x-reverse">
                       <button
-                        onClick={() => setShowMessageSearch(!showMessageSearch)}
-                        className="p-3 md:p-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 hover:from-slate-600/50 hover:to-slate-700/50 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 border border-slate-600/50"
-                        title={language === 'ar' ? 'البحث في الرسائل' : 'Search Messages'}
+                      onClick={() => setShowCustomerInfo(!showCustomerInfo)}
+                      className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
                       >
-                        <Search size={18} className="md:w-5 md:h-5 text-cyan-300" />
+                      <Eye className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => setShowTemplates(!showTemplates)}
-                        className="p-3 md:p-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 hover:from-slate-600/50 hover:to-slate-700/50 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 border border-slate-600/50"
-                        title={language === 'ar' ? 'إدارة القوالب' : 'Manage Templates'}
-                      >
-                        <FileText size={18} className="md:w-5 md:h-5 text-cyan-300" />
-                      </button>
-                      <button
-                        onClick={() => setShowSessionDetails(!showSessionDetails)}
-                        className={`p-3 md:p-4 rounded-xl md:rounded-2xl transition-all duration-300 transform hover:scale-110 ${
-                          showSessionDetails 
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25' 
-                            : 'bg-gradient-to-r from-slate-700/50 to-slate-800/50 hover:from-slate-600/50 hover:to-slate-700/50 border border-slate-600/50'
-                        }`}
-                        title={language === 'ar' ? 'تفاصيل الجلسة' : 'Session Details'}
-                      >
-                        <Eye size={20} className={showSessionDetails ? 'text-white' : 'text-cyan-300'} />
-                      </button>
-                      <button
-                        onClick={exportConversation}
-                        className="p-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 hover:from-slate-600/50 hover:to-slate-700/50 rounded-2xl transition-all duration-300 transform hover:scale-110 border border-slate-600/50"
-                        title={language === 'ar' ? 'تصدير المحادثة' : 'Export Conversation'}
-                      >
-                        <Download size={20} className="text-cyan-300" />
-                      </button>
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
                       <button
                         onClick={handleCloseSession}
-                        className="px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-2xl text-sm font-bold hover:from-slate-500 hover:to-slate-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors duration-200 text-xs font-medium"
                       >
                         {language === 'ar' ? 'إغلاق' : 'Close'}
                       </button>
-                      <button
-                        onClick={handleArchiveSession}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl text-sm font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/25"
-                      >
-                        {language === 'ar' ? 'أرشفة' : 'Archive'}
-                      </button>
-                      <button
-                        onClick={handleSingleDelete}
-                        className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-2xl text-sm font-bold hover:from-red-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-red-500/25"
-                      >
-                        {language === 'ar' ? 'حذف' : 'Delete'}
-                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* New Message Search and Filters */}
-                {showMessageSearch && (
-                  <div className="mt-6 p-6 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl border border-slate-600/50 shadow-2xl">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-cyan-200 mb-3">
-                          {language === 'ar' ? 'البحث في الرسائل' : 'Search Messages'}
-                        </label>
-                        <input
-                          type="text"
-                          value={messageSearchTerm}
-                          onChange={(e) => setMessageSearchTerm(e.target.value)}
-                          placeholder={language === 'ar' ? 'ابحث في محتوى الرسائل...' : 'Search message content...'}
-                          className="w-full px-4 py-3 bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 text-white transition-all duration-300 placeholder-slate-400"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-cyan-200 mb-3">
-                            {language === 'ar' ? 'المرسل' : 'Sender'}
-                          </label>
-                          <select
-                            value={messageFilter}
-                            onChange={(e) => setMessageFilter(e.target.value as any)}
-                            className="w-full px-4 py-3 bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-2xl text-sm text-white focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-300"
-                          >
-                            <option value="all">{language === 'ar' ? 'الكل' : 'All'}</option>
-                            <option value="user">{language === 'ar' ? 'المستخدم' : 'User'}</option>
-                            <option value="admin">{language === 'ar' ? 'المشرف' : 'Admin'}</option>
-                            <option value="bot">{language === 'ar' ? 'البوت' : 'Bot'}</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-cyan-200 mb-3">
-                            {language === 'ar' ? 'المشاعر' : 'Sentiment'}
-                          </label>
-                          <select
-                            value={sentimentFilter}
-                            onChange={(e) => setSentimentFilter(e.target.value as any)}
-                            className="w-full px-4 py-3 bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-2xl text-sm text-white focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-300"
-                          >
-                            <option value="all">{language === 'ar' ? 'الكل' : 'All'}</option>
-                            <option value="positive">{language === 'ar' ? 'إيجابي' : 'Positive'}</option>
-                            <option value="negative">{language === 'ar' ? 'سلبي' : 'Negative'}</option>
-                            <option value="neutral">{language === 'ar' ? 'محايد' : 'Neutral'}</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* New Template Management */}
-                {showTemplates && (
-                  <div className="mt-6 p-6 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl border border-slate-600/50 shadow-2xl">
-                    <div className="space-y-6">
-                      <h4 className="font-bold text-white text-xl">
-                        {language === 'ar' ? 'إدارة القوالب' : 'Template Management'}
-                      </h4>
-                      
-                      {/* Add New Template */}
-                      <div className="space-y-4">
-                        <label className="block text-sm font-bold text-cyan-200">
-                          {language === 'ar' ? 'إضافة قالب جديد' : 'Add New Template'}
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <input
-                            type="text"
-                            value={newTemplate.ar}
-                            onChange={(e) => setNewTemplate(prev => ({ ...prev, ar: e.target.value }))}
-                            placeholder={language === 'ar' ? 'النص بالعربية' : 'Arabic text'}
-                            className="px-4 py-3 bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-2xl text-sm text-white focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-300 placeholder-slate-400"
-                          />
-                          <input
-                            type="text"
-                            value={newTemplate.en}
-                            onChange={(e) => setNewTemplate(prev => ({ ...prev, en: e.target.value }))}
-                            placeholder={language === 'ar' ? 'النص بالإنجليزية' : 'English text'}
-                            className="px-4 py-3 bg-gradient-to-r from-slate-600/50 to-slate-700/50 border-2 border-slate-500/50 rounded-2xl text-sm text-white focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all duration-300 placeholder-slate-400"
-                          />
-                        </div>
-                        <button
-                          onClick={addCustomTemplate}
-                          disabled={!newTemplate.ar.trim() || !newTemplate.en.trim()}
-                          className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-2xl font-bold hover:from-cyan-600 hover:to-blue-600 disabled:from-slate-600 disabled:to-slate-700 transition-all duration-300 transform hover:scale-105 disabled:transform-none shadow-lg shadow-cyan-500/25"
-                        >
-                          {language === 'ar' ? 'إضافة' : 'Add'}
-                        </button>
-                      </div>
-
-                      {/* Custom Templates */}
-                      {customTemplates.length > 0 && (
-                        <div>
-                          <label className="block text-sm font-bold text-cyan-200 mb-4">
-                            {language === 'ar' ? 'القوالب المخصصة' : 'Custom Templates'}
-                          </label>
-                          <div className="space-y-4 max-h-40 overflow-y-auto">
-                            {customTemplates.map((template) => (
-                              <div key={template.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-600/50 to-slate-700/50 rounded-2xl border border-slate-500/50">
-                                <div className="flex-1">
-                                  <p className="text-sm text-white font-medium">
-                                    {template[language as keyof typeof template]}
-                                  </p>
-                                </div>
-                                <div className="flex items-center space-x-2 space-x-reverse">
-                                  <button
-                                    onClick={() => sendTemplateMessage(template[language as keyof typeof template])}
-                                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl text-sm font-bold hover:from-emerald-600 hover:to-green-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-emerald-500/25"
-                                  >
-                                    {language === 'ar' ? 'استخدام' : 'Use'}
-                                  </button>
-                                  <button
-                                    onClick={() => removeCustomTemplate(template.id)}
-                                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl text-sm font-bold hover:from-red-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-red-500/25"
-                                  >
-                                    {language === 'ar' ? 'حذف' : 'Delete'}
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Independent Conversation Stats Section - Completely Separate */}
-              {selectedSession && getConversationStats() && (
-                <div className="w-full bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-b border-slate-700/50 p-4 md:p-6 flex-shrink-0">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between text-xs md:text-sm space-y-2 md:space-y-0">
-                    <div className="flex flex-wrap items-center gap-3 md:gap-6 space-x-reverse">
-                      <span className="text-cyan-200 font-bold">
-                        {language === 'ar' ? 'إجمالي الرسائل' : 'Total'}: {getConversationStats()?.totalMessages}
-                      </span>
-                      <span className="text-cyan-200 font-bold">
-                        {language === 'ar' ? 'متوسط الاستجابة' : 'Avg'}: {getConversationStats()?.avgResponseTime.toFixed(1)}s
-                      </span>
-                      <span className="text-cyan-200 font-bold">
-                        {language === 'ar' ? 'درجة الرضا' : 'Rating'}: {getConversationStats()?.satisfactionScore.toFixed(1)}/5
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 md:gap-4 space-x-reverse">
-                      <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse bg-gradient-to-r from-green-500/20 to-emerald-500/20 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-green-500/30">
-                        <Smile className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
-                        <span className="text-xs md:text-sm text-green-200 font-bold">{getConversationStats()?.positiveMessages}</span>
-                      </div>
-                      <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse bg-gradient-to-r from-slate-500/20 to-gray-500/20 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-slate-500/30">
-                        <Meh className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
-                        <span className="text-xs md:text-sm text-slate-200 font-bold">{getConversationStats()?.neutralMessages}</span>
-                      </div>
-                      <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse bg-gradient-to-r from-red-500/20 to-pink-500/20 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-red-500/30">
-                        <Frown className="w-4 h-4 md:w-5 md:h-5 text-red-400" />
-                        <span className="text-xs md:text-sm text-red-200 font-bold">{getConversationStats()?.negativeMessages}</span>
-                      </div>
-                      {getConversationStats()?.urgentMessages! > 0 && (
-                        <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse bg-gradient-to-r from-orange-500/20 to-red-500/20 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-orange-500/30">
-                          <Zap className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
-                          <span className="text-xs md:text-sm text-orange-200 font-bold">{getConversationStats()?.urgentMessages}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Chat Messages Container - Independent */}
-              <div className="flex-1 flex overflow-hidden">
-                <div className={`flex-1 flex flex-col ${showSessionDetails ? 'lg:w-2/3' : 'w-full'} overflow-hidden min-h-0`}>
                   {/* Messages Area */}
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 min-h-0 chat-messages-area relative">
-                    {/* Scroll to Bottom Button */}
-                    <button
-                      onClick={() => {
-                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="absolute bottom-6 right-6 w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110 z-10 flex items-center justify-center"
-                      title={language === 'ar' ? 'التمرير إلى الأسفل' : 'Scroll to bottom'}
-                    >
-                      <MessageSquare className="w-5 h-5 text-white" />
-                    </button>
-                    {!selectedSession ? (
-                      <div className="text-center text-slate-400 py-12">
-                        <div className="w-24 h-24 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                          <MessageSquare className="w-12 h-12 text-slate-500" />
-                        </div>
-                        <p className="text-xl font-bold">
-                          {language === 'ar' ? 'اختر محادثة لعرض الرسائل' : 'Select a conversation to view messages'}
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+                {filteredMessages.length === 0 ? (
+                  <div className="text-center py-6">
+                    <MessageCircle className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {language === 'ar' ? 'لا توجد رسائل' : 'No messages'}
                         </p>
-                      </div>
-                    ) : filteredMessages.length === 0 ? (
-                      <div className="text-center text-slate-400 py-12">
-                        <div className="w-24 h-24 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                          <MessageSquare className="w-12 h-12 text-slate-500" />
-                        </div>
-                        <p className="text-xl font-bold">
-                          {messageSearchTerm || messageFilter !== 'all' || sentimentFilter !== 'all'
-                            ? (language === 'ar' ? 'لا توجد رسائل تطابق البحث' : 'No messages match the search')
-                            : (language === 'ar' ? 'لا توجد رسائل في هذه المحادثة' : 'No messages in this conversation')
-                          }
-                        </p>
-                        {!messageSearchTerm && messageFilter === 'all' && sentimentFilter === 'all' && (
-                          <p className="text-sm text-slate-500 mt-2">
-                            {language === 'ar' ? 'ابدأ المحادثة بإرسال رسالة' : 'Start the conversation by sending a message'}
-                          </p>
-                        )}
                       </div>
                     ) : (
                       filteredMessages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[75%] p-6 rounded-3xl relative shadow-2xl ${
-                              message.sender === 'user'
-                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                                : message.sender === 'admin'
-                                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-                                : 'bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 text-white'
-                            }`}
-                          >
-                            <div className="flex items-start space-x-3 space-x-reverse">
-                              <div className="flex-1">
-                                <p className="text-base leading-relaxed">{message.content}</p>
-                                <div className="flex items-center justify-between mt-4">
-                                  <p className="text-xs opacity-70">
-                                    {new Date(message.created_at).toLocaleString()}
-                                  </p>
-                                  <div className="flex items-center space-x-2 space-x-reverse">
-                                    {getSentimentIcon(message.sentiment)}
-                                    {getUrgentIndicator(message)}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                      className={`flex ${message.sender === 'admin' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
+                        message.sender === 'admin'
+                          ? 'bg-blue-500 text-white'
+                          : message.sender === 'bot'
+                          ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white'
+                          : 'bg-slate-200 dark:bg-slate-600 text-slate-900 dark:text-white'
+                      }`}>
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </p>
                           </div>
                         </div>
                       ))
                     )}
-                    <div ref={messagesEndRef} />
                   </div>
 
-                  {/* New Quick Replies */}
-                  {selectedSession && (
-                    <div className="p-6 border-t border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl flex-shrink-0">
-                      <div className="mb-4">
-                        <label className="text-sm font-bold text-cyan-200">
-                          {language === 'ar' ? 'قوالب سريعة' : 'Quick Templates'}
-                        </label>
-                      </div>
-                      <div className="flex space-x-3 space-x-reverse overflow-x-auto pb-2">
-                        {messageTemplates.map((template) => (
-                          <button
-                            key={template.id}
-                            onClick={() => sendTemplateMessage(template[language as keyof typeof template])}
-                            className="px-6 py-3 bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 rounded-2xl text-sm text-white hover:from-slate-600/50 hover:to-slate-700/50 transition-all duration-300 whitespace-nowrap shadow-lg hover:shadow-xl transform hover:scale-105 font-bold"
-                          >
-                            {template[language as keyof typeof template]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* New Input */}
-                  {selectedSession && (
-                    <div className="p-6 border-t border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl flex-shrink-0">
-                      <div className="flex space-x-4 space-x-reverse">
-                        <input
-                          type="text"
+              {/* Message Input */}
+              <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
+                <div className="flex items-end space-x-2 space-x-reverse">
+                  <div className="flex-1">
+                    <textarea
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onKeyPress={handleKeyPress}
-                          placeholder={language === 'ar' ? 'اكتب رسالتك...' : 'Type your message...'}
-                          className="flex-1 px-6 py-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 rounded-3xl focus:outline-none focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 text-white text-lg transition-all duration-300 placeholder-slate-400"
-                          disabled={isLoading}
-                        />
+                      placeholder={language === 'ar' ? 'اكتب رسالتك هنا...' : 'Type your message here...'}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 resize-none"
+                      rows={2}
+                    />
+                  </div>
                         <button
                           onClick={sendAdminMessage}
                           disabled={!newMessage.trim() || isLoading}
-                          className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:from-slate-600 disabled:to-slate-700 text-white p-4 rounded-2xl transition-all duration-300 transform hover:scale-110 disabled:transform-none shadow-lg shadow-cyan-500/25"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-1 space-x-reverse flex-shrink-0"
                         >
-                          <Send size={24} />
+                    <Send className="w-4 h-4" />
+                    <span className="text-xs font-medium">
+                      {language === 'ar' ? 'إرسال' : 'Send'}
+                    </span>
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Session Details Sidebar - Fixed Position */}
-                {showSessionDetails && sessionDetails && (
-                  <div className="hidden lg:block w-80 border-l border-slate-200/50 dark:border-slate-700/50 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-6 overflow-y-auto flex-shrink-0">
-                    <div className="space-y-6">
-                      <div className="flex items-center space-x-3 space-x-reverse mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                          <Eye className="w-5 h-5 text-white" />
-                        </div>
-                        <h3 className="font-bold text-slate-900 dark:text-white text-xl">
-                          {language === 'ar' ? 'تفاصيل الجلسة' : 'Session Details'}
-                        </h3>
-                      </div>
-                      
-                      {/* Session Info */}
-                      <div className="space-y-6">
-                        <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                            {language === 'ar' ? 'معرف الجلسة' : 'Session ID'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white font-mono bg-white dark:bg-slate-600 p-3 rounded-xl border border-slate-200 dark:border-slate-500">
-                            {sessionDetails.session_id}
+            </>
+          ) : (
+            /* Welcome Screen */
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                  {language === 'ar' ? 'مرحباً بك في مركز المحادثات' : 'Welcome to Chat Center'}
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {language === 'ar' ? 'اختر محادثة من القائمة لبدء الرد' : 'Select a conversation from the list to start responding'}
                           </p>
                         </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                            {language === 'ar' ? 'الحالة' : 'Status'}
-                          </label>
-                          <span className={`px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg ${getStatusColor(sessionDetails.status)}`}>
-                            {getStatusText(sessionDetails.status)}
-                          </span>
-                        </div>
-                        
-                        {sessionDetails.priority && (
-                          <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                              {language === 'ar' ? 'الأولوية' : 'Priority'}
-                            </label>
-                            <span className={`px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg ${getPriorityColor(sessionDetails.priority)}`}>
-                              {getPriorityText(sessionDetails.priority)}
-                            </span>
                           </div>
                         )}
-                        
-                        <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                            {language === 'ar' ? 'اللغة' : 'Language'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white bg-white dark:bg-slate-600 p-3 rounded-xl border border-slate-200 dark:border-slate-500 font-medium">
-                            {sessionDetails.language === 'ar' ? 'العربية' : 'English'}
-                          </p>
+                        </div>
                         </div>
                         
-                        <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                            {language === 'ar' ? 'عدد الرسائل' : 'Message Count'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white bg-white dark:bg-slate-600 p-3 rounded-xl border border-slate-200 dark:border-slate-500 font-medium">
-                            {sessionDetails.message_count}
-                          </p>
-                        </div>
-                        
-                        {sessionDetails.satisfaction_rating && (
-                          <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                              {language === 'ar' ? 'درجة الرضا' : 'Satisfaction Rating'}
-                            </label>
-                            <div className="flex items-center space-x-3 space-x-reverse">
-                              <div className="flex space-x-1 space-x-reverse">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    className={`w-5 h-5 ${
-                                      star <= sessionDetails.satisfaction_rating!
-                                        ? 'text-yellow-500 fill-current'
-                                        : 'text-slate-300 dark:text-slate-600'
-                                    }`}
-                                  />
-                                ))}
+      {/* Notifications Dropdown */}
+      {showNotifications && (
+        <div className="absolute top-16 right-4 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+          <div className="p-3 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 dark:text-white text-sm">
+                {language === 'ar' ? 'الإشعارات' : 'Notifications'}
+              </h3>
+              <button
+                onClick={markAllNotificationsAsRead}
+                className="text-xs text-blue-500 hover:text-blue-600 transition-colors duration-200"
+              >
+                {language === 'ar' ? 'تحديد الكل كمقروء' : 'Mark all read'}
+              </button>
                               </div>
-                              <span className="text-sm text-slate-900 dark:text-white font-bold">
-                                {sessionDetails.satisfaction_rating}/5
-                              </span>
                             </div>
+          
+          <div className="p-3">
+            {notifications.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 text-center py-3 text-sm">
+                {language === 'ar' ? 'لا توجد إشعارات' : 'No notifications'}
+              </p>
+            ) : (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`p-2 rounded-lg cursor-pointer transition-colors duration-200 mb-2 ${
+                    notification.isRead 
+                      ? 'bg-slate-50 dark:bg-slate-700' 
+                      : 'bg-blue-50 dark:bg-blue-900/20'
+                  }`}
+                >
+                  <div className="flex items-start space-x-2 space-x-reverse">
+                    <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
+                      {getNotificationIcon(notification.type)}
                           </div>
-                        )}
-                        
-                        {sessionDetails.response_time_avg && (
-                          <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-700 dark:to-slate-800 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                              {language === 'ar' ? 'متوسط زمن الاستجابة' : 'Average Response Time'}
-                            </label>
-                            <p className="text-sm text-slate-900 dark:text-white font-medium">
-                              {sessionDetails.response_time_avg} {language === 'ar' ? 'ثانية' : 'seconds'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* User Info */}
-                      {sessionDetails.user_info && (
-                        <div className="space-y-4 pt-6 border-t border-slate-200/50 dark:border-slate-600/50">
-                          <div className="flex items-center space-x-3 space-x-reverse mb-4">
-                            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl flex items-center justify-center shadow-lg">
-                              <User className="w-4 h-4 text-white" />
-                            </div>
-                            <h4 className="font-bold text-slate-900 dark:text-white text-lg">
-                              {language === 'ar' ? 'معلومات المستخدم' : 'User Information'}
-                            </h4>
-                          </div>
-                          
-                          {sessionDetails.user_info.name && (
-                            <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/50">
-                              <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
-                                {language === 'ar' ? 'الاسم' : 'Name'}
-                              </label>
-                              <p className="text-sm text-slate-900 dark:text-white font-medium">
-                                {sessionDetails.user_info.name}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">
+                        {notification.title}
+                      </p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                        {notification.timestamp.toLocaleString()}
                               </p>
                             </div>
-                          )}
-                          
-                          {sessionDetails.user_info.email && (
-                            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200/50 dark:border-blue-700/50">
-                              <label className="block text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                                {language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-                              </label>
-                              <p className="text-sm text-slate-900 dark:text-white font-medium">
-                                {sessionDetails.user_info.email}
-                              </p>
                             </div>
-                          )}
-                          
-                          {sessionDetails.user_info.phone && (
-                            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200/50 dark:border-purple-700/50">
-                              <label className="block text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">
-                                {language === 'ar' ? 'رقم الهاتف' : 'Phone'}
-                              </label>
-                              <p className="text-sm text-slate-900 dark:text-white font-medium">
-                                {sessionDetails.user_info.phone}
-                              </p>
                             </div>
-                          )}
-                          
-                          {sessionDetails.user_info.country && (
-                            <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl border border-orange-200/50 dark:border-orange-700/50">
-                              <label className="block text-xs font-semibold text-orange-700 dark:text-orange-300 mb-2">
-                                {language === 'ar' ? 'البلد' : 'Country'}
-                              </label>
-                              <p className="text-sm text-slate-900 dark:text-white font-medium">
-                                {sessionDetails.user_info.country}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {sessionDetails.user_info.ip_address && (
-                            <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-700 dark:to-gray-700 rounded-2xl border border-slate-200/50 dark:border-slate-600/50">
-                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                {language === 'ar' ? 'عنوان IP' : 'IP Address'}
-                              </label>
-                              <p className="text-sm text-slate-900 dark:text-white font-mono">
-                                {sessionDetails.user_info.ip_address}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Timestamps */}
-                      <div className="space-y-4 pt-6 border-t border-slate-200/50 dark:border-slate-600/50">
-                        <div className="flex items-center space-x-3 space-x-reverse mb-4">
-                          <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                            <Calendar className="w-4 h-4 text-white" />
-                          </div>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-lg">
-                            {language === 'ar' ? 'التواريخ' : 'Timestamps'}
-                          </h4>
-                        </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200/50 dark:border-amber-700/50">
-                          <label className="block text-xs font-semibold text-amber-700 dark:text-amber-300 mb-2">
-                            {language === 'ar' ? 'تاريخ الإنشاء' : 'Created At'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white font-medium">
-                            {new Date(sessionDetails.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200/50 dark:border-blue-700/50">
-                          <label className="block text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                            {language === 'ar' ? 'آخر تحديث' : 'Last Updated'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white font-medium">
-                            {new Date(sessionDetails.updated_at).toLocaleString()}
-                          </p>
-                        </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/50">
-                          <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
-                            {language === 'ar' ? 'آخر رسالة' : 'Last Message'}
-                          </label>
-                          <p className="text-sm text-slate-900 dark:text-white font-medium">
-                            {new Date(sessionDetails.last_message_time).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
+              ))
+            )}
                     </div>
                   </div>
                 )}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-400">
-              <div className="text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-700 dark:to-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <MessageCircle size={48} className="text-slate-400 dark:text-slate-500" />
-                </div>
-                <p className="text-xl font-medium">{language === 'ar' ? 'اختر محادثة لعرضها' : 'Select a conversation to view'}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Telegram Settings Modal */}
+      {showTelegramModal && (
       <TelegramSettingsModal
         isOpen={showTelegramModal}
         onClose={() => setShowTelegramModal(false)}
       />
+      )}
 
       {/* Bulk Delete Modal */}
+      {showBulkDeleteModal && (
       <BulkDeleteModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
         count={bulkDeleteCount}
-        isLoading={isLoading}
       />
+      )}
     </div>
   );
 };

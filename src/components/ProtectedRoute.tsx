@@ -112,7 +112,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               }
             </p>
             <button
-              onClick={() => window.location.href = '/home'}
+              onClick={() => window.location.href = '/'}
               className="bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white px-6 py-3 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300"
             >
               {language === 'ar' ? 'العودة للرئيسية' : 'Ana Sayfaya Dön'}

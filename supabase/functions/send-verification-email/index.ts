@@ -64,11 +64,11 @@ serve(async (req) => {
     }
 
     // Send verification email using admin API
-    const { error: emailError } = await supabaseClient.auth.admin.generateLink({
+    const { error: emailError } = await supabaseClient.auth.admin.resend({
       type: 'signup',
       email: email,
       options: {
-        redirectTo: `${Deno.env.get('SITE_URL') || 'https://tevasul.group'}/auth/verify-email`
+        emailRedirectTo: `${Deno.env.get('SITE_URL') || 'https://tevasul.group'}/auth/verify-email`
       }
     })
 

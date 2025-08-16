@@ -9,17 +9,20 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
+import SimpleThemeToggle from './SimpleThemeToggle';
 
 interface AdminNavbarProps {
   onBack: () => void;
   isDarkMode: boolean;
-  onToggleDarkMode?: () => void;
+  onToggleDarkMode: () => void;
+  onSignOut?: () => void;
 }
 
-const AdminNavbar: React.FC<AdminNavbarProps> = ({ 
-  onBack, 
-  isDarkMode, 
-  onToggleDarkMode 
+const AdminNavbar: React.FC<AdminNavbarProps> = ({
+  onBack,
+  isDarkMode,
+  onToggleDarkMode,
+  onSignOut
 }) => {
   const { user, profile, signOut } = useAuthContext();
   const { t } = useLanguage();
@@ -58,11 +61,15 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({
 
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (error) {
-      console.error('خطأ في تسجيل الخروج:', error);
+    if (onSignOut) {
+      onSignOut();
+    } else {
+      try {
+        await signOut();
+        navigate('/');
+      } catch (error) {
+        console.error('خطأ في تسجيل الخروج:', error);
+      }
     }
   };
 
@@ -108,20 +115,12 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({
                </span>
              </div>
 
-             {/* Dark Mode Toggle */}
-             {onToggleDarkMode && (
-               <button
-                 onClick={onToggleDarkMode}
-                 className="group flex items-center justify-center w-10 h-10 bg-white/80 dark:bg-jet-700/80 backdrop-blur-sm text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400 hover:bg-white dark:hover:bg-jet-600 transition-all duration-300 rounded-lg shadow-sm hover:shadow-md transform hover:scale-110"
-                 title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-               >
-                 {isDarkMode ? (
-                   <Sun className="w-5 h-5 group-hover:animate-spin" />
-                 ) : (
-                   <Moon className="w-5 h-5 group-hover:animate-pulse" />
-                 )}
-               </button>
-             )}
+             {/* Simple Dark Mode Toggle */}
+             <SimpleThemeToggle
+               isDarkMode={isDarkMode}
+               onToggle={onToggleDarkMode}
+               className="relative z-10"
+             />
 
              {/* Sign Out Button */}
              <button

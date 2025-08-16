@@ -4,6 +4,8 @@ import App from './App';
 import { servicesData } from './data/services';
 import EmailVerification from './components/EmailVerification';
 import ResetPasswordPage from './components/ResetPasswordPage';
+import { AuthCallback } from './components/AuthCallback';
+import ThemeToggleTest from './components/ThemeToggleTest';
 
 // Layout component that wraps all pages
 const Layout = () => {
@@ -17,7 +19,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/home" replace />
+        element: <Navigate to="/" replace />
       },
       {
         path: 'home',
@@ -96,6 +98,10 @@ export const router = createBrowserRouter([
         element: <Outlet />
       },
       {
+        path: 'admin/webhooks',
+        element: <Outlet />
+      },
+      {
         path: 'admin/telegram-settings',
         element: <Outlet />
       },
@@ -104,12 +110,20 @@ export const router = createBrowserRouter([
         element: <EmailVerification isDarkMode={false} />
       },
       {
+        path: 'auth/callback',
+        element: <AuthCallback />
+      },
+      {
         path: 'reset-password',
         element: <ResetPasswordPage />
       },
       {
         path: 'voluntary-return',
         element: <Outlet />
+      },
+      {
+        path: 'theme-test',
+        element: <ThemeToggleTest />
       },
       // Service routes
       ...servicesData.map(service => ({

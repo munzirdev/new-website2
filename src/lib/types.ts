@@ -34,6 +34,7 @@ export interface UserProfile {
   full_name: string;
   phone?: string;
   country_code?: string;
+  avatar_url?: string;
   role: 'user' | 'moderator' | 'admin';
   created_at: string;
   updated_at: string;

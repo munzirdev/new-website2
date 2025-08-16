@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, LogIn, UserPlus, User, Settings, HelpCircle, LogOut, Send, MessageCircle } from 'lucide-react';
+import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, UserPlus, User, Settings, HelpCircle, LogOut, Send, MessageCircle, Code, Volume2, VolumeX } from 'lucide-react';
 import CustomCursor from './components/CustomCursor';
+import DebugThemeToggle from './components/DebugThemeToggle';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuthContext } from './components/AuthProvider';
 import { useLanguage } from './hooks/useLanguage';
@@ -8,6 +9,7 @@ import ServicePage from './components/ServicePage';
 import HealthInsurancePage from './components/HealthInsurancePage';
 import AuthModals from './components/AuthModals';
 import WelcomeMessage from './components/WelcomeMessage';
+import GlassWelcomeMessage from './components/GlassWelcomeMessage';
 import AdminDashboard from './components/AdminDashboard';
 import ServiceRequestForm from './components/ServiceRequestForm';
 import UserAccount from './components/UserAccount';
@@ -17,9 +19,14 @@ import VoluntaryReturnPage from './components/VoluntaryReturnPage';
 import EmailVerification from './components/EmailVerification';
 import LoginSuccessModal from './components/LoginSuccessModal';
 import ChatBot from './components/ChatBot';
+import TermsOfService from './components/TermsOfService';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import Navbar from './components/Navbar';
+
 
 
 import { supabase } from './lib/supabase';
+import { webhookService } from './services/webhookService';
 
 import { servicesData } from './data/services';
 
@@ -39,12 +46,22 @@ function App() {
   const [showUserAccount, setShowUserAccount] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [loginSuccessData, setLoginSuccessData] = useState<{
     userRole: 'admin' | 'moderator' | 'user';
     userName: string;
+  } | null>(null);
+  
+  // Glass welcome message states
+  const [showGlassWelcome, setShowGlassWelcome] = useState(false);
+  const [glassWelcomeData, setGlassWelcomeData] = useState<{
+    type: 'login' | 'logout';
+    userName?: string;
+    userRole?: string;
   } | null>(null);
   
   // Chat bot state
@@ -64,12 +81,43 @@ function App() {
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
+    phone: '',
     serviceType: '',
     message: ''
   });
   const [contactLoading, setContactLoading] = useState(false);
   const [contactSuccess, setContactSuccess] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+  
+  // Music state
+  const [isMusicMuted, setIsMusicMuted] = useState(() => {
+    const savedMuted = localStorage.getItem('backgroundMusicMuted');
+    // Check if it's a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (savedMuted !== null) {
+      return JSON.parse(savedMuted);
+    }
+    
+    // On mobile, default to unmuted (will play with 2% volume)
+    // On desktop, default to unmuted (will play with 4% volume)
+    return false;
+  });
+  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
+  const [musicVolume, setMusicVolume] = useState(() => {
+    const savedVolume = localStorage.getItem('backgroundMusicVolume');
+    // Check if it's a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (savedVolume !== null) {
+      return parseFloat(savedVolume);
+    }
+    
+    // On mobile, default to 2% volume, on desktop default to 4%
+    return isMobile ? 0.02 : 0.04;
+  });
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
   const { user, profile, loading: authLoading, signOut, hasNotifications, clearNotifications } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
 
@@ -86,7 +134,7 @@ function App() {
       navigate('/admin', { replace: true });
     } else {
       console.log('👤 إعادة توجيه المستخدم العادي إلى الصفحة الرئيسية');
-      navigate('/home', { replace: true });
+      navigate('/', { replace: true });
     }
     
     // Close the success modal
@@ -100,7 +148,7 @@ function App() {
 
   // Navigation definition
   const navigation = [
-    { name: t('nav.home'), href: '/home', isSection: false },
+    { name: t('nav.home'), href: '/', isSection: false },
     { name: t('nav.services'), href: '#services', isSection: true },
     { name: t('nav.about'), href: '#about', isSection: true },
     { name: t('nav.contact'), href: '#contact', isSection: true }
@@ -203,7 +251,7 @@ function App() {
         console.log('🔍 User already authenticated, redirecting to home');
         setIsLoginOpen(false);
         setIsSignupOpen(false);
-        navigate('/home', { replace: true });
+        navigate('/', { replace: true });
       }
     } else if (path === '/signup') {
       console.log('🔍 Route handler - /signup:', { user: !!user, authLoading, userEmail: user?.email });
@@ -218,7 +266,7 @@ function App() {
         console.log('🔍 User already authenticated, redirecting to home');
         setIsLoginOpen(false);
         setIsSignupOpen(false);
-        navigate('/home', { replace: true });
+        navigate('/', { replace: true });
       }
     } else {
       // إغلاق المودال عند الانتقال لمسارات أخرى
@@ -339,15 +387,17 @@ function App() {
       const isAdmin = profile?.role === 'admin';
       const isModerator = profile?.role === 'moderator';
       
-      // تنظيف localStorage
-      localStorage.removeItem('justLoggedIn');
+      // تنظيف localStorage (بعد التحويل)
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userName');
       
-      // عرض رسالة الترحيب فقط للمستخدمين العاديين
-      if (!isAdmin && !isModerator) {
-        setShowWelcome(true);
-      }
+      // عرض رسالة الترحيب الزجاجية لجميع المستخدمين
+      setGlassWelcomeData({
+        type: 'login',
+        userName: profile?.full_name || user.email || 'مستخدم',
+        userRole: profile?.role
+      });
+      setShowGlassWelcome(true);
       
       // فتح نموذج طلب الخدمة إذا كان هناك طلب معلق (فقط للمستخدمين العاديين، ليس للأدمن)
       if (openServiceRequest && !isAdmin) {
@@ -377,6 +427,9 @@ function App() {
         setShowWelcome(false);
       }, 5000);
       
+      // حذف justLoggedIn للمستخدمين العاديين أيضاً
+      localStorage.removeItem('justLoggedIn');
+      
       return () => clearTimeout(timer);
     }
   }, [user, profile, authLoading]);
@@ -388,13 +441,14 @@ function App() {
       const isModerator = profile?.role === 'moderator';
       const currentPath = location.pathname;
       
-      // Only redirect on first login (check if user has visited before)
-      const hasVisitedBefore = sessionStorage.getItem(`user-visited-${user.email}`);
+      // Check if this is the first login (using justLoggedIn flag)
+      const justLoggedIn = localStorage.getItem('justLoggedIn');
       
-      if ((isAdmin || isModerator) && !hasVisitedBefore && (currentPath === '/home' || currentPath === '/')) {
+      if ((isAdmin || isModerator) && justLoggedIn === 'true' && (currentPath === '/' || currentPath === '/')) {
         console.log('🔧 أول تسجيل دخول للأدمن/المشرف، إعادة توجيه إلى لوحة التحكم');
-        sessionStorage.setItem(`user-visited-${user.email}`, 'true');
         navigate('/admin', { replace: true });
+        // حذف justLoggedIn بعد التحويل لمنع التكرار
+        localStorage.removeItem('justLoggedIn');
       }
     }
   }, [user, authLoading, location.pathname, navigate]);
@@ -425,13 +479,13 @@ function App() {
         }
       });
       
-      // Clear user visit flags
-      const userVisitKeys = Object.keys(sessionStorage);
-      userVisitKeys.forEach(key => {
-        if (key.startsWith('user-visited-')) {
-          sessionStorage.removeItem(key);
-        }
-      });
+      // Clear user visit flags (no longer needed since we use justLoggedIn)
+      // const userVisitKeys = Object.keys(sessionStorage);
+      // userVisitKeys.forEach(key => {
+      //   if (key.startsWith('user-visited-')) {
+      //     sessionStorage.removeItem(key);
+      //   }
+      // });
       
       // Clear localStorage items
       localStorage.removeItem('justLoggedIn');
@@ -457,8 +511,146 @@ function App() {
     }
   }, [isDarkMode]);
 
+  // Audio initialization
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Set audio properties
+    audio.volume = musicVolume;
+    audio.muted = isMusicMuted;
+
+    // Check if it's a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Auto-play when component mounts (only if not muted)
+    const playAudio = async () => {
+      try {
+        if (!isMusicMuted) {
+          // On mobile, try to play with user interaction
+          if (isMobile) {
+            console.log('📱 Mobile device detected - music will play with user interaction');
+            // Set a flag to play music on first user interaction
+            const playOnInteraction = () => {
+              audio.play().then(() => {
+                console.log('✅ Music started playing on mobile');
+                setIsMusicPlaying(true);
+                document.removeEventListener('touchstart', playOnInteraction);
+                document.removeEventListener('click', playOnInteraction);
+              }).catch((error) => {
+                console.error('❌ Failed to play music on mobile:', error);
+              });
+            };
+            
+            document.addEventListener('touchstart', playOnInteraction, { once: true });
+            document.addEventListener('click', playOnInteraction, { once: true });
+          } else {
+            await audio.play();
+            setIsMusicPlaying(true);
+          }
+        } else {
+          setIsMusicPlaying(false);
+        }
+      } catch (error) {
+        console.log('Auto-play prevented by browser policy');
+        setIsMusicPlaying(false);
+      }
+    };
+
+    playAudio();
+
+    // Handle audio events
+    const handlePlay = () => setIsMusicPlaying(true);
+    const handlePause = () => setIsMusicPlaying(false);
+    const handleEnded = () => setIsMusicPlaying(false);
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [musicVolume, isMusicMuted]);
+
+  // Save volume to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('backgroundMusicVolume', musicVolume.toString());
+  }, [musicVolume]);
+
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
+  };
+
+  // Music control functions
+  const toggleMusic = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    console.log('🎵 Toggle music called');
+    console.log('Current state:', { isMusicMuted, isMusicPlaying });
+
+    if (isMusicMuted) {
+      audio.muted = false;
+      setIsMusicMuted(false);
+      localStorage.setItem('backgroundMusicMuted', 'false');
+      console.log('🔊 Music unmuted');
+    } else {
+      audio.muted = true;
+      setIsMusicMuted(true);
+      localStorage.setItem('backgroundMusicMuted', 'true');
+      console.log('🔇 Music muted');
+    }
+  };
+
+  const handleMusicClick = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    console.log('🎵 Music button clicked');
+    console.log('Current state:', { isMusicPlaying, isMusicMuted });
+
+    if (isMusicMuted) {
+      // If muted, unmute and play
+      audio.muted = false;
+      setIsMusicMuted(false);
+      localStorage.setItem('backgroundMusicMuted', 'false');
+      
+      // Try to play if not already playing
+      if (!isMusicPlaying) {
+        audio.play().then(() => {
+          console.log('✅ Music started playing');
+          setIsMusicPlaying(true);
+        }).catch((error) => {
+          console.error('❌ Failed to play music:', error);
+        });
+      }
+    } else {
+      // If not muted, mute
+      audio.muted = true;
+      setIsMusicMuted(true);
+      localStorage.setItem('backgroundMusicMuted', 'true');
+      console.log('🔇 Music muted');
+    }
+  };
+
+  // Function to update music volume
+  const updateMusicVolume = (newVolume: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Clamp volume between 0 and 1
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    
+    setMusicVolume(clampedVolume);
+    audio.volume = clampedVolume;
+    
+    // Save to localStorage
+    localStorage.setItem('backgroundMusicVolume', clampedVolume.toString());
+    
+    console.log('🔊 Music volume updated to:', clampedVolume);
   };
 
   const scrollToServices = () => {
@@ -486,7 +678,7 @@ function App() {
   };
 
   const handleBackToHome = () => {
-    navigate('/home');
+    navigate('/');
   };
 
   const navigateToMainHome = () => {
@@ -497,11 +689,19 @@ function App() {
     if (location.pathname === '/login' || location.pathname === '/signup') {
       console.log('🔄 إعادة توجيه من صفحة تسجيل الدخول إلى الصفحة الرئيسية');
       // Use replace to prevent back button issues
-      navigate('/home', { replace: true });
+      navigate('/', { replace: true });
     } else {
       console.log('🔄 الانتقال إلى الصفحة الرئيسية');
-      navigate('/home');
+      navigate('/');
     }
+    
+    // Scroll to hero section after navigation
+    setTimeout(() => {
+      const heroSection = document.getElementById('hero');
+      if (heroSection) {
+        heroSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   const openLogin = () => {
@@ -517,7 +717,7 @@ function App() {
     // إعادة توجيه للصفحة الرئيسية عند إغلاق مودال تسجيل الدخول
     if (location.pathname === '/login') {
       console.log('🔄 إغلاق مودال تسجيل الدخول - إعادة توجيه للصفحة الرئيسية');
-      navigate('/home', { replace: true });
+      navigate('/', { replace: true });
     }
   };
   
@@ -526,7 +726,7 @@ function App() {
     // إعادة توجيه للصفحة الرئيسية عند إغلاق مودال تسجيل الحساب
     if (location.pathname === '/signup') {
       console.log('🔄 إغلاق مودال تسجيل الحساب - إعادة توجيه للصفحة الرئيسية');
-      navigate('/home', { replace: true });
+      navigate('/', { replace: true });
     }
   };
 
@@ -543,11 +743,24 @@ function App() {
   const handleSignOut = async () => {
     console.log('🔄 بدء عملية تسجيل الخروج...');
     setShowWelcome(false); // إخفاء رسالة الترحيب
+    
+    // حفظ معلومات المستخدم قبل تسجيل الخروج لعرض رسالة الوداع
+    const currentUserName = profile?.full_name || user?.email || 'مستخدم';
+    const currentUserRole = profile?.role;
+    
     const { error } = await signOut();
     if (error) {
       console.error('❌ خطأ في تسجيل الخروج:', error);
     } else {
       console.log('✅ تم تسجيل الخروج بنجاح من التطبيق');
+      
+      // عرض رسالة الوداع بتأثير زجاجي
+      setGlassWelcomeData({
+        type: 'logout',
+        userName: currentUserName,
+        userRole: currentUserRole
+      });
+      setShowGlassWelcome(true);
     }
   };
 
@@ -575,6 +788,15 @@ function App() {
       openLogin();
       return;
     }
+    
+    // Special handling for health insurance - navigate to health insurance page and scroll to calculator
+    if (serviceType === 'health-insurance') {
+      setCurrentService('health-insurance');
+      // Navigate to health insurance page with hash for calculator section
+      navigate('/services/health-insurance#calculator');
+      return;
+    }
+    
     setServiceRequestForm({
       isOpen: true,
       serviceType,
@@ -601,19 +823,13 @@ function App() {
     }
     
     console.log('🔍 بدء إرسال رسالة التواصل...');
-    console.log('👤 المستخدم:', user?.email);
+    console.log('👤 المستخدم:', user?.email || 'ضيف');
     console.log('📝 بيانات النموذج:', contactForm);
-    
-    if (!user) {
-      console.log('❌ المستخدم غير مسجل دخول');
-      setContactError(language === 'ar' ? 'يجب تسجيل الدخول أولاً لإرسال الرسالة' : 'Mesaj göndermek için önce giriş yapmalısınız');
-      return;
-    }
 
     // Validate form
-    if (!contactForm.name.trim() || !contactForm.email.trim() || !contactForm.message.trim()) {
+    if (!contactForm.name.trim() || !contactForm.phone.trim() || !contactForm.message.trim()) {
       console.log('❌ النموذج غير مكتمل');
-      setContactError(language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Lütfen tüm gerekli alanları doldurun');
+      setContactError(language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة (الاسم، رقم الهاتف، الرسالة)' : 'Lütfen tüm gerekli alanları doldurun (Ad, Telefon, Mesaj)');
       return;
     }
 
@@ -654,9 +870,10 @@ function App() {
       }
       
       const messageData = {
-        user_id: user.id,
+        user_id: user?.id || null,
         name: contactForm.name.trim(),
-        email: contactForm.email.trim(),
+        email: contactForm.email.trim() || null,
+        phone: contactForm.phone.trim(),
         subject: contactForm.serviceType ? `${contactForm.serviceType} - ${language === 'ar' ? 'طلب خدمة' : 'Service Request'}` : (language === 'ar' ? 'رسالة تواصل' : 'Contact Message'),
         message: contactForm.message.trim(),
         status: 'pending'
@@ -681,9 +898,34 @@ function App() {
       }
 
       console.log('✅ تم إرسال الرسالة بنجاح:', data);
+      
+      // إرسال إشعار التيليجرام
+      try {
+        const webhookData = {
+          id: data?.[0]?.id || Date.now().toString(),
+          user_id: user?.id || null,
+          title: messageData.subject,
+          description: messageData.message,
+          priority: 'medium',
+          status: 'pending',
+          service_type: contactForm.serviceType || 'general_inquiry',
+          created_at: new Date().toISOString()
+        };
+        
+        await webhookService.sendServiceRequestWebhook(webhookData);
+        console.log('✅ تم إرسال إشعار التيليجرام بنجاح');
+      } catch (webhookError) {
+        console.error('Error sending webhook notification:', webhookError);
+      }
+      
       setContactSuccess(true);
       setContactForm({ name: '', email: '', serviceType: '', message: '' });
       setContactLoading(false);
+      
+      // رسالة نجاح مختلفة للضيوف
+      const successMessage = user 
+        ? (language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz.')
+        : (language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً. شكراً لاهتمامك بمجموعة تواصل.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz. Tevasul Group\'a ilginiz için teşekkürler.');
       
       // Reset success message after 3 seconds
       setTimeout(() => {
@@ -803,13 +1045,16 @@ function App() {
       console.log('🔧 عرض لوحة تحكم الأدمن');
       (window as any).adminDashboardLogged = true;
     }
-    return <AdminDashboard onBack={() => navigate('/home')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />;
+    return <AdminDashboard onBack={() => navigate('/')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} onSignOut={handleSignOut} />;
   }
 
   // If user account is open, show it
   if (showUserAccount) {
     return <UserAccount 
-      onBack={() => setShowUserAccount(false)} 
+      onBack={() => {
+        setShowUserAccount(false);
+        navigate('/', { replace: true });
+      }} 
       isDarkMode={isDarkMode}
     />;
   }
@@ -837,7 +1082,7 @@ function App() {
         <CustomCursor isDarkMode={isDarkMode} />
         
         <VoluntaryReturnPage 
-          onBack={() => navigate('/home')} 
+          onBack={() => navigate('/')} 
           isDarkMode={isDarkMode}
         />
 
@@ -888,10 +1133,20 @@ function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-jet-800 text-white' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-slate-800'} overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
       <CustomCursor isDarkMode={isDarkMode} />
       <style dangerouslySetInnerHTML={{
         __html: `
+          /* Waveform Animation Keyframes */
+          @keyframes waveform {
+            0%, 100% {
+              transform: scaleY(0.3);
+            }
+            50% {
+              transform: scaleY(1);
+            }
+          }
+          
           /* تحسين الأداء: تقليل الأنيميشن على الأجهزة المحمولة */
           @media (max-width: 768px) {
             .animate-float,
@@ -918,400 +1173,22 @@ function App() {
       }} />
       
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrollY > 50 
-          ? 'bg-white/95 dark:bg-jet-800/95 backdrop-blur-md shadow-xl border-b border-platinum-300 dark:border-jet-700' 
-          : 'bg-transparent'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3 md:py-4">
-            <div className="flex items-center space-x-3 space-x-reverse">
-              <img 
-                src={language === 'ar' ? '/logo-text.png' : '/logo-text-en.png'} 
-                className={`h-8 md:h-10 w-auto max-w-none rounded-lg object-contain transition-all duration-300 ${isLanguageChanging ? 'language-change-logo' : ''} ${
-                  scrollY > 50 
-                    ? 'brightness-0 dark:brightness-100' 
-                    : 'brightness-0 invert dark:brightness-100 dark:invert-0'
-                }`}
-                alt={language === 'ar' ? 'مجموعة تواصل' : language === 'tr' ? 'Tevasul Grubu' : 'Tevasul Group'}
-              />
-              <span className={`text-lg md:text-xl font-bold transition-colors duration-300 ${
-                scrollY > 50 
-                  ? 'text-caribbean-700 dark:text-caribbean-400' 
-                  : 'text-white drop-shadow-lg'
-              }`}>
-              
-              </span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8 space-x-reverse">
-              {navigation.map((item) => {
-                if (item.isSection) {
-                  return (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        const sectionId = item.href.replace('#', '');
-                        const section = document.getElementById(sectionId);
-                        if (section) {
-                          section.scrollIntoView({ 
-                            behavior: 'smooth',
-                            block: 'start'
-                          });
-                        }
-                      }}
-                      className={`relative transition-colors duration-300 group font-medium ${isLanguageChanging ? 'language-change-text' : ''} ${
-                        scrollY > 50 
-                          ? 'text-jet-800 dark:text-platinum-200 hover:text-caribbean-700 dark:hover:text-caribbean-400' 
-                          : 'text-white/90 hover:text-white drop-shadow-md'
-                      }`}
-                    >
-                      {item.name}
-                      <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                        scrollY > 50 
-                          ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600' 
-                          : 'bg-white'
-                      }`}></span>
-                    </button>
-                  );
-                } else {
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`relative transition-colors duration-300 group font-medium ${isLanguageChanging ? 'language-change-text' : ''} ${
-                        scrollY > 50 
-                          ? 'text-jet-800 dark:text-platinum-200 hover:text-caribbean-700 dark:hover:text-caribbean-400' 
-                          : 'text-white/90 hover:text-white drop-shadow-md'
-                      }`}
-                    >
-                      {item.name}
-                      <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                        scrollY > 50 
-                          ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600' 
-                          : 'bg-white'
-                      }`}></span>
-                    </Link>
-                  );
-                }
-              })}
-              
-              {/* Auth Buttons */}
-              {user ? (
-                <div className="flex items-center space-x-4 space-x-reverse">
-                  {/* Admin Dashboard Button - Show even if profile is null */}
-                  {(isAdminOrModerator || user.email === 'admin@tevasul.group' || user.email?.includes('moderator')) && (
-                    <button
-                      onClick={() => navigate('/admin')}
-                      className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                        scrollY > 50 
-                          ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                          : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                      }`}
-                    >
-                      <Settings className="w-4 h-4 ml-1" />
-                      <span className="hidden sm:inline">
-                        {(user.email === 'admin@tevasul.group' || isAdmin) ? 'لوحة التحكم' : 'لوحة الإشراف'}
-                      </span>
-                    </button>
-                  )}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowUserDropdown(!showUserDropdown)}
-                      className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                        scrollY > 50 
-                          ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                          : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                      }`}
-                    >
-                      {hasNotifications && (
-                        <div className="relative ml-2">
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping"></div>
-                        </div>
-                      )}
-                      <User className="w-4 h-4 ml-2" />
-                      <span className="hidden sm:inline">{t('navbar.account')}</span>
-                      <ChevronDown className={`w-4 h-4 mr-2 transition-transform duration-300 ${showUserDropdown ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* User Dropdown Menu */}
-                    {showUserDropdown && (
-                      <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md rounded-xl shadow-2xl border border-platinum-300 dark:border-jet-600 py-2 z-50">
-                        {/* User Info Header */}
-                        <div className="px-4 py-3 border-b border-platinum-200 dark:border-jet-700">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-r from-caribbean-500 to-indigo-500 rounded-full flex items-center justify-center ml-3">
-                              <User className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-jet-800 dark:text-white text-sm">
-                                {profile?.full_name || user.email}
-                              </p>
-                              <p className="text-xs text-jet-600 dark:text-platinum-400">
-                                {user.email}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Menu Items */}
-                        <div className="py-2">
-                          {/* Admin Dashboard Button */}
-                          {(isAdminOrModerator || user.email === 'admin@tevasul.group' || user.email?.includes('moderator')) && (
-                            <button
-                              onClick={() => {
-                                navigate('/admin');
-                                setShowUserDropdown(false);
-                              }}
-                              className="w-full flex items-center px-4 py-2 text-right text-jet-700 dark:text-platinum-300 hover:bg-platinum-100 dark:hover:bg-jet-700 transition-colors duration-200"
-                            >
-                              <Settings className="w-4 h-4 ml-3" />
-                              {(user.email === 'admin@tevasul.group' || isAdmin) ? 'لوحة التحكم' : 'لوحة الإشراف'}
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => {
-                              setShowProfileEdit(true);
-                              setShowUserDropdown(false);
-                            }}
-                            className="w-full flex items-center px-4 py-2 text-right text-jet-700 dark:text-platinum-300 hover:bg-platinum-100 dark:hover:bg-jet-700 transition-colors duration-200"
-                          >
-                            <Settings className="w-4 h-4 ml-3" />
-                            {t('user.profile')}
-                          </button>
-
-                          <button
-                            onClick={handleUserAccountClick}
-                            className="w-full flex items-center px-4 py-2 text-right text-jet-700 dark:text-platinum-300 hover:bg-platinum-100 dark:hover:bg-jet-700 transition-colors duration-200"
-                          >
-                            <FileText className="w-4 h-4 ml-3" />
-                            {t('user.transactions')}
-                            {hasNotifications && (
-                              <div className="relative mr-2">
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-400 rounded-full animate-ping"></div>
-                              </div>
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setShowHelpSupport(true);
-                              setShowUserDropdown(false);
-                            }}
-                            className="w-full flex items-center px-4 py-2 text-right text-jet-700 dark:text-platinum-300 hover:bg-platinum-100 dark:hover:bg-jet-700 transition-colors duration-200"
-                          >
-                            <HelpCircle className="w-4 h-4 ml-3" />
-                            {t('user.help')}
-                          </button>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="border-t border-platinum-200 dark:border-jet-700 my-2"></div>
-
-                        {/* Logout */}
-                        <button
-                          onClick={() => {
-                            handleSignOut();
-                            setShowUserDropdown(false);
-                          }}
-                          className="w-full flex items-center px-4 py-2 text-right text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
-                        >
-                          <LogOut className="w-4 h-4 ml-3" />
-                          {t('user.logout')}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={openLogin}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                      scrollY > 50 
-                        ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                        : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                    }`}
-                  >
-                    <LogIn className="w-4 h-4 ml-2" />
-                    <span className="hidden sm:inline">{t('auth.login')}</span>
-                  </button>
-                  
-                  <button
-                    onClick={openSignup}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                      scrollY > 50 
-                        ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                        : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                    }`}
-                  >
-                    <UserPlus className="w-4 h-4 ml-2" />
-                    <span className="hidden sm:inline">{t('auth.signup')}</span>
-                  </button>
-                </>
-              )}
-              
-              {/* Language Selector */}
-              <div className="relative group">
-                <button
-                  className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                    scrollY > 50 
-                      ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                      : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                  }`}
-                  title="تغيير اللغة"
-                >
-                  <Globe className="w-4 h-4 ml-2" />
-                  <img 
-                    src={getLanguageFlag(language)} 
-                    alt={`${getLanguageName(language)} flag`}
-                    className="w-5 h-5 rounded-full object-cover"
-                  />
-                  <span className="hidden sm:inline mr-2">{t(`language.${language === 'ar' ? 'arabic' : language === 'tr' ? 'turkish' : 'english'}`)}</span>
-                </button>
-                
-                {/* Language Dropdown */}
-                <div className="absolute top-full right-0 mt-2 bg-white dark:bg-jet-800 border border-platinum-200 dark:border-jet-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 min-w-[140px]">
-                  {(['ar', 'tr', 'en'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => handleLanguageChange(lang)}
-                      className={`w-full flex items-center px-4 py-3 text-left hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 ${
-                        language === lang ? 'bg-caribbean-100 dark:bg-caribbean-900/30 text-caribbean-700 dark:text-caribbean-400' : 'text-jet-600 dark:text-platinum-400'
-                      } ${lang === 'ar' ? 'first:rounded-t-lg' : ''} ${lang === 'en' ? 'last:rounded-b-lg' : ''}`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flag-shadow flag-gloss transition-all duration-200 ${
-                        language === lang 
-                          ? 'ring-2 ring-caribbean-400 ring-offset-2 ring-offset-white dark:ring-offset-jet-800' 
-                          : 'hover:ring-2 hover:ring-caribbean-200 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-jet-800'
-                      }`}>
-                        <img 
-                          src={getLanguageFlag(lang)} 
-                          alt={`${getLanguageName(lang)} flag`}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                      </div>
-                      <span className="text-sm mr-3">{t(`language.${lang === 'ar' ? 'arabic' : lang === 'tr' ? 'turkish' : 'english'}`)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dark Mode Toggle */}
-              <button
-                onClick={toggleDarkMode}
-                className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
-                  scrollY > 50 
-                    ? isDarkMode 
-                      ? 'bg-gradient-to-r from-caribbean-500 to-indigo-500 shadow-lg' 
-                      : 'bg-gray-300 dark:bg-gray-600 shadow-md'
-                    : isDarkMode 
-                      ? 'bg-gradient-to-r from-caribbean-400/80 to-indigo-400/80 backdrop-blur-sm border border-caribbean-300/50' 
-                      : 'bg-gray-200/80 backdrop-blur-sm border border-gray-300/50'
-                }`}
-              >
-                <div className={`absolute top-1 w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${
-                  isDarkMode 
-                    ? 'left-7 bg-white shadow-xl transform scale-105' 
-                    : 'left-1 bg-white shadow-lg'
-                }`}>
-                  {isDarkMode ? (
-                    <Sun className="w-3 h-3 text-sky-400" />
-                  ) : (
-                    <Moon className="w-3 h-3 text-gray-600" />
-                  )}
-                </div>
-              </button>
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden flex items-center space-x-2 space-x-reverse">
-              {/* Mobile Language Selector */}
-              <div className="relative group">
-                <button
-                  className={`flex items-center px-3 py-1.5 rounded-lg font-medium transition-all duration-300 ${
-                    scrollY > 50 
-                      ? 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700' 
-                      : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
-                  }`}
-                  title="تغيير اللغة"
-                >
-                  <Globe className="w-3 h-3 ml-1" />
-                  <img 
-                    src={getLanguageFlag(language)} 
-                    alt={`${getLanguageName(language)} flag`}
-                    className="w-4 h-4 rounded-full object-cover"
-                  />
-                </button>
-                
-                {/* Mobile Language Dropdown */}
-                <div className="absolute top-full right-0 mt-2 bg-white dark:bg-jet-800 border border-platinum-200 dark:border-jet-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 min-w-[140px]">
-                  {(['ar', 'tr', 'en'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => handleLanguageChange(lang)}
-                      className={`w-full flex items-center px-4 py-3 text-left hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 ${
-                        language === lang ? 'bg-caribbean-100 dark:bg-caribbean-900/30 text-caribbean-700 dark:text-caribbean-400' : 'text-jet-600 dark:text-platinum-400'
-                      } ${lang === 'ar' ? 'first:rounded-t-lg' : ''} ${lang === 'en' ? 'last:rounded-b-lg' : ''}`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flag-shadow flag-gloss transition-all duration-200 ${
-                        language === lang 
-                          ? 'ring-2 ring-caribbean-400 ring-offset-2 ring-offset-white dark:ring-offset-jet-800' 
-                          : 'hover:ring-2 hover:ring-caribbean-200 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-jet-800'
-                      }`}>
-                        <img 
-                          src={getLanguageFlag(lang)} 
-                          alt={`${getLanguageName(lang)} flag`}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                      </div>
-                      <span className="text-sm mr-3">{t(`language.${lang === 'ar' ? 'arabic' : lang === 'tr' ? 'turkish' : 'english'}`)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={toggleDarkMode}
-                className={`relative w-10 h-6 rounded-full transition-all duration-300 ${
-                  scrollY > 50 
-                    ? isDarkMode 
-                      ? 'bg-gradient-to-r from-caribbean-500 to-indigo-500 shadow-lg' 
-                      : 'bg-gray-300 dark:bg-gray-600 shadow-md'
-                    : isDarkMode 
-                      ? 'bg-gradient-to-r from-caribbean-400/80 to-indigo-400/80 backdrop-blur-sm border border-caribbean-300/50' 
-                      : 'bg-gray-200/80 backdrop-blur-sm border border-gray-300/50'
-                }`}
-              >
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 flex items-center justify-center ${
-                  isDarkMode 
-                    ? 'left-5 bg-white shadow-xl transform scale-105' 
-                    : 'left-0.5 bg-white shadow-lg'
-                }`}>
-                  {isDarkMode ? (
-                    <Sun className="w-2 h-2 text-sky-400" />
-                  ) : (
-                    <Moon className="w-2 h-2 text-gray-600" />
-                  )}
-                </div>
-              </button>
-              <button
-                className={`p-2 transition-colors duration-300 ${
-                  scrollY > 50 
-                    ? 'text-jet-800 dark:text-platinum-200' 
-                    : 'text-white drop-shadow-md'
-                }`}
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
+      <Navbar
+        onNavigateHome={navigateToMainHome}
+        onNavigateToContact={() => {
+          const contactSection = document.getElementById('contact');
+          if (contactSection) {
+            contactSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+        onOpenProfile={() => setShowProfileEdit(true)}
+        onOpenAccount={() => setShowUserAccount(true)}
+        onOpenHelp={() => setShowHelpSupport(true)}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        onSignOut={handleSignOut}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={toggleDarkMode}
+      />
 
         {/* Click outside to close dropdown */}
         {showUserDropdown && (
@@ -1321,185 +1198,9 @@ function App() {
           ></div>
         )}
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-white/95 dark:bg-jet-800/95 backdrop-blur-md border-t dark:border-jet-700 max-h-[80vh] overflow-y-auto">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              {navigation.map((item) => {
-                if (item.isSection) {
-                  return (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        const sectionId = item.href.replace('#', '');
-                        const section = document.getElementById(sectionId);
-                        if (section) {
-                          section.scrollIntoView({ 
-                            behavior: 'smooth',
-                            block: 'start'
-                          });
-                        }
-                        setIsMenuOpen(false);
-                      }}
-                      className={`block w-full text-left px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm ${isLanguageChanging ? 'language-change-text' : ''}`}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                } else {
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`block px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm ${isLanguageChanging ? 'language-change-text' : ''}`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {item.name}
-                    </Link>
-                  );
-                }
-              })}
-              
-              {/* Mobile Language Selector */}
-              <div className="px-3 py-2">
-                <div className="flex items-center justify-between p-3 bg-platinum-100 dark:bg-jet-700 rounded-lg">
-                  <span className={`text-jet-800 dark:text-platinum-200 font-medium text-sm ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('language.change')}</span>
-                  <div className="flex space-x-2 space-x-reverse">
-                    {(['ar', 'tr', 'en'] as const).map((lang) => (
-                      <button
-                        key={lang}
-                        onClick={() => handleLanguageChange(lang)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center flag-shadow flag-gloss transition-all duration-200 ${
-                          language === lang 
-                            ? 'ring-2 ring-caribbean-400 ring-offset-1 ring-offset-white dark:ring-offset-jet-700' 
-                            : 'bg-white dark:bg-jet-600 hover:ring-2 hover:ring-caribbean-200 hover:ring-offset-1 hover:ring-offset-white dark:hover:ring-offset-jet-700'
-                        }`}
-                        title={t(`language.${lang === 'ar' ? 'arabic' : lang === 'tr' ? 'turkish' : 'english'}`)}
-                      >
-                        <img 
-                          src={getLanguageFlag(lang)} 
-                          alt={`${getLanguageName(lang)} flag`}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile Auth Buttons */}
-              <div className="px-3 py-2 space-y-2">
-                {user ? (
-                  <>
-                    <div className="px-3 py-2 text-center">
-                      <span className={`text-jet-800 dark:text-platinum-200 font-medium text-sm ${isLanguageChanging ? 'language-change-text' : ''}`}>
-                        {t('user.welcome')} {profile?.full_name || user.email}
-                      </span>
-                    </div>
-                    
-                    {/* Admin/Moderator Control Panel Button - Mobile */}
-                    {(isAdmin || isModerator) && (
-                      <button
-                        onClick={() => {
-                          navigate('/admin');
-                          setIsMenuOpen(false);
-                          setShowUserDropdown(false);
-                        }}
-                        className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                      >
-                        <Settings className="w-4 h-4 ml-2" />
-                        {isAdmin ? 'لوحة التحكم' : 'لوحة الإشراف'}
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={() => {
-                        handleUserAccountClick();
-                        setIsMenuOpen(false);
-                        setShowUserDropdown(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                    >
-                      {hasNotifications && (
-                        <div className="relative ml-2">
-                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></div>
-                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full animate-ping"></div>
-                        </div>
-                      )}
-                      {t('user.transactions')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowProfileEdit(true);
-                        setIsMenuOpen(false);
-                        setShowUserDropdown(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                    >
-                      {t('user.profile')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowHelpSupport(true);
-                        setIsMenuOpen(false);
-                        setShowUserDropdown(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                    >
-                      {t('user.help')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleSignOut();
-                        setIsMenuOpen(false);
-                        setShowUserDropdown(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                    >
-                      {t('user.logout')}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        openLogin();
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 text-jet-800 dark:text-platinum-200 hover:bg-platinum-100 dark:hover:bg-jet-700 rounded-md transition-colors duration-300 text-sm"
-                    >
-                      <LogIn className="w-4 h-4 ml-2" />
-                      {t('auth.login')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        openSignup();
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center justify-center px-3 py-2.5 bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white rounded-md hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 text-sm"
-                    >
-                      <UserPlus className="w-4 h-4 ml-2" />
-                      {t('auth.signup')}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </nav>
-
-      {/* Click outside to close dropdown */}
-      {showUserDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowUserDropdown(false)}
-        ></div>
-      )}
-
       {/* Hero Section */}
-      <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 dark:from-jet-900 dark:via-indigo-900 dark:to-jet-800">
+      <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24 pb-20 md:pb-32">
+        <div className={`absolute inset-0 ${isDarkMode ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900' : 'bg-gradient-to-br from-blue-600 via-blue-400 to-white'}`}>
           {/* Animated Grid Background */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute inset-0" style={{
@@ -1529,47 +1230,62 @@ function App() {
             <div className="absolute top-1/3 right-16 w-24 h-1 bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent animate-speed-line-delayed"></div>
             <div className="absolute top-2/5 right-24 w-20 h-1 bg-gradient-to-r from-transparent via-caribbean-300/30 to-transparent animate-speed-line-delayed-2"></div>
             
-            {/* Floating Service Icons - Reduced count */}
-            <div className="absolute bottom-20 left-10 w-16 h-16 bg-caribbean-500/40 rounded-full flex items-center justify-center animate-float-wide-slower shadow-lg">
-              <FileText className="w-8 h-8 text-caribbean-300" />
-            </div>
-            <div className="absolute top-20 right-10 w-16 h-16 bg-indigo-500/40 rounded-full flex items-center justify-center animate-pulse-wide-slower shadow-lg">
-              <Users className="w-8 h-8 text-indigo-300" />
-            </div>
-            <div className="absolute bottom-1/3 left-1/6 w-16 h-16 bg-caribbean-600/40 rounded-full flex items-center justify-center animate-bounce-wide-slower shadow-lg">
-              <Zap className="w-8 h-8 text-caribbean-300" />
+            {/* Glassy Service Icons - Random Distribution with Slow Random Movement */}
+            {/* FileText Icon */}
+            <div className="absolute top-[15%] left-[18%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-1 shadow-lg">
+              <FileText className="w-10 h-10 text-white/70" />
             </div>
             
-            {/* Translation Service */}
-            <div className="absolute top-1/3 left-1/6 w-16 h-16 bg-purple-500/40 rounded-full flex items-center justify-center animate-float-wide-slower delay-1000 shadow-lg">
-              <Globe className="w-8 h-8 text-purple-300" />
+            {/* Users Icon */}
+            <div className="absolute top-[25%] right-[22%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-2 shadow-lg">
+              <Users className="w-10 h-10 text-white/70" />
             </div>
             
-            {/* Travel Service */}
-            <div className="absolute bottom-1/3 right-1/6 w-16 h-16 bg-blue-500/40 rounded-full flex items-center justify-center animate-pulse-wide-slow delay-2000 shadow-lg">
-              <MapPin className="w-8 h-8 text-blue-300" />
+            {/* Zap Icon */}
+            <div className="absolute top-[45%] left-[35%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-3 shadow-lg">
+              <Zap className="w-10 h-10 text-white/70" />
             </div>
             
-            {/* Legal Service */}
-            <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-green-500/40 rounded-full flex items-center justify-center animate-bounce-wide-slower delay-1500 shadow-lg">
-              <Shield className="w-8 h-8 text-green-300" />
+            {/* Globe Icon */}
+            <div className="absolute top-[35%] right-[45%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-4 shadow-lg">
+              <Globe className="w-10 h-10 text-white/70" />
             </div>
             
-            {/* Government Service */}
-            <div className="absolute bottom-1/4 left-1/4 w-16 h-16 bg-blue-500/40 rounded-full flex items-center justify-center animate-float-wide-slower delay-3000 shadow-lg">
-              <Building className="w-8 h-8 text-blue-300" />
+            {/* MapPin Icon */}
+            <div className="absolute top-[65%] left-[28%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-5 shadow-lg">
+              <MapPin className="w-10 h-10 text-white/70" />
             </div>
             
-            {/* Insurance Service */}
-            <div className="absolute top-1/4 right-1/4 w-16 h-16 bg-red-500/40 rounded-full flex items-center justify-center animate-pulse-wide-slower delay-2500 shadow-lg">
-              <Heart className="w-8 h-8 text-red-300" />
+            {/* Shield Icon */}
+            <div className="absolute top-[55%] right-[38%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-1 shadow-lg" style={{animationDelay: '-5s'}}>
+              <Shield className="w-10 h-10 text-white/70" />
+            </div>
+            
+            {/* Building Icon */}
+            <div className="absolute bottom-[30%] left-[42%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-2 shadow-lg" style={{animationDelay: '-8s'}}>
+              <Building className="w-10 h-10 text-white/70" />
+            </div>
+            
+            {/* Heart Icon */}
+            <div className="absolute bottom-[25%] right-[32%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-3 shadow-lg" style={{animationDelay: '-12s'}}>
+              <Heart className="w-10 h-10 text-white/70" />
+            </div>
+            
+            {/* Star Icon */}
+            <div className="absolute top-[75%] left-[55%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-4 shadow-lg" style={{animationDelay: '-15s'}}>
+              <Star className="w-10 h-10 text-white/70" />
+            </div>
+            
+            {/* CheckCircle Icon */}
+            <div className="absolute bottom-[40%] left-[15%] w-20 h-20 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-5 shadow-lg" style={{animationDelay: '-18s'}}>
+              <CheckCircle className="w-10 h-10 text-white/70" />
             </div>
             
             {/* Additional Animated Elements */}
-            <div className="absolute top-1/6 right-1/6 w-24 h-24 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 rounded-full animate-spin-slow"></div>
-            <div className="absolute bottom-1/6 left-1/6 w-20 h-20 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-full animate-spin-slow-reverse"></div>
-            <div className="absolute top-1/2 left-1/6 w-16 h-16 bg-gradient-to-r from-sky-400/20 to-blue-400/20 rounded-full animate-bounce-slow"></div>
-            <div className="absolute top-1/2 right-1/6 w-18 h-18 bg-gradient-to-r from-green-400/20 to-teal-400/20 rounded-full animate-pulse-slow delay-500"></div>
+            <div className="absolute top-1/6 right-1/6 w-24 h-24 glass-circle-dark rounded-full animate-spin-slow"></div>
+            <div className="absolute bottom-1/6 left-1/6 w-20 h-20 glass-circle-dark-2 rounded-full animate-spin-slow-reverse"></div>
+            <div className="absolute top-1/2 left-1/6 w-16 h-16 glass-circle-dark rounded-full animate-bounce-slow"></div>
+            <div className="absolute top-1/2 right-1/6 w-18 h-18 glass-circle-dark-2 rounded-full animate-pulse-slow delay-500"></div>
             
             {/* Animated Lines */}
             <div className="absolute top-1/4 left-1/2 w-32 h-0.5 bg-gradient-to-r from-transparent via-caribbean-400/30 to-transparent animate-pulse-slow"></div>
@@ -1578,35 +1294,76 @@ function App() {
             
             {/* Orbiting Elements */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="relative w-96 h-96">
-                <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow"></div>
-                <div className="absolute top-0 left-1/2 w-3 h-3 bg-caribbean-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-orbit"></div>
-                <div className="absolute bottom-0 right-1/2 w-2 h-2 bg-indigo-400 rounded-full transform translate-x-1/2 translate-y-1/2 animate-orbit-reverse"></div>
+              <div className="relative w-[500px] h-[500px]">
+                <div className="absolute inset-0 border border-white/5 rounded-full animate-spin-slow"></div>
+                <div className="absolute top-0 left-1/2 w-6 h-6 glass-circle-dark rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-orbit"></div>
+                <div className="absolute bottom-0 right-1/2 w-5 h-5 glass-circle-dark-2 rounded-full transform translate-x-1/2 translate-y-1/2 animate-orbit-reverse"></div>
+                <div className="absolute top-1/4 right-1/4 w-4 h-4 glass-circle-dark rounded-full animate-orbit" style={{animationDelay: '-5s'}}></div>
+                <div className="absolute bottom-1/4 left-1/4 w-3 h-3 glass-circle-dark-2 rounded-full animate-orbit-reverse" style={{animationDelay: '-3s'}}></div>
               </div>
             </div>
           </div>
 
-          {/* Mobile-only minimal floating elements */}
+          {/* Mobile-only glassy icon elements - Random Distribution with Slow Movement */}
           <div className="md:hidden">
-            {/* Only 2-3 simple floating elements for mobile */}
-            <div className="absolute top-20 left-10 w-12 h-12 bg-white/10 rounded-full shadow-lg animate-float-slow flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white/60" />
+            {/* FileText Icon */}
+            <div className="absolute top-[12%] left-[18%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-1 shadow-lg">
+              <FileText className="w-8 h-8 text-white/60" />
             </div>
-            <div className="absolute bottom-20 right-10 w-12 h-12 bg-caribbean-500/40 rounded-full flex items-center justify-center animate-float-slow delay-1000 shadow-lg">
-              <Users className="w-6 h-6 text-caribbean-300" />
+            
+            {/* Users Icon */}
+            <div className="absolute top-[28%] right-[15%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-2 shadow-lg">
+              <Users className="w-8 h-8 text-white/60" />
             </div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 rounded-full animate-pulse-slow"></div>
+            
+            {/* Zap Icon */}
+            <div className="absolute top-[45%] left-[25%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-3 shadow-lg">
+              <Zap className="w-8 h-8 text-white/60" />
+            </div>
+            
+            {/* Shield Icon */}
+            <div className="absolute top-[35%] right-[35%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-4 shadow-lg">
+              <Shield className="w-8 h-8 text-white/60" />
+            </div>
+            
+            {/* Globe Icon */}
+            <div className="absolute top-[62%] left-[12%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-5 shadow-lg">
+              <Globe className="w-8 h-8 text-white/60" />
+            </div>
+            
+            {/* MapPin Icon */}
+            <div className="absolute top-[55%] right-[22%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-1 shadow-lg" style={{animationDelay: '-3s'}}>
+              <MapPin className="w-8 h-8 text-white/60" />
+            </div>
+            
+            {/* Building Icon */}
+            <div className="absolute bottom-[25%] left-[38%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-2 shadow-lg" style={{animationDelay: '-6s'}}>
+              <Building className="w-8 h-8 text-white/60" />
+            </div>
+            
+            {/* Heart Icon */}
+            <div className="absolute bottom-[18%] right-[28%] w-16 h-16 glass-icon-circle rounded-full flex items-center justify-center animate-float-random-3 shadow-lg" style={{animationDelay: '-9s'}}>
+              <Heart className="w-8 h-8 text-white/60" />
+            </div>
           </div>
         </div>
+        
+        {/* Blurred Background Overlay for Text Readability */}
+        <div className="absolute inset-0 backdrop-blur-[2px] bg-black/30 pointer-events-none"></div>
 
         <div className="relative text-center px-4 max-w-6xl mx-auto">
-          {/* Logo Section - Adjusted for mobile */}
-          <div className="flex items-center justify-center mb-6 md:mb-8 animate-fade-in">
+          {/* Logo Section - Adjusted for mobile with dangerous scroll animation */}
+          <div className="flex items-center justify-center mb-6 md:mb-8 animate-fade-in relative">
+
+            
+            {/* Main logo */}
             <img 
               src="/logo-fınal.png" 
               alt="مجموعة تواصل" 
-              className={`w-32 h-32 md:w-40 md:h-40 lg:w-56 lg:h-56 xl:w-64 xl:h-64 object-contain animate-float brightness-0 invert ${isLanguageChanging ? 'language-change-logo' : ''}`}
+              className={`w-48 h-48 md:w-60 md:h-60 lg:w-84 lg:h-84 xl:w-96 xl:h-96 object-contain animate-float brightness-0 invert ${isLanguageChanging ? 'language-change-logo' : ''}`}
             />
+            
+
           </div>
           
           <h1 className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 md:mb-6 animate-fade-in-up text-white drop-shadow-lg leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
@@ -1650,16 +1407,18 @@ function App() {
       <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center animate-fade-in-delay-3">
         <button 
           onClick={scrollToServices}
-          className="group relative bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-base md:text-lg hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl flex items-center justify-center overflow-hidden animate-pulse-glow border-2 border-white/20 hover:border-white/40"
+          className="group relative bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-lg md:text-xl hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl flex items-center justify-center overflow-hidden animate-pulse-glow border-2 border-white/20 hover:border-white/40"
         >
           <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 animate-pulse"></div>
-          <span className="relative z-10">{t('hero.discoverServices')}</span>
-          <ChevronDown className="relative z-10 mr-2 md:mr-3 w-5 h-5 md:w-6 md:h-6 group-hover:translate-y-2 transition-transform duration-300 animate-bounce" />
+          <span className="relative z-10 flex items-center animate-pulse-text-arrow">
+            {t('hero.discoverServices')}
+            <ChevronDown className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-white/90" />
+          </span>
         </button>
         <button 
           onClick={scrollToContact}
-          className="group relative border-3 border-white/80 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-base md:text-lg hover:bg-white/20 hover:border-white transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl overflow-hidden animate-pulse-glow bg-gradient-to-r from-white/5 to-white/10"
+          className="group relative border-3 border-white/80 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-lg md:text-xl hover:bg-white/20 hover:border-white transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl overflow-hidden animate-pulse-glow bg-gradient-to-r from-white/5 to-white/10"
         >
           <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent animate-pulse"></div>
@@ -1670,165 +1429,231 @@ function App() {
         </button>
       </div>
       
-      {/* Trust Indicators - Simplified for mobile */}
-      <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-12 space-x-reverse mt-12 md:mt-16 animate-fade-in-delay-4">
-        <div className="flex items-center text-white/70 text-sm md:text-lg">
-          <Shield className="w-5 h-5 md:w-7 md:h-7 ml-2 md:ml-3 text-green-400" />
-          <span className="text-base md:text-xl font-semibold">{t('hero.trust.licensed')}</span>
-        </div>
-        <div className="flex items-center text-white/70 text-sm md:text-lg">
-          <Clock className="w-5 h-5 md:w-7 md:h-7 ml-2 md:ml-3 text-caribbean-400" />
-          <span className="text-base md:text-xl font-semibold">{t('hero.trust.fast')}</span>
-        </div>
-        <div className="flex items-center text-white/70 text-sm md:text-lg">
-          <Star className="w-5 h-5 md:w-7 md:h-7 ml-2 md:ml-3 text-sky-400" />
-          <span className="text-base md:text-xl font-semibold">{t('hero.trust.excellent')}</span>
+      {/* Trust Indicators - Icons in row, text below */}
+      <div className="flex flex-col items-center space-y-4 mt-12 md:mt-16 animate-fade-in-delay-4">
+        {/* Icons Row */}
+        <div className="flex justify-center items-center space-x-reverse">
+          <div className="flex flex-col items-center">
+            <Shield className="w-12 h-12 md:w-16 md:h-16 text-green-400 mb-4" />
+            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.licensed')}</span>
+          </div>
+          <div className="flex flex-col items-center mx-20 md:mx-32">
+            <Clock className="w-12 h-12 md:w-16 md:h-16 text-caribbean-400 mb-4" />
+            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.fast')}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <Star className="w-12 h-12 md:w-16 md:h-16 text-sky-400 mb-4" />
+            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.excellent')}</span>
+          </div>
         </div>
       </div>
     </div>
     
-    {/* Chat Bot Button - Replaces Available Now */}
-    <div className="absolute bottom-10 left-10 animate-bounce-slow">
-      <button
-        onClick={() => setIsChatBotOpen(!isChatBotOpen)}
-        className="bg-gradient-to-r from-caribbean-600 to-indigo-700 hover:from-caribbean-700 hover:to-indigo-800 backdrop-blur-sm rounded-full p-3 md:p-4 border-2 border-white/20 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group"
-      >
-        <div className="flex items-center text-white text-xs md:text-sm font-semibold">
-          <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 group-hover:animate-pulse" />
-          <span className="hidden sm:inline">{language === 'ar' ? 'شات بوت' : 'Chat Bot'}</span>
-        </div>
-      </button>
-    </div>
-    
-    <div className="absolute bottom-10 right-10 animate-float hidden md:block">
-      <div className="bg-caribbean-500/20 backdrop-blur-sm rounded-full p-4 border border-caribbean-400/30 flex items-center justify-center">
-        <button onClick={scrollToServices} className="flex items-center text-white text-sm hover:text-caribbean-200 transition-colors duration-300">
-          {t('hero.discoverServicesShort')}
-          <ChevronDown className="mr-2 w-5 h-5 group-hover:translate-y-1 transition-transform duration-300 animate-bounce" />
-          <ArrowRight className="w-4 h-4 mr-2" />
-        </button>
-      </div>
-    </div>
 
-    {/* Mobile Chat Bot Button */}
-    <div className="fixed bottom-6 right-6 z-40 md:hidden">
-      <button
-        onClick={() => setIsChatBotOpen(!isChatBotOpen)}
-        className="bg-gradient-to-r from-caribbean-600 to-indigo-700 hover:from-caribbean-700 hover:to-indigo-800 rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-      >
-        <MessageCircle className="w-5 h-5 text-white" />
-      </button>
-    </div>
   </section>
 
+  {/* Glass Divider */}
+  <div className="relative h-1 overflow-hidden">
+    <div className="absolute inset-0 glass-divider"></div>
+  </div>
+
   {/* Services Section */}
-  <section id="services" className="py-20 bg-gradient-to-br from-caribbean-50/30 via-indigo-50/20 to-platinum-50 dark:from-caribbean-900/10 dark:via-indigo-900/5 dark:to-jet-700 relative overflow-hidden pt-24 md:pt-20">
-    {/* Background Elements */}
+  <section id="services" className={`py-20 ${isDarkMode ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100'} relative overflow-hidden pt-24 md:pt-20 services-section`}>
+    {/* Background Elements - Matching Hero Design */}
     <div className="absolute inset-0 overflow-hidden">
+      {/* Animated Grid Background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px',
+          animation: 'grid-move 20s linear infinite'
+        }}></div>
+      </div>
+      
+      {/* Floating Background Elements */}
       <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-caribbean-200/20 to-indigo-200/20 dark:from-caribbean-800/10 dark:to-indigo-800/10 rounded-full blur-3xl animate-float"></div>
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-indigo-200/20 to-caribbean-200/20 dark:from-indigo-800/10 dark:to-caribbean-800/10 rounded-full blur-3xl animate-float-reverse"></div>
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-caribbean-100/30 to-indigo-100/30 dark:from-caribbean-900/20 dark:to-indigo-900/20 rounded-full blur-2xl animate-pulse-slow"></div>
+      
+      {/* Additional Floating Elements */}
+      <div className="absolute top-20 left-10 w-16 h-16 glass-effect rounded-full shadow-lg animate-float-slow transform rotate-12 flex items-center justify-center">
+        <FileText className="w-8 h-8 text-white/60" />
+      </div>
+      <div className="absolute bottom-20 right-10 w-16 h-16 glass-effect rounded-full flex items-center justify-center animate-float-wide-slower shadow-lg">
+        <Users className="w-8 h-8 text-caribbean-300" />
+      </div>
+      <div className="absolute top-1/3 right-1/6 w-16 h-16 glass-effect rounded-full flex items-center justify-center animate-pulse-wide-slower shadow-lg">
+        <Shield className="w-8 h-8 text-indigo-300" />
+      </div>
+      <div className="absolute bottom-1/3 left-1/6 w-16 h-16 glass-effect rounded-full flex items-center justify-center animate-bounce-wide-slower shadow-lg">
+        <Globe className="w-8 h-8 text-caribbean-300" />
+      </div>
+      <div className="absolute top-1/2 left-1/4 w-12 h-12 glass-effect rounded-full flex items-center justify-center animate-glass-float shadow-lg">
+        <Star className="w-6 h-6 text-sky-300" />
+      </div>
+      <div className="absolute bottom-1/4 right-1/4 w-14 h-14 glass-effect rounded-full flex items-center justify-center animate-glass-pulse shadow-lg">
+        <Heart className="w-7 h-7 text-red-300" />
+      </div>
     </div>
     
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      <div className="text-center mb-16 animate-fade-in">
-        <h2 className={`text-4xl md:text-5xl font-bold bg-gradient-to-r from-caribbean-700 via-indigo-700 to-caribbean-600 dark:from-caribbean-400 dark:via-indigo-400 dark:to-caribbean-300 bg-clip-text text-transparent mb-6 animate-text-shimmer bg-[length:200%_100%] ${isLanguageChanging ? 'language-change-text' : ''}`}>
+      <div className="text-center mb-16 animate-fade-in services-section-header">
+        <h2 className={`text-4xl md:text-5xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'} mb-6 services-title ${isLanguageChanging ? 'language-change-text' : ''}`}>
           {t('services.title')}
         </h2>
-        <p className={`text-xl text-jet-700 dark:text-platinum-300 max-w-3xl mx-auto leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
+        <p className={`text-xl ${isDarkMode ? 'text-white/80' : 'text-slate-600'} max-w-3xl mx-auto leading-relaxed services-subtitle ${isLanguageChanging ? 'language-change-text' : ''}`}>
           {t('services.subtitle')}
         </p>
+        {/* Decorative Line */}
+        <div className="w-16 h-0.5 mx-auto mt-6 rounded-full services-decorative-line"></div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 services-grid">
         {services.map((service, index) => (
-          <div
-            key={index}
-            className="group bg-white dark:bg-jet-800 p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-platinum-300 dark:border-jet-600 hover:border-caribbean-300 dark:hover:border-caribbean-500"
-          >
-            <div className="mb-6 p-3 bg-gradient-to-r from-caribbean-50 to-indigo-50 dark:from-caribbean-900/20 dark:to-indigo-900/20 rounded-2xl w-fit group-hover:scale-110 transition-transform duration-300">
+                      <div
+              key={index}
+              className={`group relative p-8 rounded-2xl shadow-2xl hover:shadow-3xl service-card-hover service-card-enhanced overflow-hidden animate-fade-in service-card-container ${
+                isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
+              }`}
+              style={{
+                animationDelay: `${index * 0.1}s`
+              }}
+            >
+            {/* Glass Effect Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 dark:from-caribbean-900/10 dark:to-indigo-900/10 rounded-2xl animate-glass-pulse"></div>
+            
+            {/* Animated Border Glow */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-caribbean-400/20 via-indigo-400/20 to-caribbean-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm animate-border-glow"></div>
+            
+            {/* Content */}
+            <div className="relative z-10 flex flex-col h-full service-card-content">
+              <div className="service-content-area">
+                <div className="mb-6 p-4 glass-effect dark:glass-effect-dark rounded-2xl w-fit group-hover:scale-110 transition-transform duration-300 animate-glass-float service-icon-float service-icon-container">
+                  <div className={`service-icon ${
+                    service.id === 'health-insurance' ? 'service-icon-health' :
+                    service.id === 'translation' ? 'service-icon-translation' :
+                    service.id === 'travel' ? 'service-icon-travel' :
+                    service.id === 'legal' ? 'service-icon-legal' :
+                    service.id === 'government' ? 'service-icon-government' :
+                    service.id === 'insurance' ? 'service-icon-insurance' : ''
+                  }`}>
               {service.icon}
             </div>
-            <h3 className="text-2xl font-bold mb-4 text-jet-800 dark:text-platinum-200 group-hover:text-caribbean-700 dark:group-hover:text-caribbean-400 transition-colors duration-300">
+                </div>
+                
+                <h3 className={`text-2xl font-bold mb-4 transition-colors duration-300 text-glow-caribbean ${
+                  isDarkMode ? 'text-white group-hover:text-caribbean-300' : 'text-slate-800 group-hover:text-caribbean-600'
+                }`}>
               {service.title}
             </h3>
-            <p className="text-jet-600 dark:text-platinum-400 leading-relaxed mb-6">
+                
+                <p className={`leading-relaxed drop-shadow-sm ${
+                  isDarkMode ? 'text-white/80' : 'text-slate-600'
+                }`}>
               {service.description}
             </p>
+              </div>
+              
+              {/* Buttons Container - Fixed at Bottom */}
+              <div className="service-card-buttons service-button-group">
             <button 
               onClick={() => handleServiceClick(service.id)}
-              className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center group"
+                  className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center group/btn backdrop-blur-sm border border-white/20 animate-glass-shimmer glass-button"
             >
-              {t('services.discoverMore')}
-              <ArrowRight className="mr-2 w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  <span className="relative z-10">{t('services.discoverMore')}</span>
+                  <ArrowRight className="mr-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300 relative z-10" />
+                  <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left rounded-lg"></div>
             </button>
+                
             {user && (
               <button 
                 onClick={() => openServiceRequestForm(service.id, service.title)}
-                className="w-full mt-2 bg-white dark:bg-jet-700 text-caribbean-600 dark:text-caribbean-400 border-2 border-caribbean-600 dark:border-caribbean-400 py-2 px-6 rounded-lg font-semibold hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-all duration-300 flex items-center justify-center"
+                    className="w-full glass-effect dark:glass-effect-dark text-white border-2 border-white/30 dark:border-jet-600/30 py-2 px-6 rounded-lg font-semibold hover:bg-white/20 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center"
               >
                 {t('services.quickRequest')}
               </button>
             )}
+                
             {!user && (
               <button 
                 onClick={() => openServiceRequestForm(service.id, service.title)}
-                className="w-full mt-2 bg-blue-500 text-white border-2 border-blue-500 py-2 px-6 rounded-lg font-semibold hover:bg-blue-600 hover:border-blue-600 transition-all duration-300 flex items-center justify-center"
+                    className="w-full login-button text-white border-2 border-white/30 dark:border-jet-600/30 py-2 px-6 rounded-lg font-semibold hover:bg-white/20 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center login-pulse-glow relative overflow-hidden"
               >
+                    <span className="relative z-10 flex items-center">
+                      <User className="w-4 h-4 mr-2 login-icon" />
                 {t('services.loginToRequest')}
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
               </button>
             )}
+              </div>
+            </div>
+            
+            {/* Hover Effect Glow */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-caribbean-400/0 via-caribbean-400/10 to-indigo-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"></div>
           </div>
         ))}
       </div>
     </div>
   </section>
 
+  {/* Glass Divider */}
+  <div className="relative h-1 overflow-hidden">
+    <div className="absolute inset-0 glass-divider"></div>
+  </div>
+
   {/* About Section */}
-  <section id="about" className="py-20 bg-white dark:bg-jet-800 pt-24 md:pt-20">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <section id="about" className={`py-20 ${isDarkMode ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'} relative overflow-hidden pt-24 md:pt-20`}>
+    {/* Background Elements */}
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-caribbean-200/10 to-indigo-200/10 dark:from-caribbean-800/5 dark:to-indigo-800/5 rounded-full blur-3xl animate-float"></div>
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-gradient-to-tr from-indigo-200/10 to-caribbean-200/10 dark:from-indigo-800/5 dark:to-caribbean-800/5 rounded-full blur-3xl animate-float-reverse"></div>
+    </div>
+    
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <div className="grid lg:grid-cols-2 gap-12 items-center">
         <div>
-          <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${isLanguageChanging ? 'language-change-text' : ''}`}>
-            <span className="bg-gradient-to-r from-caribbean-600 via-indigo-600 to-caribbean-800 bg-clip-text text-transparent">
-              <span className="pb-2 block">{t('about.title')}</span>
-            </span>
+          <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-slate-800'} ${isLanguageChanging ? 'language-change-text' : ''}`}>
+            {t('about.title')}
           </h2>
-          <p className={`text-xl text-jet-600 dark:text-platinum-400 mb-6 leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <p className={`text-xl ${isDarkMode ? 'text-white/85' : 'text-slate-700'} mb-6 leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
             {t('about.description1')}
           </p>
-          <p className={`text-lg text-jet-600 dark:text-platinum-400 mb-8 leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <p className={`text-lg ${isDarkMode ? 'text-white/80' : 'text-slate-600'} mb-8 leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
             {t('about.description2')}
           </p>
           <div className="grid grid-cols-2 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-caribbean-600 dark:text-caribbean-400 mb-2">5000+</div>
-              <div className="text-jet-600 dark:text-platinum-400">{t('about.stats.clients')}</div>
+            <div className={`text-center p-4 rounded-xl ${isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'}`}>
+              <div className="text-3xl font-bold text-caribbean-600 mb-2">5000+</div>
+              <div className={isDarkMode ? 'text-white/70' : 'text-slate-600'}>{t('about.stats.clients')}</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">10+</div>
-              <div className="text-jet-600 dark:text-platinum-400">{t('about.stats.experience')}</div>
+            <div className={`text-center p-4 rounded-xl ${isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'}`}>
+              <div className="text-3xl font-bold text-indigo-600 mb-2">10+</div>
+              <div className={isDarkMode ? 'text-white/70' : 'text-slate-600'}>{t('about.stats.experience')}</div>
             </div>
           </div>
         </div>
         <div className="relative">
-          <div className="bg-gradient-to-br from-caribbean-100 to-indigo-100 dark:from-caribbean-900/20 dark:to-indigo-900/20 rounded-2xl p-8">
+          <div className={`p-8 rounded-2xl ${isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'}`}>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-jet-700 p-4 rounded-lg text-center">
-                <Users className="w-8 h-8 text-caribbean-500 mx-auto mb-2" />
-                <div className="font-semibold text-jet-800 dark:text-platinum-200">{t('about.features.team')}</div>
+              <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Users className="w-8 h-8 text-caribbean-600 mx-auto mb-2" />
+                <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{t('about.features.team')}</div>
               </div>
-              <div className="bg-white dark:bg-jet-700 p-4 rounded-lg text-center">
-                <Zap className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
-                <div className="font-semibold text-jet-800 dark:text-platinum-200">{t('about.features.speed')}</div>
+              <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Zap className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
+                <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{t('about.features.speed')}</div>
               </div>
-              <div className="bg-white dark:bg-jet-700 p-4 rounded-lg text-center">
-                <Shield className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <div className="font-semibold text-jet-800 dark:text-platinum-200">{t('about.features.security')}</div>
+              <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Shield className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{t('about.features.security')}</div>
               </div>
-              <div className="bg-white dark:bg-jet-700 p-4 rounded-lg text-center">
-                <Heart className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                <div className="font-semibold text-jet-800 dark:text-platinum-200">{t('about.features.care')}</div>
+              <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Heart className="w-8 h-8 text-red-600 mx-auto mb-2" />
+                <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{t('about.features.care')}</div>
               </div>
             </div>
           </div>
@@ -1837,39 +1662,54 @@ function App() {
     </div>
   </section>
 
+  {/* Glass Divider */}
+  <div className="relative h-1 overflow-hidden">
+    <div className="absolute inset-0 glass-divider"></div>
+  </div>
+
   {/* Contact Section */}
-  <section id="contact" className="py-20 bg-gradient-to-br from-caribbean-50/30 via-indigo-50/20 to-platinum-50 dark:from-caribbean-900/10 dark:via-indigo-900/5 dark:to-jet-700 pt-24 md:pt-20">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <section id="contact" className={`py-20 ${isDarkMode ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'} relative overflow-hidden pt-24 md:pt-20`}>
+    {/* Background Elements */}
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-caribbean-200/10 to-indigo-200/10 dark:from-caribbean-800/5 dark:to-indigo-800/5 rounded-full blur-3xl animate-float"></div>
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-indigo-200/10 to-caribbean-200/10 dark:from-indigo-800/5 dark:to-caribbean-800/5 rounded-full blur-3xl animate-float-reverse"></div>
+    </div>
+    
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <div className="text-center mb-16">
-        <h2 className={`text-4xl md:text-5xl font-bold bg-gradient-to-r from-caribbean-700 via-indigo-700 to-caribbean-600 dark:from-caribbean-400 dark:via-indigo-400 dark:to-caribbean-300 bg-clip-text text-transparent mb-6 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+        <h2 className={`text-4xl md:text-5xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'} mb-6 ${isLanguageChanging ? 'language-change-text' : ''}`}>
           {t('contact.title')}
         </h2>
-        <p className={`text-xl text-jet-700 dark:text-platinum-300 max-w-3xl mx-auto ${isLanguageChanging ? 'language-change-text' : ''}`}>
+        <p className={`text-xl ${isDarkMode ? 'text-white/85' : 'text-slate-600'} max-w-3xl mx-auto ${isLanguageChanging ? 'language-change-text' : ''}`}>
           {t('contact.subtitle')}
         </p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-12">
         <div>
-          <div className="bg-white dark:bg-jet-800 p-8 rounded-2xl shadow-lg border border-platinum-300 dark:border-jet-600">
-            <h3 className={`text-2xl font-bold mb-6 text-jet-800 dark:text-platinum-200 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <div className={`p-8 rounded-2xl ${isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'}`}>
+            <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-slate-800'} ${isLanguageChanging ? 'language-change-text' : ''}`}>
               {t('contact.info.title')}
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center">
-                <Mail className="w-6 h-6 text-caribbean-500 ml-3" />
-                <span className="text-jet-600 dark:text-platinum-400">info@tevasul.group</span>
+              <div className={`flex items-center p-3 rounded-lg ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Mail className="w-6 h-6 text-caribbean-600 ml-3" />
+                <span className={isDarkMode ? 'text-white/90' : 'text-slate-700'}>info@tevasul.group</span>
               </div>
-              <div className="flex items-center">
-                <Phone className="w-6 h-6 text-indigo-500 ml-3" />
-                <span className="text-jet-600 dark:text-platinum-400 font-mono text-left font-bold" dir="ltr">
+              <div className={`flex items-center p-3 rounded-lg ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <Phone className="w-6 h-6 text-indigo-600 ml-3" />
+                <a 
+                  href="tel:+905349627241" 
+                  className={`font-sans text-left font-semibold tracking-wide transition-colors duration-300 cursor-pointer ${isDarkMode ? 'text-white/90 hover:text-indigo-300' : 'text-slate-700 hover:text-indigo-600'}`}
+                  dir="ltr"
+                >
                   +90 534 962 72 41
-                </span>
+                </a>
                 <a
                   href="https://wa.me/905349627241"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors cursor-pointer"
+                  className="p-1 text-green-300 hover:text-green-200 hover:bg-green-500/20 rounded transition-colors cursor-pointer"
                   title="فتح الواتساب"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -1877,81 +1717,133 @@ function App() {
                   </svg>
                 </a>
               </div>
-              <div className="flex items-center">
-                <MapPin className="w-6 h-6 text-green-500 ml-3" />
-                <span className="text-jet-600 dark:text-platinum-400">{t('contact.info.address')}</span>
+              <div className={`flex items-center p-3 rounded-lg ${isDarkMode ? 'glass-effect-dark' : 'bg-slate-50/80 backdrop-blur-sm border border-slate-200'}`}>
+                <MapPin className="w-6 h-6 text-green-600 ml-3" />
+                <a 
+                  href="https://maps.app.goo.gl/39YFtk8fcES8p1JA8?g_st=awb" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`transition-colors duration-300 cursor-pointer ${isDarkMode ? 'text-white/90 hover:text-green-300' : 'text-slate-700 hover:text-green-600'}`}
+                >
+                  {t('contact.info.address')}
+                </a>
               </div>
             </div>
           </div>
         </div>
 
         <div>
-          <form onSubmit={handleContactSubmit} className="bg-white dark:bg-jet-800 p-8 rounded-2xl shadow-lg border border-platinum-300 dark:border-jet-600 space-y-6">
+          <form onSubmit={handleContactSubmit} className={`p-8 rounded-2xl space-y-6 ${isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'}`}>
             {/* Success/Error Messages */}
             {contactSuccess && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div className={`rounded-lg p-4 ${
+                isDarkMode 
+                  ? 'bg-green-900/20 border border-green-800' 
+                  : 'bg-green-50 border border-green-200'
+              }`}>
                 <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
-                  <span className="text-green-800 dark:text-green-200">
-                    {language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz.'}
+                  <CheckCircle className={`w-5 h-5 ml-2 ${
+                    isDarkMode ? 'text-green-400' : 'text-green-600'
+                  }`} />
+                  <span className={isDarkMode ? 'text-green-200' : 'text-green-800'}>
+                    {user 
+                      ? (language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz.')
+                      : (language === 'ar' ? 'تم إرسال رسالتك بنجاح! سنتواصل معك قريباً. شكراً لاهتمامك بمجموعة تواصل.' : 'Mesajınız başarıyla gönderildi! Yakında sizinle iletişime geçeceğiz. Tevasul Group\'a ilginiz için teşekkürler.')
+                    }
                   </span>
                 </div>
               </div>
             )}
             
             {contactError && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className={`rounded-lg p-4 ${
+                isDarkMode 
+                  ? 'bg-red-900/20 border border-red-800' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
                 <div className="flex items-center">
-                  <X className="w-5 h-5 text-red-600 dark:text-red-400 ml-2" />
-                  <span className="text-red-800 dark:text-red-200">{contactError}</span>
+                  <X className={`w-5 h-5 ml-2 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`} />
+                  <span className={isDarkMode ? 'text-red-200' : 'text-red-800'}>{contactError}</span>
                 </div>
               </div>
             )}
 
             <div>
-              <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.name')}</label>
+              <label className={`block text-sm font-medium text-white/90 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.name')}</label>
               <input
                 type="text"
                 value={contactForm.name}
                 onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-400 focus:border-transparent transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'glass-effect-dark text-white placeholder-white/50' 
+                    : 'bg-white/90 border border-slate-300 text-slate-800 placeholder-slate-500'
+                }`}
                 placeholder={t('contact.form.name') as string}
                 required
               />
             </div>
             <div>
-              <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.email')}</label>
+              <label className={`block text-sm font-medium ${isDarkMode ? 'text-white/90' : 'text-slate-700'} mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.email')}</label>
               <input
                 type="email"
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-400 focus:border-transparent transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'glass-effect-dark text-white placeholder-white/50' 
+                    : 'bg-white/90 border border-slate-300 text-slate-800 placeholder-slate-500'
+                }`}
                 placeholder="example@email.com"
+              />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium ${isDarkMode ? 'text-white/90' : 'text-slate-700'} mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.phone')}</label>
+              <input
+                type="tel"
+                value={contactForm.phone}
+                onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-400 focus:border-transparent transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'glass-effect-dark text-white placeholder-white/50' 
+                    : 'bg-white/90 border border-slate-300 text-slate-800 placeholder-slate-500'
+                }`}
+                placeholder="+90 534 962 72 41"
                 required
               />
             </div>
             <div>
-              <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.serviceType')}</label>
+              <label className={`block text-sm font-medium ${isDarkMode ? 'text-white/90' : 'text-slate-700'} mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.serviceType')}</label>
               <select 
                 value={contactForm.serviceType}
                 onChange={(e) => setContactForm({ ...contactForm, serviceType: e.target.value })}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-400 focus:border-transparent transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'glass-effect-dark text-white' 
+                    : 'bg-white/90 border border-slate-300 text-slate-800'
+                }`}
               >
-                <option value="">{t('contact.form.selectService')}</option>
-                <option value={t('contact.form.translation') as string}>{t('contact.form.translation')}</option>
-                <option value={t('contact.form.travel') as string}>{t('contact.form.travel')}</option>
-                <option value={t('contact.form.legal') as string}>{t('contact.form.legal')}</option>
-                <option value={t('contact.form.government') as string}>{t('contact.form.government')}</option>
-                <option value={t('contact.form.insurance') as string}>{t('contact.form.insurance')}</option>
+                <option value="" className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.selectService')}</option>
+                <option value={t('contact.form.translation') as string} className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.translation')}</option>
+                <option value={t('contact.form.travel') as string} className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.travel')}</option>
+                <option value={t('contact.form.legal') as string} className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.legal')}</option>
+                <option value={t('contact.form.government') as string} className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.government')}</option>
+                <option value={t('contact.form.insurance') as string} className={isDarkMode ? 'text-jet-900' : 'text-slate-800'}>{t('contact.form.insurance')}</option>
               </select>
             </div>
             <div>
-              <label className={`block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.message')}</label>
+              <label className={`block text-sm font-medium ${isDarkMode ? 'text-white/90' : 'text-slate-700'} mb-2 ${isLanguageChanging ? 'language-change-text' : ''}`}>{t('contact.form.message')}</label>
               <textarea
                 rows={5}
                 value={contactForm.message}
                 onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-400 focus:border-transparent transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'glass-effect-dark text-white placeholder-white/50' 
+                    : 'bg-white/90 border border-slate-300 text-slate-800 placeholder-slate-500'
+                }`}
                 placeholder={t('contact.form.message') as string}
                 required
               ></textarea>
@@ -1959,7 +1851,11 @@ function App() {
             <button
               type="submit"
               disabled={contactLoading}
-              className={`w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-4 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center ${isLanguageChanging ? 'language-change-text' : ''}`}
+              className={`w-full py-4 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center ${isLanguageChanging ? 'language-change-text' : ''} ${
+                isDarkMode 
+                  ? 'glass-button text-white' 
+                  : 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white hover:from-caribbean-700 hover:to-indigo-700'
+              }`}
             >
               {contactLoading ? (
                 <>
@@ -1979,25 +1875,315 @@ function App() {
     </div>
   </section>
 
+  {/* Glass Divider */}
+  <div className="relative h-1 overflow-hidden">
+    <div className="absolute inset-0 glass-divider"></div>
+  </div>
+
   {/* Footer */}
-  <footer className="bg-jet-900 dark:bg-black text-white py-12">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div className="flex items-center justify-center space-x-3 space-x-reverse mb-4">
+  <footer className={`relative overflow-hidden ${
+    isDarkMode 
+      ? 'bg-gradient-to-br from-jet-900 via-slate-900 to-black text-white' 
+      : 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 text-slate-800'
+  }`}>
+    {/* Animated Background */}
+    <div className="absolute inset-0">
+      <div className={`absolute inset-0 ${
+        isDarkMode 
+          ? 'bg-gradient-to-r from-caribbean-900/10 via-indigo-900/10 to-caribbean-900/10' 
+          : 'bg-gradient-to-r from-caribbean-500/5 via-indigo-500/5 to-caribbean-500/5'
+      }`}></div>
+      <div className={`absolute top-0 left-0 w-full h-1 ${
+        isDarkMode 
+          ? 'bg-gradient-to-r from-transparent via-caribbean-500 to-transparent opacity-50' 
+          : 'bg-gradient-to-r from-transparent via-caribbean-400 to-transparent opacity-30'
+      }`}></div>
+      <div className={`absolute -top-40 -left-40 w-80 h-80 ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-caribbean-500/5 to-indigo-500/5' 
+          : 'bg-gradient-to-br from-caribbean-400/10 to-indigo-400/10'
+      } rounded-full blur-3xl animate-float`}></div>
+      <div className={`absolute -bottom-40 -right-40 w-96 h-96 ${
+        isDarkMode 
+          ? 'bg-gradient-to-tr from-indigo-500/5 to-caribbean-500/5' 
+          : 'bg-gradient-to-tr from-indigo-400/10 to-caribbean-400/10'
+      } rounded-full blur-3xl animate-float-reverse`}></div>
+    </div>
+
+    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Main Footer Content */}
+      <div className="py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          {/* Company Info */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center space-x-3 space-x-reverse mb-6">
+              <div className="relative">
         <img 
           src="/logo-fınal.png" 
           alt="مجموعة تواصل" 
-          className={`w-8 h-8 rounded-lg object-cover shadow-md ${isLanguageChanging ? 'language-change-logo' : ''}`}
+                  className={`w-12 h-12 rounded-xl object-cover shadow-lg ${isLanguageChanging ? 'language-change-logo' : ''} hover:scale-110 transition-transform duration-300`}
         />
-        <span className={`text-xl font-bold bg-gradient-to-r from-caribbean-400 via-indigo-400 to-caribbean-600 bg-clip-text text-transparent ${isLanguageChanging ? 'language-change-text' : ''}`}>مجموعة تواصل</span>
+                <div className="absolute -inset-1 bg-gradient-to-r from-caribbean-500 to-indigo-500 rounded-xl blur opacity-20 animate-pulse"></div>
       </div>
-      <p className={`text-platinum-400 mb-4 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+              <div>
+                <h3 className={`text-2xl font-bold bg-gradient-to-r from-caribbean-400 via-indigo-400 to-caribbean-600 bg-clip-text text-transparent ${isLanguageChanging ? 'language-change-text' : ''}`}>
+                  مجموعة تواصل
+                </h3>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-caribbean-300' : 'text-caribbean-600'}`}>Tevasul Group</p>
+              </div>
+            </div>
+            <p className={`leading-relaxed mb-6 max-w-md ${isLanguageChanging ? 'language-change-text' : ''} ${
+              isDarkMode ? 'text-white/80' : 'text-slate-600'
+            }`}>
         {t('footer.description')}
       </p>
-      <p className={`text-sm text-platinum-500 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+                         <div className="flex space-x-4 space-x-reverse">
+            <a href="https://twitter.com/TawasulGroupTr" target="_blank" rel="noopener noreferrer" className={`w-10 h-10 rounded-lg flex items-center justify-center hover:scale-110 transition-all duration-300 group footer-link-hover ${
+              isDarkMode ? 'glass-effect' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
+            }`}>
+              <svg className={`w-5 h-5 transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'text-white group-hover:text-caribbean-300' 
+                  : 'text-slate-700 group-hover:text-caribbean-600'
+              }`} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+              </svg>
+            </a>
+            <a href="https://www.facebook.com/tawasul.group.tr" target="_blank" rel="noopener noreferrer" className={`w-10 h-10 rounded-lg flex items-center justify-center hover:scale-110 transition-all duration-300 group footer-link-hover ${
+              isDarkMode ? 'glass-effect' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
+            }`}>
+              <svg className={`w-5 h-5 transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'text-white group-hover:text-indigo-300' 
+                  : 'text-slate-700 group-hover:text-indigo-600'
+              }`} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
+            <a href="https://wa.me/905349627241" target="_blank" rel="noopener noreferrer" className={`w-10 h-10 rounded-lg flex items-center justify-center hover:scale-110 transition-all duration-300 group footer-link-hover ${
+              isDarkMode ? 'glass-effect' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
+            }`}>
+              <svg className={`w-5 h-5 transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'text-white group-hover:text-green-300' 
+                  : 'text-slate-700 group-hover:text-green-600'
+              }`} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+              </svg>
+            </a>
+          </div>
+          </div>
+
+          {/* Quick Links */}
+          <div>
+            <h4 className={`text-lg font-bold mb-6 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-slate-800'
+            }`}>
+              <span className="w-8 h-0.5 bg-gradient-to-r from-caribbean-500 to-indigo-500 mr-3"></span>
+              {t('footer.quickLinks')}
+            </h4>
+                         <ul className="space-y-3">
+               <li>
+                 <a href="#hero" onClick={(e) => {
+                   e.preventDefault();
+                   const heroSection = document.getElementById('hero');
+                   if (heroSection) {
+                     heroSection.scrollIntoView({ behavior: 'smooth' });
+                   }
+                 }} className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                   isDarkMode 
+                     ? 'text-white/70 hover:text-caribbean-300' 
+                     : 'text-slate-600 hover:text-caribbean-600'
+                 }`}>
+                   {t('nav.home')}
+                 </a>
+               </li>
+               <li>
+                 <a href="#services" onClick={(e) => {
+                   e.preventDefault();
+                   const servicesSection = document.getElementById('services');
+                   if (servicesSection) {
+                     servicesSection.scrollIntoView({ behavior: 'smooth' });
+                   }
+                 }} className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                   isDarkMode 
+                     ? 'text-white/70 hover:text-indigo-300' 
+                     : 'text-slate-600 hover:text-indigo-600'
+                 }`}>
+                   {t('nav.services')}
+                 </a>
+               </li>
+               <li>
+                 <a href="#about" onClick={(e) => {
+                   e.preventDefault();
+                   const aboutSection = document.getElementById('about');
+                   if (aboutSection) {
+                     aboutSection.scrollIntoView({ behavior: 'smooth' });
+                   }
+                 }} className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                   isDarkMode 
+                     ? 'text-white/70 hover:text-green-300' 
+                     : 'text-slate-600 hover:text-green-600'
+                 }`}>
+                   {t('nav.about')}
+                 </a>
+               </li>
+               <li>
+                 <a href="#contact" onClick={(e) => {
+                   e.preventDefault();
+                   const contactSection = document.getElementById('contact');
+                   if (contactSection) {
+                     contactSection.scrollIntoView({ behavior: 'smooth' });
+                   }
+                 }} className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                   isDarkMode 
+                     ? 'text-white/70 hover:text-red-300' 
+                     : 'text-slate-600 hover:text-red-600'
+                 }`}>
+                   {t('nav.contact')}
+                 </a>
+               </li>
+             </ul>
+          </div>
+
+          {/* Contact Info */}
+          <div>
+            <h4 className={`text-lg font-bold mb-6 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-slate-800'
+            }`}>
+              <span className="w-8 h-0.5 bg-gradient-to-r from-caribbean-500 to-indigo-500 mr-3"></span>
+              {t('footer.contactInfo')}
+            </h4>
+            <ul className="space-y-3">
+              <li>
+                <a href="mailto:info@tevasul.group" className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                  isDarkMode 
+                    ? 'text-white/70 hover:text-caribbean-300' 
+                    : 'text-slate-600 hover:text-caribbean-600'
+                }`}>
+                  <Mail className="w-5 h-5 mr-4 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm">info@tevasul.group</span>
+                </a>
+              </li>
+              <li>
+                <a href="tel:+905349627241" className={`transition-colors duration-300 flex items-center group footer-link-hover cursor-pointer ${
+                  isDarkMode 
+                    ? 'text-white/70 hover:text-indigo-300' 
+                    : 'text-slate-600 hover:text-indigo-600'
+                }`}>
+                  <Phone className="w-5 h-5 mr-4 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-mono" dir="ltr">+90 534 962 72 41</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://maps.app.goo.gl/39YFtk8fcES8p1JA8?g_st=awb" target="_blank" rel="noopener noreferrer" className={`transition-colors duration-300 flex items-start group footer-link-hover cursor-pointer ${
+                  isDarkMode 
+                    ? 'text-white/70 hover:text-green-300' 
+                    : 'text-slate-600 hover:text-green-600'
+                }`}>
+                  <MapPin className="w-4 h-4 mr-4 mt-0.5 group-hover:scale-110 transition-transform flex-shrink-0" />
+                  <span className="text-sm">CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+                 {/* Developer Signature */}
+         <div className={`border-t pt-8 ${
+           isDarkMode ? 'border-white/10' : 'border-slate-300/30'
+         }`}>
+           <div className="flex justify-center items-center">
+             <div className="flex items-center space-x-3 space-x-reverse developer-signature group">
+               <div className="w-8 h-8 bg-gradient-to-br from-caribbean-500 to-indigo-500 rounded-lg flex items-center justify-center footer-glow group-hover:scale-110 transition-transform duration-300">
+                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                 </svg>
+               </div>
+               <span className={`text-sm ${
+                 isDarkMode ? 'text-white/60' : 'text-slate-500'
+               }`}>
+                 طوّر بواسطة{' '}
+                 <a 
+                   href="https://t.me/munzir_96" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     window.open('https://t.me/munzir_96', '_blank', 'noopener,noreferrer');
+                   }}
+                   className="text-caribbean-600 hover:text-caribbean-500 transition-colors duration-300 font-semibold hover:underline cursor-pointer"
+                 >
+                   المنذر الآلوسي
+                 </a>
+               </span>
+             </div>
+           </div>
+         </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className={`border-t py-6 ${
+        isDarkMode ? 'border-white/5' : 'border-slate-300/20'
+      }`}>
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          <p className={`text-sm mb-4 md:mb-0 ${isLanguageChanging ? 'language-change-text' : ''} ${
+            isDarkMode ? 'text-white/60' : 'text-slate-500'
+          }`}>
         {t('footer.copyright')}
       </p>
+          
+          <div className="flex items-center space-x-6 space-x-reverse">
+            <button
+              onClick={() => setShowPrivacy(true)}
+              className={`transition-colors text-sm hover:scale-105 transform duration-300 ${
+                isDarkMode 
+                  ? 'text-white/60 hover:text-caribbean-300' 
+                  : 'text-slate-500 hover:text-caribbean-600'
+              }`}
+            >
+              {language === 'ar' ? 'سياسة الخصوصية' : language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
+            </button>
+            <button
+              onClick={() => setShowTerms(true)}
+              className={`transition-colors text-sm hover:scale-105 transform duration-300 ${
+                isDarkMode 
+                  ? 'text-white/60 hover:text-indigo-300' 
+                  : 'text-slate-500 hover:text-indigo-600'
+              }`}
+            >
+              {language === 'ar' ? 'شروط الاستخدام' : language === 'tr' ? 'Kullanım Şartları' : 'Terms of Service'}
+            </button>
+            <a href="#" className={`transition-colors text-sm hover:scale-105 transform duration-300 ${
+              isDarkMode 
+                ? 'text-white/60 hover:text-green-300' 
+                : 'text-slate-500 hover:text-green-600'
+            }`}>
+              {language === 'ar' ? 'سياسة ملفات تعريف الارتباط' : language === 'tr' ? 'Çerez Politikası' : 'Cookie Policy'}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Floating Elements */}
+    <div className="absolute top-10 right-10 w-16 h-16 glass-effect rounded-full flex items-center justify-center footer-floating-element opacity-20">
+      <Code className="w-8 h-8 text-caribbean-300" />
+    </div>
+    <div className="absolute bottom-20 left-10 w-12 h-12 glass-effect rounded-full flex items-center justify-center footer-floating-element opacity-20">
+      <Heart className="w-6 h-6 text-red-300" />
+    </div>
+    <div className="absolute top-1/3 left-1/4 w-10 h-10 glass-effect rounded-full flex items-center justify-center footer-floating-element opacity-20">
+      <Star className="w-5 h-5 text-yellow-300" />
     </div>
   </footer>
+
+  {/* Footer Bottom Spacing */}
+  <div className={`h-[70px] ${
+    isDarkMode 
+      ? 'bg-gradient-to-br from-jet-900 via-slate-900 to-black' 
+      : 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100'
+  }`}></div>
 
   {/* Auth Modals */}
   <AuthModals
@@ -2011,6 +2197,19 @@ function App() {
     setShowWelcome={setShowWelcome}
     onNavigateToHome={navigateToMainHome}
   />
+
+  {/* Glass Welcome Message */}
+  {showGlassWelcome && glassWelcomeData && (
+    <GlassWelcomeMessage
+      type={glassWelcomeData.type}
+      userName={glassWelcomeData.userName}
+      userRole={glassWelcomeData.userRole}
+      onClose={() => {
+        setShowGlassWelcome(false);
+        setGlassWelcomeData(null);
+      }}
+    />
+  )}
 
   {/* Welcome Message - Only for regular users */}
   {showWelcome && user && profile && profile.role === 'user' && (
@@ -2052,6 +2251,85 @@ function App() {
     onToggleMinimize={() => setIsChatBotMinimized(!isChatBotMinimized)}
   />
 
+  {/* Terms of Service Modal */}
+  {showTerms && (
+    <TermsOfService
+      onClose={() => setShowTerms(false)}
+      isDarkMode={isDarkMode}
+    />
+  )}
+
+  {/* Privacy Policy Modal */}
+  {showPrivacy && (
+    <PrivacyPolicy
+      onClose={() => setShowPrivacy(false)}
+      isDarkMode={isDarkMode}
+    />
+  )}
+
+  {/* Background Music Audio */}
+  <audio 
+    ref={audioRef} 
+    src="/empathy-slow-ambient-music-pad-background-385736.mp3" 
+    preload="auto" 
+    loop 
+    muted={isMusicMuted}
+  />
+
+  {/* Mobile Music Control Button - Fixed Bottom Left */}
+  <div className="md:hidden fixed bottom-6 left-6 z-[99999]">
+    <button
+      onClick={handleMusicClick}
+      className={`relative w-14 h-14 rounded-full transition-all duration-300 flex items-center justify-center shadow-2xl transform hover:scale-110 ${
+        isMusicMuted || !isMusicPlaying
+          ? isDarkMode 
+            ? 'bg-red-500 text-white border-2 border-red-400 shadow-red-500/50' 
+            : 'bg-red-500 text-white border-2 border-red-400 shadow-red-500/50'
+          : isDarkMode
+            ? 'bg-gradient-to-r from-caribbean-500 to-indigo-500 text-white border-2 border-caribbean-400 shadow-caribbean-500/50'
+            : 'bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white border-2 border-caribbean-500 shadow-caribbean-500/50'
+      }`}
+      title={isMusicMuted ? 'تشغيل الموسيقى' : 'إيقاف الموسيقى'}
+    >
+      {isMusicMuted || !isMusicPlaying ? (
+        <VolumeX className="w-6 h-6" />
+      ) : (
+        /* Show only waveform when music is playing */
+        <div className="flex items-end space-x-0.5 h-5">
+          <div className="w-0.5 bg-white opacity-60" style={{ 
+            height: '40%', 
+            animation: 'waveform 1s ease-in-out infinite',
+            animationDelay: '0ms'
+          }}></div>
+          <div className="w-0.5 bg-white opacity-80" style={{ 
+            height: '60%', 
+            animation: 'waveform 1.2s ease-in-out infinite',
+            animationDelay: '0.2s'
+          }}></div>
+          <div className="w-0.5 bg-white opacity-100" style={{ 
+            height: '80%', 
+            animation: 'waveform 0.8s ease-in-out infinite',
+            animationDelay: '0.4s'
+          }}></div>
+          <div className="w-0.5 bg-white opacity-80" style={{ 
+            height: '60%', 
+            animation: 'waveform 1.1s ease-in-out infinite',
+            animationDelay: '0.6s'
+          }}></div>
+          <div className="w-0.5 bg-white opacity-60" style={{ 
+            height: '40%', 
+            animation: 'waveform 0.9s ease-in-out infinite',
+            animationDelay: '0.8s'
+          }}></div>
+        </div>
+      )}
+      
+      {/* Music indicator */}
+      {isMusicPlaying && !isMusicMuted && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-ping" />
+      )}
+    </button>
+  </div>
 
 </div>
   );
