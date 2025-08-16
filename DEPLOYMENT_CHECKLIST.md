@@ -1,157 +1,145 @@
-# قائمة مراجعة النشر - Tevasul Group
+# Netlify Deployment Checklist
 
-## ✅ التحقق من جاهزية المشروع
+## Pre-Deployment Checklist
 
-### 🔧 الملفات الأساسية
-- [x] `package.json` - مُعد بشكل صحيح
-- [x] `netlify.toml` - إعدادات النشر جاهزة
-- [x] `vite.config.ts` - إعدادات البناء صحيحة
-- [x] `.gitignore` - محدث ومُعد
-- [x] `README.md` - محدث ومفصل
+### ✅ Project Configuration
+- [x] `netlify.toml` file configured
+- [x] Build command: `npm run build:no-lint`
+- [x] Publish directory: `dist`
+- [x] Node version: 18
+- [x] SPA redirects configured
+- [x] Security headers configured
+- [x] Cache headers optimized
 
-### 🌐 ملفات النشر
-- [x] `public/_redirects` - للتوجيه الصحيح
-- [x] `public/robots.txt` - لتحسين SEO
-- [x] `public/sitemap.xml` - خريطة الموقع
-- [x] `public/manifest.json` - PWA
-- [x] `index.html` - محدث مع meta tags
+### ✅ Build Scripts
+- [x] `build:no-lint` script available
+- [x] TypeScript compilation configured
+- [x] Vite build process ready
 
-### 🔑 متغيرات البيئة
-- [x] `VITE_SUPABASE_URL` - مُعد
-- [x] `VITE_SUPABASE_ANON_KEY` - مُعد
-- [x] `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` - مُعد
-- [x] `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` - مُعد
-- [x] `SITE_URL` - سيتم تعيينه في Netlify
+### ✅ Environment Variables
+- [ ] Set up environment variables in Netlify dashboard:
+  - [ ] `VITE_SUPABASE_URL`
+  - [ ] `VITE_SUPABASE_ANON_KEY`
+  - [ ] `SUPABASE_SERVICE_ROLE_KEY`
+  - [ ] `OPENROUTER_API_KEY`
+  - [ ] `TELEGRAM_BOT_TOKEN`
+  - [ ] `TELEGRAM_ADMIN_CHAT_ID`
+  - [ ] `SENDGRID_API_KEY`
+  - [ ] `SITE_URL`
+  - [ ] `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
+  - [ ] `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`
 
-### 🏗️ البناء والاختبار
-- [x] `npm run build:no-lint` - يعمل بنجاح
-- [x] حجم الموقع: ~1.8 MB (مقبول)
-- [x] لا توجد أخطاء في البناء
-- [x] جميع الملفات موجودة في `dist/`
+## Deployment Steps
 
-### 🔒 الأمان
-- [x] HTTPS مفعل تلقائياً على Netlify
-- [x] Security Headers مُعدة في `netlify.toml`
-- [x] CORS مُعد في Supabase
-- [x] Input Validation في النماذج
-- [x] File Upload Security
-
-### 📱 PWA والاستجابة
-- [x] Manifest.json مُعد
-- [x] Service Worker (اختياري)
-- [x] Responsive Design
-- [x] Touch-friendly UI
-- [x] Fast loading
-
-### 🔍 SEO
-- [x] Meta tags كاملة
-- [x] Open Graph tags
-- [x] Twitter Cards
-- [x] Structured Data (JSON-LD)
-- [x] Sitemap.xml
-- [x] Robots.txt
-
-## 🚀 خطوات النشر
-
-### 1. رفع الكود إلى Git
+### 1. Prepare Your Repository
 ```bash
+# Ensure all changes are committed
 git add .
-git commit -m "Ready for deployment"
+git commit -m "Prepare for Netlify deployment"
 git push origin main
 ```
 
-### 2. إعداد Netlify
-1. اذهب إلى [Netlify Dashboard](https://app.netlify.com)
-2. اضغط "New site from Git"
-3. اختر المستودع
-4. اضبط إعدادات البناء:
+### 2. Deploy to Netlify
+
+#### Option A: Deploy via Netlify Dashboard
+1. Go to [netlify.com](https://netlify.com)
+2. Click "New site from Git"
+3. Connect your GitHub/GitLab/Bitbucket repository
+4. Select your repository
+5. Configure build settings:
    - Build command: `npm run build:no-lint`
    - Publish directory: `dist`
+6. Click "Deploy site"
 
-### 3. إعداد متغيرات البيئة في Netlify
-```env
-VITE_SUPABASE_URL=https://fctvityawavmuethxxix.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdHZpdHlhd2F2bXVldGh4eGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzA5ODAsImV4cCI6MjA3MDY0Njk4MH0.d6T4MrGgV3vKZjcQ02vjf8_oDeRu9SJQXNgA0LJHlq0
-SITE_URL=https://your-domain.netlify.app
+#### Option B: Deploy via Netlify CLI
+```bash
+# Install Netlify CLI globally
+npm install -g netlify-cli
+
+# Login to Netlify
+netlify login
+
+# Initialize and deploy
+netlify init
+netlify deploy --prod
 ```
 
-### 4. إعداد النطاق المخصص
-1. اذهب إلى Domain settings
-2. أضف النطاق: `tevasul.group`
-3. اتبع تعليمات DNS
+### 3. Configure Environment Variables
+1. Go to your site dashboard in Netlify
+2. Navigate to Site settings > Environment variables
+3. Add all required environment variables from `env.example`
+4. Ensure all `VITE_` prefixed variables are set for client-side access
 
-## 🧪 اختبار ما بعد النشر
+### 4. Configure Domain (Optional)
+1. Go to Site settings > Domain management
+2. Add your custom domain (e.g., tevasul.group)
+3. Configure DNS settings as instructed by Netlify
 
-### الوظائف الأساسية
-- [ ] تسجيل الدخول بـ Google
-- [ ] رفع الملفات
-- [ ] إرسال النماذج
-- [ ] نظام الإشعارات
-- [ ] الترجمة (عربي/إنجليزي)
+### 5. Test Deployment
+- [ ] Test homepage loads correctly
+- [ ] Test authentication flow
+- [ ] Test file upload functionality
+- [ ] Test Telegram integration
+- [ ] Test email verification
+- [ ] Test admin dashboard
+- [ ] Test responsive design on mobile
 
-### الأداء
-- [ ] سرعة التحميل < 3 ثواني
-- [ ] Mobile-friendly
-- [ ] HTTPS يعمل
-- [ ] لا توجد أخطاء في Console
+## Post-Deployment Verification
 
-### الأمان
-- [ ] Security Headers صحيحة
-- [ ] لا توجد ثغرات أمنية
-- [ ] CORS مُعد بشكل صحيح
-- [ ] File upload آمن
+### ✅ Functionality Tests
+- [ ] User registration and login
+- [ ] Email verification
+- [ ] File upload and management
+- [ ] Telegram bot integration
+- [ ] Admin dashboard access
+- [ ] Health insurance forms
+- [ ] Voluntary return forms
+- [ ] Theme switching
+- [ ] Language switching
 
-## 📊 مراقبة الأداء
+### ✅ Performance Tests
+- [ ] Page load times
+- [ ] Image optimization
+- [ ] Caching effectiveness
+- [ ] Mobile performance
 
-### أدوات المراقبة
-- [ ] Google Analytics (اختياري)
-- [ ] Netlify Analytics
-- [ ] PageSpeed Insights
-- [ ] GTmetrix
+### ✅ Security Tests
+- [ ] HTTPS enforcement
+- [ ] Security headers
+- [ ] CORS configuration
+- [ ] Authentication flow
 
-### مؤشرات الأداء
-- [ ] First Contentful Paint < 1.5s
-- [ ] Largest Contentful Paint < 2.5s
-- [ ] Cumulative Layout Shift < 0.1
-- [ ] First Input Delay < 100ms
+## Troubleshooting
 
-## 🔄 الصيانة المستقبلية
+### Common Issues
+1. **Build fails**: Check Node version and build logs
+2. **Environment variables not working**: Ensure `VITE_` prefix for client-side variables
+3. **Routing issues**: Verify `_redirects` file and `netlify.toml` redirects
+4. **CORS errors**: Check Supabase configuration
+5. **Authentication issues**: Verify OAuth redirect URLs
 
-### التحديثات
-- [ ] مراقبة التبعيات
-- [ ] تحديث React/Supabase
-- [ ] مراجعة الأمان
-- [ ] تحسين الأداء
+### Useful Commands
+```bash
+# Test build locally
+npm run build:no-lint
 
-### النسخ الاحتياطية
-- [ ] نسخة احتياطية من الكود
-- [ ] نسخة احتياطية من قاعدة البيانات
-- [ ] إعدادات Netlify محفوظة
+# Preview build
+npm run preview
 
-## 📞 الدعم
+# Check Netlify status
+netlify status
 
-### في حالة المشاكل
-1. راجع سجلات البناء في Netlify
-2. تحقق من متغيرات البيئة
-3. اختبر الموقع محلياً
-4. تواصل مع فريق الدعم
+# View deployment logs
+netlify logs
+```
 
-### معلومات الاتصال
-- **البريد الإلكتروني**: support@tevasul.group
-- **Telegram**: @tevasul_support
-- **الموقع**: https://tevasul.group
+## Monitoring
+- Set up Netlify analytics
+- Configure error tracking
+- Monitor performance metrics
+- Set up uptime monitoring
 
----
-
-## 🎉 النتيجة النهائية
-
-**المشروع جاهز للنشر على Netlify!**
-
-- ✅ جميع الملفات مُعدة
-- ✅ البناء يعمل بنجاح
-- ✅ الأمان مُعد
-- ✅ SEO محسن
-- ✅ PWA جاهز
-- ✅ التوثيق مكتمل
-
-**يمكنك الآن المتابعة مع خطوات النشر! 🚀**
+## Backup Plan
+- Keep local development environment ready
+- Document rollback procedures
+- Maintain staging environment if needed
