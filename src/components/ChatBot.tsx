@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, User, Bot, Phone, Minimize2, Maximize2 } from '
 import { useLanguage } from '../hooks/useLanguage';
 import { supabase } from '../lib/supabase';
 import { webhookService } from '../services/webhookService';
+import chatService from '../services/chatService';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Message {
@@ -136,27 +137,10 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
 
   const getAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      const response = await fetch('http://localhost:3001/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          sessionId,
-          language
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get AI response: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.response;
+      return await chatService.getResponse(userMessage, sessionId, language);
     } catch (error) {
       console.error('Error getting AI response:', error);
-      throw error; // Re-throw the error so it can be handled by the calling function
+      throw error;
     }
   };
 
@@ -188,122 +172,10 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
   const getAIResponseStream = async (userMessage: string, onChunk: (chunk: string) => void): Promise<string> => {
     try {
       console.log('Starting AI response stream...');
-      console.log('Request body:', JSON.stringify({
-        message: userMessage,
-        sessionId,
-        language
-      }));
-      
-      const response = await fetch('http://localhost:3001/api/chat/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          sessionId,
-          language
-        }),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        throw new Error(`Failed to get AI response: ${response.status} ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-      let insideThink = false;
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          console.log('Raw chunk from server:', chunk);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                console.log('Stream completed, full response:', fullResponse);
-                return fullResponse;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                console.log('Parsed data:', parsed);
-                
-                // Check if this is an error response
-                if (parsed.error) {
-                  console.error('Server returned error:', parsed.error);
-                  throw new Error(parsed.content || parsed.error);
-                }
-                
-                if (parsed.content) {
-                  console.log('Raw content:', parsed.content);
-                  
-                  // Think tag filtering - only filter if think tags are present
-                  let processedContent = parsed.content;
-                  const hasThinkStart = processedContent.includes('<think>');
-                  const hasThinkEnd = processedContent.includes('</think>');
-                  
-                  if (hasThinkStart || hasThinkEnd || insideThink) {
-                    console.log('Think tags detected, filtering...');
-                    if (insideThink) {
-                      const endIndex = processedContent.indexOf('</think>');
-                      if (endIndex !== -1) {
-                        insideThink = false;
-                        processedContent = processedContent.slice(endIndex + 8);
-                        console.log('Think tag ended, remaining content:', processedContent);
-                      } else {
-                        processedContent = '';
-                        console.log('Still inside think tag, content filtered');
-                      }
-                    } else {
-                      const startIndex = processedContent.indexOf('<think>');
-                      if (startIndex !== -1) {
-                        insideThink = true;
-                        processedContent = processedContent.slice(0, startIndex);
-                        console.log('Think tag started, content before think:', processedContent);
-                      }
-                    }
-                  }
-                  
-                  console.log('Final processed content:', processedContent);
-                  if (processedContent && processedContent.trim()) {
-                    fullResponse += processedContent;
-                    onChunk(processedContent);
-                  } else if (!hasThinkStart && !hasThinkEnd && !insideThink) {
-                    // If no think tags are present, show the content as is
-                    console.log('No think tags, showing content as is');
-                    fullResponse += processedContent;
-                    onChunk(processedContent);
-                  }
-                }
-              } catch (e) {
-                console.error('Error parsing JSON:', e);
-              }
-            }
-          }
-        }
-      }
-
-      return fullResponse;
+      return await chatService.getResponseStream(userMessage, sessionId, language, onChunk);
     } catch (error) {
       console.error('Error getting AI response stream:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
-      }
-      throw error; // Re-throw the error so it can be handled by the calling function
+      throw error;
     }
   };
 
