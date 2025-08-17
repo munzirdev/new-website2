@@ -24,7 +24,7 @@ const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleDarkMode
 }) => {
-  const { user, signOut, loading } = useAuthContext();
+  const { user, profile, signOut, loading } = useAuthContext();
   const { language, setLanguage, t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -108,6 +108,13 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleMobileMenuClose = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  // Check if user has admin or moderator access
+  const hasAdminAccess = () => {
+    if (!user || !profile) return false;
+    const userRole = profile.role;
+    return userRole === 'admin' || userRole === 'moderator';
   };
 
   // Music control functions
@@ -443,21 +450,23 @@ const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-sm">{language === 'ar' ? 'حسابي' : language === 'tr' ? 'Hesabım' : 'My Account'}</span>
                 </button>
 
-                {/* Dashboard Button */}
-                <button
-                  onClick={() => {
-                    console.log('زر لوحة التحكم تم النقر عليه');
-                    // يمكن إضافة منطق الانتقال للوحة التحكم هنا
-                    window.location.href = '/admin';
-                  }}
-                  className="flex items-center px-4 py-2 text-white hover:text-caribbean-300 transition-all duration-300 font-medium"
-                  title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm">{language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}</span>
-                </button>
+                {/* Dashboard Button - Only show for admin/moderator users */}
+                {hasAdminAccess() && (
+                  <button
+                    onClick={() => {
+                      console.log('زر لوحة التحكم تم النقر عليه');
+                      // يمكن إضافة منطق الانتقال للوحة التحكم هنا
+                      window.location.href = '/admin';
+                    }}
+                    className="flex items-center px-4 py-2 text-white hover:text-caribbean-300 transition-all duration-300 font-medium"
+                    title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span className="text-sm">{language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}</span>
+                  </button>
+                )}
 
                 {/* Logout Button */}
                 <button
@@ -546,17 +555,19 @@ const Navbar: React.FC<NavbarProps> = ({
                   <User className="w-5 h-5 text-white" />
                 </button>
 
-                {/* Dashboard Icon */}
-                <button
-                  onClick={() => {
-                    console.log('زر لوحة التحكم تم النقر عليه');
-                    window.location.href = '/admin';
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300"
-                  title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
-                >
-                  <Settings className="w-5 h-5 text-white" />
-                </button>
+                {/* Dashboard Icon - Only show for admin/moderator users */}
+                {hasAdminAccess() && (
+                  <button
+                    onClick={() => {
+                      console.log('زر لوحة التحكم تم النقر عليه');
+                      window.location.href = '/admin';
+                    }}
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300"
+                    title={language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}
+                  >
+                    <Settings className="w-5 h-5 text-white" />
+                  </button>
+                )}
 
                 {/* Logout Icon */}
                 <button
@@ -781,17 +792,19 @@ const Navbar: React.FC<NavbarProps> = ({
                       <span className="font-medium">{language === 'ar' ? 'حسابي' : language === 'tr' ? 'Hesabım' : 'My Account'}</span>
                     </button>
 
-                    {/* Dashboard */}
-                    <button
-                      onClick={() => {
-                        handleMobileMenuClose();
-                        window.location.href = '/admin';
-                      }}
-                      className="w-full flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-                    >
-                      <Settings className="w-5 h-5 mr-3" />
-                      <span className="font-medium">{language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}</span>
-                    </button>
+                    {/* Dashboard - Only show for admin/moderator users */}
+                    {hasAdminAccess() && (
+                      <button
+                        onClick={() => {
+                          handleMobileMenuClose();
+                          window.location.href = '/admin';
+                        }}
+                        className="w-full flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+                      >
+                        <Settings className="w-5 h-5 mr-3" />
+                        <span className="font-medium">{language === 'ar' ? 'لوحة التحكم' : language === 'tr' ? 'Kontrol Paneli' : 'Dashboard'}</span>
+                      </button>
+                    )}
 
                     {/* Logout */}
                     <button

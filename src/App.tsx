@@ -22,6 +22,7 @@ import ChatBot from './components/ChatBot';
 import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
 
 
 
@@ -298,16 +299,36 @@ function App() {
       setShowHelpSupport(false);
     }
     
-    // Handle admin routes
+    // Handle admin routes with proper access control
     if (path.startsWith('/admin')) {
       console.log('🔧 Admin route detected:', path);
-      console.log('🔧 تم اكتشاف مسار الأدمن، فتح لوحة التحكم');
-      setShowAdminDashboard(true);
+      
+      // Check if user is authenticated and has proper role
+      if (user && profile) {
+        const userRole = profile.role;
+        const isAdmin = userRole === 'admin';
+        const isModerator = userRole === 'moderator';
+        
+        if (isAdmin || isModerator) {
+          console.log('🔧 تم اكتشاف مسار الأدمن، فتح لوحة التحكم للمستخدم المصرح له');
+          setShowAdminDashboard(true);
+        } else {
+          console.log('🔧 المستخدم ليس لديه صلاحيات للوصول إلى لوحة التحكم');
+          setShowAdminDashboard(false);
+          // Redirect unauthorized users to home
+          navigate('/', { replace: true });
+        }
+      } else {
+        console.log('🔧 المستخدم غير مسجل دخول، إخفاء لوحة التحكم');
+        setShowAdminDashboard(false);
+        // Redirect unauthenticated users to home
+        navigate('/', { replace: true });
+      }
     } else {
       console.log('🔧 Non-admin route, hiding admin components');
       setShowAdminDashboard(false);
     }
-  }, [location.pathname]);
+  }, [location.pathname, user, profile, navigate]);
 
   // Debug logging for auth state (reduced frequency)
   useEffect(() => {
@@ -767,9 +788,9 @@ function App() {
     }
   };
 
-  // Check if user is admin or moderator based on profile role and email
-  const isAdmin = profile?.role === 'admin' || user?.email === 'admin@tevasul.group';
-  const isModerator = profile?.role === 'moderator' || user?.email?.includes('moderator') || user?.email?.includes('moderator@');
+  // Check if user is admin or moderator based on profile role
+  const isAdmin = profile?.role === 'admin';
+  const isModerator = profile?.role === 'moderator';
   const isAdminOrModerator = isAdmin || isModerator;
 
   const openServiceRequestForm = (serviceType: string, serviceTitle: string) => {
@@ -913,7 +934,7 @@ function App() {
       }
       
       setContactSuccess(true);
-      setContactForm({ name: '', email: '', serviceType: '', message: '' });
+      setContactForm({ name: '', email: '', phone: '', serviceType: '', message: '' });
       setContactLoading(false);
       
       // رسالة نجاح مختلفة للضيوف
@@ -1032,14 +1053,18 @@ function App() {
     }
   }
 
-  // If admin dashboard is open, show it
+  // If admin dashboard is open, show it with proper access control
   if (showAdminDashboard) {
     // Only log once to prevent spam
     if (!(window as any).adminDashboardLogged) {
       console.log('🔧 عرض لوحة تحكم الأدمن');
       (window as any).adminDashboardLogged = true;
     }
-    return <AdminDashboard onBack={() => navigate('/')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} onSignOut={handleSignOut} />;
+    return (
+      <ProtectedRoute requireModerator={true}>
+        <AdminDashboard onBack={() => navigate('/')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} onSignOut={handleSignOut} />
+      </ProtectedRoute>
+    );
   }
 
   // If user account is open, show it

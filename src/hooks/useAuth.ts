@@ -1168,8 +1168,8 @@ export const useAuth = () => {
     if (!authState.user) return false;
     
     // Admin and moderator can always access
-    const isAdmin = authState.user.email === 'admin@tevasul.group';
-    const isModerator = authState.user.email?.includes('moderator') || authState.user.email?.includes('admin');
+    const isAdmin = authState.profile?.role === 'admin';
+    const isModerator = authState.profile?.role === 'moderator';
     
     if (isAdmin || isModerator) return true;
     
@@ -1181,8 +1181,8 @@ export const useAuth = () => {
   const getVerificationStatus = () => {
     if (!authState.user) return { isVerified: false, needsVerification: false };
     
-    const isAdmin = authState.user.email === 'admin@tevasul.group';
-    const isModerator = authState.user.email?.includes('moderator') || authState.user.email?.includes('admin');
+    const isAdmin = authState.profile?.role === 'admin';
+    const isModerator = authState.profile?.role === 'moderator';
     
     if (isAdmin || isModerator) {
       return { isVerified: true, needsVerification: false };
