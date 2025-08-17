@@ -137,7 +137,8 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
 
   const getAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      return await chatService.getResponse(userMessage, sessionId, language);
+      // Let chatService auto-detect language from user message
+      return await chatService.getResponse(userMessage, sessionId);
     } catch (error) {
       console.error('Error getting AI response:', error);
       throw error;
@@ -172,7 +173,8 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
   const getAIResponseStream = async (userMessage: string, onChunk: (chunk: string) => void): Promise<string> => {
     try {
       console.log('Starting AI response stream...');
-      return await chatService.getResponseStream(userMessage, sessionId, language, onChunk);
+      // Let chatService auto-detect language from user message
+      return await chatService.getResponseStream(userMessage, sessionId, undefined, onChunk);
     } catch (error) {
       console.error('Error getting AI response stream:', error);
       throw error;

@@ -10,7 +10,9 @@
     "website": "https://tevasul.group",
     "experience": "10+ سنوات خبرة",
     "clients": "5000+ عميل راضٍ",
-    "services_count": "خدمة على مدار الساعة"
+    "services_count": "خدمة على مدار الساعة",
+    "specialization": "نهتم بكل ما يتعلق بالأجانب في تركيا",
+    "english_specialization": "We specialize in everything related to foreigners in Turkey"
   },
   "services": {
     "health_insurance": {
@@ -360,6 +362,120 @@
           "Continuous follow-up and after-sales service"
         ]
       }
+    },
+    "document_services": {
+      "ar": {
+        "title": "خدمات تحديث البيانات والوثائق الرسمية",
+        "description": "تحديث البيانات للحماية المؤقتة، تجديد جواز السفر السوري، واستصدار الوثائق الرسمية من تركيا وسوريا",
+        "full_description": "نقدم خدمات شاملة لتحديث البيانات والوثائق الرسمية للأجانب في تركيا. نختص في تحديث البيانات للحماية المؤقتة، تجديد جواز السفر السوري، واستصدار جميع الوثائق الرسمية الحكومية من تركيا وسوريا. خبرتنا الواسعة تضمن إنجاز معاملاتكم بسرعة ودقة عالية.",
+        "features": [
+          "تحديث البيانات للحماية المؤقتة",
+          "تجديد جواز السفر السوري",
+          "استصدار الوثائق الرسمية من تركيا",
+          "استصدار الوثائق الرسمية من سوريا",
+          "خدمة التصوير الفوري",
+          "متابعة سير المعاملات",
+          "إرشادات قانونية",
+          "خدمة عملاء متخصصة"
+        ],
+        "benefits": [
+          "توفير الوقت والجهد",
+          "ضمان الدقة في المعاملات",
+          "متابعة مستمرة",
+          "خدمة شاملة ومتكاملة"
+        ],
+        "process": [
+          "تقييم الوثائق المطلوبة",
+          "جمع المستندات اللازمة",
+          "تقديم الطلبات للجهات المختصة",
+          "متابعة سير المعاملات",
+          "استلام وتسليم الوثائق"
+        ]
+      },
+      "en": {
+        "title": "Document Update and Official Document Services",
+        "description": "Data updates for temporary protection, Syrian passport renewal, and official document issuance from Turkey and Syria",
+        "full_description": "We provide comprehensive services for updating data and official documents for foreigners in Turkey. We specialize in updating data for temporary protection, renewing Syrian passports, and issuing all official government documents from Turkey and Syria. Our extensive experience ensures your transactions are completed quickly and accurately.",
+        "features": [
+          "Data updates for temporary protection",
+          "Syrian passport renewal",
+          "Official document issuance from Turkey",
+          "Official document issuance from Syria",
+          "Instant photography service",
+          "Transaction follow-up",
+          "Legal guidance",
+          "Specialized customer service"
+        ],
+        "benefits": [
+          "Save time and effort",
+          "Ensure accuracy in transactions",
+          "Continuous follow-up",
+          "Comprehensive and integrated service"
+        ],
+        "process": [
+          "Evaluate required documents",
+          "Collect necessary documents",
+          "Submit applications to competent authorities",
+          "Follow up transaction progress",
+          "Receive and deliver documents"
+        ]
+      }
+    },
+    "photography": {
+      "ar": {
+        "title": "خدمة التصوير الفوري",
+        "description": "تصوير فوري لجميع أنواع الوثائق والصور الشخصية المطلوبة للمعاملات الرسمية",
+        "full_description": "نقدم خدمة التصوير الفوري الاحترافية لجميع أنواع الوثائق والصور الشخصية المطلوبة للمعاملات الرسمية. صورنا تلتزم بجميع المعايير الرسمية المطلوبة من الجهات الحكومية التركية والسورية. خدمة سريعة ودقيقة لضمان عدم تأخير معاملاتكم.",
+        "features": [
+          "تصوير فوري للوثائق",
+          "صور شخصية رسمية",
+          "التزام بالمعايير الرسمية",
+          "جودة عالية",
+          "خدمة سريعة",
+          "أسعار مناسبة",
+          "تصوير رقمي",
+          "طباعة فورية"
+        ],
+        "benefits": [
+          "توفير الوقت",
+          "جودة عالية",
+          "أسعار مناسبة",
+          "خدمة سريعة"
+        ],
+        "process": [
+          "تحديد نوع الصور المطلوبة",
+          "التصوير الفوري",
+          "مراجعة الجودة",
+          "الطباعة والتسليم"
+        ]
+      },
+      "en": {
+        "title": "Instant Photography Service",
+        "description": "Instant photography for all types of documents and personal photos required for official transactions",
+        "full_description": "We provide professional instant photography service for all types of documents and personal photos required for official transactions. Our photos comply with all official standards required by Turkish and Syrian government authorities. Fast and accurate service to ensure your transactions are not delayed.",
+        "features": [
+          "Instant document photography",
+          "Official personal photos",
+          "Compliance with official standards",
+          "High quality",
+          "Fast service",
+          "Affordable prices",
+          "Digital photography",
+          "Instant printing"
+        ],
+        "benefits": [
+          "Save time",
+          "High quality",
+          "Affordable prices",
+          "Fast service"
+        ],
+        "process": [
+          "Determine required photo types",
+          "Instant photography",
+          "Quality review",
+          "Printing and delivery"
+        ]
+      }
     }
   },
   "chatbot_personality": {
@@ -426,6 +542,10 @@
           "answer": "تختلف تكلفة التأمين الصحي حسب الفئة العمرية ومدة التأمين. نقدم استشارة مجانية لتحديد أفضل خطة تناسبكم. يمكنكم التواصل معنا للحصول على عرض سعر دقيق."
         },
         {
+          "question": "كم تكلفة الإقامة في تركيا؟",
+          "answer": "تكلفة الإقامة حالياً هي تكلفة البطاقة 810 ليرة تركية، وينضاف لها التأمين والرسوم حسب الجنسية والعمر. نقدم استشارة مجانية لتحديد التكلفة الإجمالية حسب حالتكم."
+        },
+        {
           "question": "كم تستغرق الترجمة المحلفة؟",
           "answer": "مدة الترجمة المحلفة تعتمد على حجم الوثائق وتعقيدها. عادةً تستغرق من يوم إلى 3 أيام عمل. للحالات العاجلة، نقدم خدمة الترجمة الفورية."
         },
@@ -435,7 +555,7 @@
         },
         {
           "question": "كيف يمكنني التواصل معكم؟",
-          "answer": "يمكنكم التواصل معنا عبر الهاتف: +90 324 123 45 67، البريد الإلكتروني: info@tevasul.group، أو عبر موقعنا الإلكتروني. فريق خدمة العملاء متاح على مدار الساعة لمساعدتكم."
+          "answer": "يمكنكم التواصل معنا عبر الهاتف: 0534 962 72 41  ، البريد الإلكتروني: info@tevasul.group، أو عبر موقعنا الإلكتروني. فريق خدمة العملاء متاح على مدار الساعة لمساعدتكم."
         }
       ],
       "service_specific": [
@@ -450,6 +570,18 @@
         {
           "question": "ما هي وجهات السفر المتاحة؟",
           "answer": "نقدم رحلات إلى جميع الوجهات السياحية في تركيا: إسطنبول، أنطاليا، كابادوكيا، بورصة، وغيرها. نصمم برامج مخصصة حسب رغباتكم وميزانيتكم."
+        },
+        {
+          "question": "هل تقدمون خدمة تحديث البيانات للحماية المؤقتة؟",
+          "answer": "نعم، نقدم خدمة تحديث البيانات للحماية المؤقتة. نختص في جميع إجراءات تحديث البيانات والمعلومات المطلوبة للحماية المؤقتة في تركيا."
+        },
+        {
+          "question": "هل يمكنكم تجديد جواز السفر السوري؟",
+          "answer": "نعم، نقدم خدمة تجديد جواز السفر السوري. نختص في جميع إجراءات تجديد الجوازات السورية في تركيا مع متابعة كاملة للمعاملات."
+        },
+        {
+          "question": "هل تقدمون خدمة التصوير الفوري؟",
+          "answer": "نعم، نقدم خدمة التصوير الفوري لجميع أنواع الوثائق والصور الشخصية المطلوبة للمعاملات الرسمية. صورنا تلتزم بجميع المعايير الرسمية."
         }
       ]
     },
@@ -464,6 +596,10 @@
           "answer": "Health insurance costs vary based on age group and insurance duration. We provide free consultation to determine the best plan for you. Contact us for an accurate price quote."
         },
         {
+          "question": "How much does residence permit cost in Turkey?",
+          "answer": "The current residence permit cost is 810 Turkish lira for the card, plus insurance and fees according to nationality and age. We provide free consultation to determine the total cost based on your situation."
+        },
+        {
           "question": "How long does certified translation take?",
           "answer": "Certified translation duration depends on document volume and complexity. Usually takes 1-3 business days. For urgent cases, we offer instant translation service."
         },
@@ -473,7 +609,7 @@
         },
         {
           "question": "How can I contact you?",
-          "answer": "You can contact us by phone: +90 324 123 45 67, email: info@tevasul.group, or through our website. Our customer service team is available 24/7 to assist you."
+          "answer": "You can contact us by phone: +90 534 962 72 41, email: info@tevasul.group, or through our website. Our customer service team is available 24/7 to assist you."
         }
       ],
       "service_specific": [
@@ -488,6 +624,18 @@
         {
           "question": "What travel destinations are available?",
           "answer": "We offer trips to all tourist destinations in Turkey: Istanbul, Antalya, Cappadocia, Bursa, and others. We design customized programs according to your preferences and budget."
+        },
+        {
+          "question": "Do you provide data update services for temporary protection?",
+          "answer": "Yes, we provide data update services for temporary protection. We specialize in all procedures for updating data and information required for temporary protection in Turkey."
+        },
+        {
+          "question": "Can you renew Syrian passports?",
+          "answer": "Yes, we provide Syrian passport renewal services. We specialize in all procedures for renewing Syrian passports in Turkey with complete transaction follow-up."
+        },
+        {
+          "question": "Do you provide instant photography service?",
+          "answer": "Yes, we provide instant photography service for all types of documents and personal photos required for official transactions. Our photos comply with all official standards."
         }
       ]
     }

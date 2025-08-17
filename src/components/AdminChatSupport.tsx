@@ -1388,7 +1388,7 @@ const AdminChatSupport: React.FC = () => {
   };
 
     return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0 h-16">
         <div className="px-4 py-3 h-full">
@@ -1477,7 +1477,7 @@ const AdminChatSupport: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar - Chat List */}
         <div className="w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col flex-shrink-0">
           {/* Search and Filters */}
@@ -1609,7 +1609,7 @@ const AdminChatSupport: React.FC = () => {
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 min-h-0">
+        <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 min-h-0 overflow-hidden">
           {selectedSession ? (
             <>
               {/* Chat Header */}

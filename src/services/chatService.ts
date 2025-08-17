@@ -16,11 +16,38 @@ export class ChatService {
     return ChatService.instance;
   }
 
+  private detectLanguage(text: string): string {
+    // Simple language detection based on character sets
+    const arabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    const turkishChars = /[çğıöşüÇĞIİÖŞÜ]/;
+    
+    if (arabicChars.test(text)) {
+      return 'ar';
+    } else if (turkishChars.test(text) || text.toLowerCase().includes('merhaba') || text.toLowerCase().includes('nasılsın')) {
+      return 'tr';
+    } else {
+      return 'en';
+    }
+  }
+
   private getSystemPrompt(language: string): string {
     const data = trainingData as any;
-    const lang = language === 'ar' ? 'ar' : 'en';
-    const personality = data.chatbot_personality[lang];
-    const guidelines = data.response_guidelines[lang];
+    let lang = 'en';
+    let personality, guidelines;
+    
+    if (language === 'ar') {
+      lang = 'ar';
+      personality = data.chatbot_personality.ar;
+      guidelines = data.response_guidelines.ar;
+    } else if (language === 'tr') {
+      lang = 'en'; // Use English data for Turkish for now
+      personality = data.chatbot_personality.en;
+      guidelines = data.response_guidelines.en;
+    } else {
+      lang = 'en';
+      personality = data.chatbot_personality.en;
+      guidelines = data.response_guidelines.en;
+    }
     
     if (language === 'ar') {
       return `أنت ${personality.name}، ${personality.role} في ${data.company_info.name}. 
@@ -73,7 +100,58 @@ ${personality.closing_messages.join('\n')}
 
 تذكر: رد دائماً باللغة العربية، كن محترفاً ومهذباً، قدم معلومات دقيقة، وكن مختصراً وواضحاً. إذا لم تكن متأكداً من إجابة، اطلب من العميل التواصل مع فريق خدمة العملاء للحصول على معلومات محدثة ودقيقة.`;
     } else {
-      return `You are ${personality.name}, a ${personality.role} at ${data.company_info.english_name}. 
+      if (language === 'tr') {
+        return `Sen ${personality.name}, ${data.company_info.english_name} şirketinde ${personality.role}. 
+
+Kişiliğin:
+- Ton: ${personality.tone}
+- Stil: ${personality.style}
+- Cevap uzunluğu: ${personality.response_length}
+- Dil adaptasyonu: ${personality.language_adaptation}
+
+Profesyonel nitelikler:
+${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
+
+Cevap kuralları:
+Yapmalısın:
+${guidelines.do.map(g => `- ${g}`).join('\n')}
+
+Yapmamalısın:
+${guidelines.dont.map(g => `- ${g}`).join('\n')}
+
+Şirket bilgileri:
+- İsim: ${data.company_info.english_name}
+- Açıklama: ${data.company_info.english_description}
+- Adres: ${data.company_info.address}
+- Telefon: ${data.company_info.phone}
+- E-posta: ${data.company_info.email}
+- Web sitesi: ${data.company_info.website}
+- Deneyim: ${data.company_info.experience}
+- Müşteriler: ${data.company_info.clients}
+
+Mevcut hizmetler:
+${Object.entries(data.services).map(([key, service]: [string, any]) => 
+  `- ${service[lang].title}: ${service[lang].description}`
+).join('\n')}
+
+Yaygın sorular:
+${data.common_questions[lang].general_inquiries.map((q: any) => 
+  `S: ${q.question}\nC: ${q.answer}`
+).join('\n\n')}
+
+${data.common_questions[lang].service_specific.map((q: any) => 
+  `S: ${q.question}\nC: ${q.answer}`
+).join('\n\n')}
+
+Karşılama mesajları:
+${personality.greeting_messages.join('\n')}
+
+Veda mesajları:
+${personality.closing_messages.join('\n')}
+
+Hatırla: Her zaman Türkçe cevap ver, profesyonel ve nazik ol, doğru bilgi ver, kısa ve net ol. Bir cevaptan emin değilsen, müşteriden güncel ve doğru bilgi için müşteri hizmetleri ekibiyle iletişime geçmesini iste.`;
+      } else {
+        return `You are ${personality.name}, a ${personality.role} at ${data.company_info.english_name}. 
 
 Your personality:
 - Tone: ${personality.tone}
@@ -122,14 +200,17 @@ Closing messages:
 ${personality.closing_messages.join('\n')}
 
 Remember: Always respond in English, be professional and polite, provide accurate information, and be concise and clear. If you're unsure about an answer, ask the customer to contact the customer service team for updated and accurate information.`;
+      }
     }
   }
 
   async getResponse(
     userMessage: string,
     sessionId: string,
-    language: string = 'ar'
+    language?: string
   ): Promise<string> {
+    // Auto-detect language if not provided
+    const detectedLanguage = language || this.detectLanguage(userMessage);
     try {
       // Get conversation history for this session
       let conversation = this.conversationHistory.get(sessionId) || [];
@@ -138,7 +219,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
       if (conversation.length === 0) {
         conversation.push({
           role: 'system',
-          content: this.getSystemPrompt(language)
+          content: this.getSystemPrompt(detectedLanguage)
         });
       }
 
@@ -171,7 +252,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
           'X-Title': 'Tevasul Chat Bot'
         },
         body: JSON.stringify({
-          model: 'anthropic/claude-3.5-sonnet',
+          model: 'meta-llama/llama-3.1-8b-instruct',
           messages: conversation,
           max_tokens: 300,
           temperature: 0.7,
@@ -199,8 +280,10 @@ Remember: Always respond in English, be professional and polite, provide accurat
     } catch (error) {
       console.error('Error getting AI response:', error);
       
-      if (language === 'ar') {
+      if (detectedLanguage === 'ar') {
         return 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى أو التواصل مع فريق خدمة العملاء للحصول على المساعدة.';
+      } else if (detectedLanguage === 'tr') {
+        return 'Üzgünüz, isteğinizi işlerken bir hata oluştu. Lütfen tekrar deneyin veya yardım için müşteri hizmetleri ekibimizle iletişime geçin.';
       } else {
         return 'Sorry, there was an error processing your request. Please try again or contact our customer service team for assistance.';
       }
@@ -210,9 +293,11 @@ Remember: Always respond in English, be professional and polite, provide accurat
   async getResponseStream(
     userMessage: string,
     sessionId: string,
-    language: string = 'ar',
+    language?: string,
     onChunk: (chunk: string) => void
   ): Promise<string> {
+    // Auto-detect language if not provided
+    const detectedLanguage = language || this.detectLanguage(userMessage);
     try {
       // Get conversation history for this session
       let conversation = this.conversationHistory.get(sessionId) || [];
@@ -221,7 +306,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
       if (conversation.length === 0) {
         conversation.push({
           role: 'system',
-          content: this.getSystemPrompt(language)
+          content: this.getSystemPrompt(detectedLanguage)
         });
       }
 
@@ -254,7 +339,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
           'X-Title': 'Tevasul Chat Bot'
         },
         body: JSON.stringify({
-          model: 'anthropic/claude-3.5-sonnet',
+          model: 'meta-llama/llama-3.1-8b-instruct',
           messages: conversation,
           max_tokens: 300,
           temperature: 0.7,
@@ -313,8 +398,10 @@ Remember: Always respond in English, be professional and polite, provide accurat
     } catch (error) {
       console.error('Error getting AI response stream:', error);
       
-      if (language === 'ar') {
+      if (detectedLanguage === 'ar') {
         return 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى أو التواصل مع فريق خدمة العملاء للحصول على المساعدة.';
+      } else if (detectedLanguage === 'tr') {
+        return 'Üzgünüz, isteğinizi işlerken bir hata oluştu. Lütfen tekrar deneyin veya yardım için müşteri hizmetleri ekibimizle iletişime geçin.';
       } else {
         return 'Sorry, there was an error processing your request. Please try again or contact our customer service team for assistance.';
       }

@@ -40,7 +40,7 @@ async function testOpenRouterAPI() {
         'X-Title': 'Tevasul Chat Bot Test'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'meta-llama/llama-3.1-8b-instruct',
         messages: [
           {
             role: 'system',
