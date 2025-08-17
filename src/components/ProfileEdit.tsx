@@ -71,7 +71,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({
     try {
       // تحديث الملف الشخصي
       const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({
           full_name: formData.full_name.trim(),
           email: formData.email.trim(),

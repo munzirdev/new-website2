@@ -372,12 +372,12 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
         cleanRequestData.birth_date = birthDate;
       }
 
-      // إضافة user_id فقط إذا كان المستخدم مسجل دخول وموجود في جدول user_profiles
+      // إضافة user_id فقط إذا كان المستخدم مسجل دخول وموجود في جدول profiles
       if (user?.id) {
         try {
-          // التحقق من وجود المستخدم في جدول user_profiles
+          // التحقق من وجود المستخدم في جدول profiles
           const { data: userProfile, error: userError } = await supabase
-            .from('user_profiles')
+            .from('profiles')
             .select('id')
             .eq('id', user.id)
             .single();
@@ -386,7 +386,30 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
             cleanRequestData.user_id = user.id;
             console.log('✅ تم إضافة user_id:', user.id);
           } else {
-            console.log('⚠️ المستخدم غير موجود في جدول user_profiles، سيتم حفظ الطلب بدون user_id');
+            console.log('⚠️ المستخدم غير موجود في جدول profiles، سيتم حفظ الطلب بدون user_id');
+            // Try to create the profile if it doesn't exist
+            try {
+              const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .upsert({
+                  id: user.id,
+                  email: user.email,
+                  full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'مستخدم جديد',
+                  phone: user.user_metadata?.phone || null,
+                  country_code: user.user_metadata?.country_code || '+90',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (!createError && newProfile) {
+                cleanRequestData.user_id = user.id;
+                console.log('✅ تم إنشاء الملف الشخصي وإضافة user_id:', user.id);
+              }
+            } catch (createProfileError) {
+              console.log('⚠️ فشل في إنشاء الملف الشخصي، سيتم حفظ الطلب بدون user_id');
+            }
           }
         } catch (error) {
           console.log('⚠️ خطأ في التحقق من المستخدم، سيتم حفظ الطلب بدون user_id');
@@ -423,9 +446,11 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
       }
 
       if (error) {
+        console.error('❌ خطأ في إرسال الطلب:', error);
         
         // معالجة خاصة لخطأ 409 (Conflict)
         if (error.code === '409') {
+          console.log('🔄 محاولة إصلاح خطأ 409...');
           
           // محاولة إزالة البيانات التي قد تسبب المشكلة
           const fixedData = { ...cleanRequestData };
@@ -448,8 +473,9 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
           }
         }
         
-        // معالجة أخطاء أخرى
-        if (error.code === '23503') {
+        // معالجة خطأ 23503 (Foreign Key Violation)
+        else if (error.code === '23503') {
+          console.log('🔄 محاولة إصلاح خطأ 23503...');
           
           // محاولة إزالة user_id إذا كان يسبب المشكلة
           const fixedData = { ...cleanRequestData };
@@ -470,12 +496,30 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
           }
         }
         
-        if (error.code === '23505') {
+        // معالجة خطأ 23505 (Unique Violation)
+        else if (error.code === '23505') {
           setSubmitError(isArabic ? 'هذا الطلب موجود مسبقاً. يرجى التحقق من البيانات.' : 'This request already exists. Please check the data.');
           return;
         }
         
-        throw error;
+        // معالجة خطأ 406 (Not Acceptable)
+        else if (error.code === '406') {
+          setSubmitError(isArabic ? 'مشكلة في تنسيق البيانات. يرجى التحقق من جميع الحقول والمحاولة مرة أخرى.' : 'Data format issue. Please check all fields and try again.');
+          return;
+        }
+        
+        // معالجة خطأ 400 (Bad Request)
+        else if (error.code === '400') {
+          setSubmitError(isArabic ? 'بيانات غير صحيحة. يرجى التحقق من جميع الحقول المطلوبة والمحاولة مرة أخرى.' : 'Invalid data. Please check all required fields and try again.');
+          return;
+        }
+        
+        // معالجة أخطاء أخرى
+        else {
+          console.error('❌ خطأ غير معروف:', error);
+          setSubmitError(isArabic ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم.' : 'An unexpected error occurred. Please try again or contact support.');
+          return;
+        }
       }
       
 

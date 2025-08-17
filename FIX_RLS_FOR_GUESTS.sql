@@ -54,7 +54,7 @@ FOR SELECT
 USING (
     auth.uid() IS NOT NULL AND 
     EXISTS (
-        SELECT 1 FROM user_profiles 
+        SELECT 1 FROM profiles 
         WHERE id = auth.uid() 
         AND role = 'admin'
     )

@@ -48,9 +48,9 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
     try {
       console.log('🔍 Searching for existing user:', email);
       
-      // Search in user_profiles table
+      // Search in profiles table
       const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('id, email, full_name')
         .eq('email', email)
         .single();
@@ -65,7 +65,7 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
         return;
       }
 
-      // If not found in user_profiles, try to search using Edge Function
+      // If not found in profiles, try to search using Edge Function
       try {
         const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-user', {
           body: { email }
@@ -80,9 +80,11 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
           setExistingUserFound(true);
         } else {
           console.log('ℹ️ User not found, will be created on first login');
+          setExistingUserFound(false);
         }
       } catch (searchError) {
         console.log('ℹ️ Could not search via Edge Function, user will be created on first login');
+        setExistingUserFound(false);
       }
     } catch (error) {
       console.log('ℹ️ No existing user found for:', email);
@@ -134,19 +136,22 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
       setLoading(true);
       console.log('🔍 Adding moderator:', formData);
       
-      // First, check if user already exists by searching in user_profiles
+      // First, check if user already exists by searching in profiles
+      console.log('🔍 Searching for existing user in profiles table...');
       let { data: existingUser, error: userError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('id, email, full_name')
         .eq('email', formData.email)
         .single();
+
+      console.log('🔍 Search result:', { existingUser, userError });
 
       let userId = null;
       if (existingUser) {
         userId = existingUser.id;
         console.log('✅ Found existing user in profiles:', existingUser);
       } else {
-        // If not found in user_profiles, try Edge Function
+        // If not found in profiles, try Edge Function
         try {
           const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-user', {
             body: { email: formData.email }
@@ -162,39 +167,57 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
       }
 
       // Add to moderators table
-      const { data: moderatorData, error: moderatorError } = await supabase
+      console.log('🔍 Attempting to insert into moderators table with data:', {
+        email: formData.email,
+        full_name: formData.full_name,
+        created_by: user?.id,
+        user_id: userId
+      });
+      
+      // Only include created_by if user is authenticated and exists
+      const moderatorData = {
+        email: formData.email,
+        full_name: formData.full_name,
+        user_id: userId // Link to existing user if found
+      };
+      
+      // Add created_by only if user exists and is authenticated
+      if (user?.id) {
+        moderatorData.created_by = user.id;
+      }
+      
+      const { data: moderatorResult, error: moderatorError } = await supabase
         .from('moderators')
-        .insert({
-          email: formData.email,
-          full_name: formData.full_name,
-          created_by: user?.id,
-          user_id: userId // Link to existing user if found
-        })
+        .insert(moderatorData)
         .select()
         .single();
 
       if (moderatorError) {
         console.error('❌ Error adding moderator:', moderatorError);
+        console.error('❌ Error details:', {
+          message: moderatorError.message,
+          details: moderatorError.details,
+          hint: moderatorError.hint,
+          code: moderatorError.code
+        });
         setErrorMessage(`فشل في إضافة المشرف: ${moderatorError.message}`);
         return;
       }
 
-      console.log('✅ Moderator added successfully:', moderatorData);
+      console.log('✅ Moderator added successfully:', moderatorResult);
 
       // If user exists, update their role to moderator
       if (userId) {
         console.log('🔄 Updating existing user role to moderator...');
         
-        // Update user profile role
+        // Update user profile role - use update instead of upsert to avoid foreign key issues
         const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: userId,
-            email: formData.email,
-            full_name: formData.full_name,
+          .from('profiles')
+          .update({
             role: 'moderator',
             updated_at: new Date().toISOString()
-          });
+          })
+          .eq('id', userId);
 
         if (profileError) {
           console.error('⚠️ Warning: Could not update user profile:', profileError);
@@ -203,7 +226,7 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
         }
       }
 
-      setModerators(prev => [moderatorData, ...prev]);
+      setModerators(prev => [moderatorResult, ...prev]);
       setFormData({ email: '', full_name: '' });
       setShowAddForm(false);
       

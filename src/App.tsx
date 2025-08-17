@@ -520,34 +520,28 @@ function App() {
     audio.volume = musicVolume;
     audio.muted = isMusicMuted;
 
-    // Check if it's a mobile device
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     
     // Auto-play when component mounts (only if not muted)
     const playAudio = async () => {
       try {
         if (!isMusicMuted) {
-          // On mobile, try to play with user interaction
-          if (isMobile) {
-            console.log('📱 Mobile device detected - music will play with user interaction');
-            // Set a flag to play music on first user interaction
-            const playOnInteraction = () => {
-              audio.play().then(() => {
-                console.log('✅ Music started playing on mobile');
-                setIsMusicPlaying(true);
-                document.removeEventListener('touchstart', playOnInteraction);
-                document.removeEventListener('click', playOnInteraction);
-              }).catch((error) => {
-                console.error('❌ Failed to play music on mobile:', error);
-              });
-            };
-            
-            document.addEventListener('touchstart', playOnInteraction, { once: true });
-            document.addEventListener('click', playOnInteraction, { once: true });
-          } else {
-            await audio.play();
-            setIsMusicPlaying(true);
-          }
+          // Both mobile and desktop need user interaction for autoplay
+          console.log('🎵 Setting up music to play on user interaction');
+          // Set a flag to play music on first user interaction
+          const playOnInteraction = () => {
+            audio.play().then(() => {
+              console.log('✅ Music started playing');
+              setIsMusicPlaying(true);
+              document.removeEventListener('touchstart', playOnInteraction);
+              document.removeEventListener('click', playOnInteraction);
+            }).catch((error) => {
+              console.error('❌ Failed to play music:', error);
+            });
+          };
+          
+          document.addEventListener('touchstart', playOnInteraction, { once: true });
+          document.addEventListener('click', playOnInteraction, { once: true });
         } else {
           setIsMusicPlaying(false);
         }
@@ -2276,8 +2270,8 @@ function App() {
     muted={isMusicMuted}
   />
 
-  {/* Mobile Music Control Button - Fixed Bottom Left */}
-  <div className="md:hidden fixed bottom-6 left-6 z-[99999]">
+  {/* Music Control Button - Fixed Bottom Left */}
+  <div className="fixed bottom-6 left-6 z-[99999]">
     <button
       onClick={handleMusicClick}
       className={`relative w-14 h-14 rounded-full transition-all duration-300 flex items-center justify-center shadow-2xl transform hover:scale-110 ${

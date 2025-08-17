@@ -225,7 +225,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({
       console.log('User profile not found, attempting to create one...');
       try {
         const { data: newProfile, error: profileError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .upsert({
             id: user.id,
             email: user.email,

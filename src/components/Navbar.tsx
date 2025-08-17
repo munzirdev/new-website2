@@ -128,10 +128,18 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleMusicClick = () => {
     const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) return;
+    if (!audio) {
+      console.log('Audio element not found');
+      return;
+    }
 
     if (!isMusicPlaying) {
-      audio.play().catch(console.error);
+      audio.play().catch((error) => {
+        console.error('Failed to play audio:', error);
+        // Try to unmute first if autoplay is blocked
+        audio.muted = false;
+        audio.play().catch(console.error);
+      });
     } else {
       toggleMusicMute();
     }
@@ -139,7 +147,10 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleMusicVolumeChange = (newVolume: number) => {
     const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) return;
+    if (!audio) {
+      console.log('Audio element not found for volume change');
+      return;
+    }
 
     setMusicVolume(newVolume);
     audio.volume = newVolume;
@@ -154,22 +165,43 @@ const Navbar: React.FC<NavbarProps> = ({
 
   // Listen for audio state changes
   useEffect(() => {
-    const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) return;
+    const checkAudio = () => {
+      const audio = document.querySelector('audio') as HTMLAudioElement;
+      if (!audio) {
+        console.log('Audio element not found, retrying...');
+        // Retry after a short delay
+        setTimeout(checkAudio, 1000);
+        return;
+      }
 
-    const handlePlay = () => setIsMusicPlaying(true);
-    const handlePause = () => setIsMusicPlaying(false);
-    const handleEnded = () => setIsMusicPlaying(false);
+      const handlePlay = () => {
+        console.log('Audio started playing');
+        setIsMusicPlaying(true);
+      };
+      const handlePause = () => {
+        console.log('Audio paused');
+        setIsMusicPlaying(false);
+      };
+      const handleEnded = () => {
+        console.log('Audio ended');
+        setIsMusicPlaying(false);
+      };
 
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
+      audio.addEventListener('ended', handleEnded);
 
-    return () => {
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
+      // Set initial state
+      setIsMusicPlaying(!audio.paused && !audio.muted);
+
+      return () => {
+        audio.removeEventListener('play', handlePlay);
+        audio.removeEventListener('pause', handlePause);
+        audio.removeEventListener('ended', handleEnded);
+      };
     };
+
+    checkAudio();
   }, []);
 
   return (
