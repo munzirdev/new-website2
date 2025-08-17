@@ -112,9 +112,23 @@ const Navbar: React.FC<NavbarProps> = ({
 
   // Check if user has admin or moderator access
   const hasAdminAccess = () => {
-    if (!user || !profile) return false;
+    console.log('🔍 Navbar hasAdminAccess check:', { 
+      hasUser: !!user, 
+      hasProfile: !!profile, 
+      userEmail: user?.email,
+      profileRole: profile?.role 
+    });
+    
+    if (!user || !profile) {
+      console.log('❌ No user or profile, denying access');
+      return false;
+    }
+    
     const userRole = profile.role;
-    return userRole === 'admin' || userRole === 'moderator';
+    const hasAccess = userRole === 'admin' || userRole === 'moderator';
+    
+    console.log('🔍 Access check result:', { userRole, hasAccess });
+    return hasAccess;
   };
 
   // Music control functions

@@ -302,12 +302,21 @@ function App() {
     // Handle admin routes with proper access control
     if (path.startsWith('/admin')) {
       console.log('🔧 Admin route detected:', path);
+      console.log('🔧 Auth state check:', { 
+        hasUser: !!user, 
+        hasProfile: !!profile, 
+        userEmail: user?.email,
+        profileRole: profile?.role,
+        authLoading 
+      });
       
       // Check if user is authenticated and has proper role
       if (user && profile) {
         const userRole = profile.role;
         const isAdmin = userRole === 'admin';
         const isModerator = userRole === 'moderator';
+        
+        console.log('🔧 Role check:', { userRole, isAdmin, isModerator });
         
         if (isAdmin || isModerator) {
           console.log('🔧 تم اكتشاف مسار الأدمن، فتح لوحة التحكم للمستخدم المصرح له');

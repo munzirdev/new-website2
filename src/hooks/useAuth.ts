@@ -507,6 +507,7 @@ export const useAuth = () => {
         if (!error && data) {
           console.log('✅ تم جلب الملف الشخصي بنجاح');
           console.log('📋 بيانات الملف الشخصي:', data);
+          console.log('🔍 Role from database:', data.role);
           return data;
         }
         
