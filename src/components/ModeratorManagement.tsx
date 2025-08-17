@@ -190,6 +190,18 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
         moderatorData.created_by = user.id;
       }
       
+      // Check if moderator already exists
+      const { data: existingModerator, error: checkError } = await supabase
+        .from('moderators')
+        .select('id, email, full_name')
+        .eq('email', formData.email)
+        .single();
+
+      if (existingModerator && !checkError) {
+        setErrorMessage(`المشرف ${formData.email} موجود بالفعل في النظام`);
+        return;
+      }
+
       const { data: moderatorResult, error: moderatorError } = await supabase
         .from('moderators')
         .insert(moderatorData)
@@ -204,7 +216,15 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
           hint: moderatorError.hint,
           code: moderatorError.code
         });
-        setErrorMessage(`فشل في إضافة المشرف: ${moderatorError.message}`);
+        
+        // Handle specific error cases
+        if (moderatorError.code === '23505') { // Unique constraint violation
+          setErrorMessage(`المشرف ${formData.email} موجود بالفعل في النظام`);
+        } else if (moderatorError.code === '23503') { // Foreign key constraint violation
+          setErrorMessage(`خطأ في ربط المستخدم. يرجى المحاولة مرة أخرى.`);
+        } else {
+          setErrorMessage(`فشل في إضافة المشرف: ${moderatorError.message}`);
+        }
         return;
       }
 
