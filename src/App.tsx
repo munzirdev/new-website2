@@ -349,29 +349,7 @@ function App() {
     }
   }, [location.pathname, user, profile, navigate, authLoading]);
 
-  // Handle admin access when profile loads
-  useEffect(() => {
-    if (location.pathname.startsWith('/admin') && user && profile && !authLoading) {
-      console.log('🔧 Profile loaded for admin route:', { 
-        userEmail: user.email, 
-        profileRole: profile.role,
-        pathname: location.pathname 
-      });
-      
-      const userRole = profile.role;
-      const isAdmin = userRole === 'admin';
-      const isModerator = userRole === 'moderator';
-      
-      if (isAdmin || isModerator) {
-        console.log('🔧 Granting admin access');
-        setShowAdminDashboard(true);
-      } else {
-        console.log('🔧 Denying admin access - insufficient privileges');
-        setShowAdminDashboard(false);
-        navigate('/', { replace: true });
-      }
-    }
-  }, [user, profile, authLoading, location.pathname, navigate]);
+
 
   // Debug logging for auth state (reduced frequency)
   useEffect(() => {
@@ -1107,6 +1085,19 @@ function App() {
       <ProtectedRoute requireModerator={true}>
         <AdminDashboard onBack={() => navigate('/')} isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} onSignOut={handleSignOut} />
       </ProtectedRoute>
+    );
+  }
+
+  // Show loading state when on admin route but still loading
+  if (location.pathname.startsWith('/admin') && authLoading) {
+    return (
+      <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white flex items-center justify-center font-alexandria`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-caribbean-600 mx-auto mb-4"></div>
+          <p className="text-lg font-semibold">جاري تحميل لوحة التحكم...</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">يرجى الانتظار</p>
+        </div>
+      </div>
     );
   }
 
