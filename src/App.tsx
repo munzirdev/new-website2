@@ -301,14 +301,20 @@ function App() {
     
     // Handle admin routes with proper access control
     if (path.startsWith('/admin')) {
-      console.log('🔧 Admin route detected:', path);
-      console.log('🔧 Auth state check:', { 
+      console.log('🔧 Admin route detected:', { 
+        path, 
         hasUser: !!user, 
         hasProfile: !!profile, 
+        authLoading,
         userEmail: user?.email,
-        profileRole: profile?.role,
-        authLoading 
+        profileRole: profile?.role 
       });
+      
+      // If still loading auth state, don't redirect yet
+      if (authLoading) {
+        console.log('🔧 Still loading auth, waiting...');
+        return; // Wait for auth to finish loading
+      }
       
       // Check if user is authenticated and has proper role
       if (user && profile) {
@@ -316,28 +322,56 @@ function App() {
         const isAdmin = userRole === 'admin';
         const isModerator = userRole === 'moderator';
         
-        console.log('🔧 Role check:', { userRole, isAdmin, isModerator });
+        console.log('🔧 User and profile available:', { userRole, isAdmin, isModerator });
         
         if (isAdmin || isModerator) {
-          console.log('🔧 تم اكتشاف مسار الأدمن، فتح لوحة التحكم للمستخدم المصرح له');
+          console.log('🔧 Granting admin access');
           setShowAdminDashboard(true);
         } else {
-          console.log('🔧 المستخدم ليس لديه صلاحيات للوصول إلى لوحة التحكم');
+          console.log('🔧 Denying admin access - insufficient privileges');
           setShowAdminDashboard(false);
           // Redirect unauthorized users to home
           navigate('/', { replace: true });
         }
+      } else if (user && !profile) {
+        // User is authenticated but profile is not loaded yet
+        // Don't redirect, let the profile load
+        console.log('🔧 User authenticated but profile not loaded yet, waiting...');
+        setShowAdminDashboard(false);
       } else {
-        console.log('🔧 المستخدم غير مسجل دخول، إخفاء لوحة التحكم');
+        console.log('🔧 No user or profile, redirecting to home');
         setShowAdminDashboard(false);
         // Redirect unauthenticated users to home
         navigate('/', { replace: true });
       }
     } else {
-      console.log('🔧 Non-admin route, hiding admin components');
       setShowAdminDashboard(false);
     }
-  }, [location.pathname, user, profile, navigate]);
+  }, [location.pathname, user, profile, navigate, authLoading]);
+
+  // Handle admin access when profile loads
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin') && user && profile && !authLoading) {
+      console.log('🔧 Profile loaded for admin route:', { 
+        userEmail: user.email, 
+        profileRole: profile.role,
+        pathname: location.pathname 
+      });
+      
+      const userRole = profile.role;
+      const isAdmin = userRole === 'admin';
+      const isModerator = userRole === 'moderator';
+      
+      if (isAdmin || isModerator) {
+        console.log('🔧 Granting admin access');
+        setShowAdminDashboard(true);
+      } else {
+        console.log('🔧 Denying admin access - insufficient privileges');
+        setShowAdminDashboard(false);
+        navigate('/', { replace: true });
+      }
+    }
+  }, [user, profile, authLoading, location.pathname, navigate]);
 
   // Debug logging for auth state (reduced frequency)
   useEffect(() => {
@@ -2364,3 +2398,4 @@ function App() {
 }
 
 export default App;
+

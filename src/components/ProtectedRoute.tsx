@@ -98,15 +98,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     const isAdmin = userRole === 'admin';
     const isModerator = userRole === 'moderator';
     
-    console.log('🔒 ProtectedRoute role check:', { 
-      requireAdmin, 
-      requireModerator, 
-      userRole, 
-      isAdmin, 
-      isModerator,
-      userEmail: user?.email 
-    });
-    
     // For admin-only routes
     if (requireAdmin && !isAdmin) {
       return fallback || (
@@ -169,7 +160,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // User is authenticated and has required privileges
-  console.log('✅ ProtectedRoute: User authenticated and authorized');
   return <>{children}</>;
 };
 
