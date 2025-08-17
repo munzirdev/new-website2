@@ -1,4 +1,5 @@
 import trainingData from '../data/chatbot-training-data.json';
+import { Groq } from 'groq-sdk';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -8,6 +9,7 @@ export interface ChatMessage {
 export class ChatService {
   private static instance: ChatService;
   private conversationHistory: Map<string, ChatMessage[]> = new Map();
+  private groqClient: any;
 
   static getInstance(): ChatService {
     if (!ChatService.instance) {
@@ -16,21 +18,36 @@ export class ChatService {
     return ChatService.instance;
   }
 
+  constructor() {
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+    if (apiKey) {
+      this.groqClient = new Groq({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+    }
+  }
+
   private detectLanguage(text: string): string {
     // Simple language detection based on character sets
     const arabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
     const turkishChars = /[çğıöşüÇĞIİÖŞÜ]/;
     
+    // Check for Arabic text first
     if (arabicChars.test(text)) {
       return 'ar';
-    } else if (turkishChars.test(text) || text.toLowerCase().includes('merhaba') || text.toLowerCase().includes('nasılsın')) {
+    } 
+    // Check for Turkish text
+    else if (turkishChars.test(text) || text.toLowerCase().includes('merhaba') || text.toLowerCase().includes('nasılsın')) {
       return 'tr';
-    } else {
+    } 
+    // Default to English
+    else {
       return 'en';
     }
   }
 
-  private getSystemPrompt(language: string): string {
+  private getSystemPrompt(language: string, userInfo?: { id?: string; name?: string; email?: string; isRegistered?: boolean }): string {
     const data = trainingData as any;
     let lang = 'en';
     let personality, guidelines;
@@ -50,6 +67,16 @@ export class ChatService {
     }
     
     if (language === 'ar') {
+      const userInfoText = userInfo?.isRegistered 
+        ? `\nمعلومات المستخدم:
+- المستخدم مسجل: نعم
+- الاسم: ${userInfo.name || 'غير محدد'}
+- البريد الإلكتروني: ${userInfo.email || 'غير محدد'}
+- معرف المستخدم: ${userInfo.id || 'غير محدد'}
+
+ملاحظة: هذا المستخدم مسجل في النظام، يمكنك تقديم خدمات مخصصة له.`
+        : '\nملاحظة: هذا مستخدم غير مسجل، قدم له الخدمات الأساسية.';
+
       return `أنت ${personality.name}، ${personality.role} في ${data.company_info.name}. 
 
 شخصيتك:
@@ -96,7 +123,7 @@ ${data.common_questions[lang].service_specific.map((q: any) =>
 ${personality.greeting_messages.join('\n')}
 
 رسائل الوداع:
-${personality.closing_messages.join('\n')}
+${personality.closing_messages.join('\n')}${userInfoText}
 
 تذكر: رد دائماً باللغة العربية، كن محترفاً ومهذباً، قدم معلومات دقيقة، وكن مختصراً وواضحاً. إذا لم تكن متأكداً من إجابة، اطلب من العميل التواصل مع فريق خدمة العملاء للحصول على معلومات محدثة ودقيقة.`;
     } else {
@@ -204,10 +231,75 @@ Remember: Always respond in English, be professional and polite, provide accurat
     }
   }
 
+  private getFallbackResponse(language: string, userMessage: string): string {
+    const data = trainingData as any;
+    const lowerMessage = userMessage.toLowerCase();
+    
+    if (language === 'ar') {
+      if (lowerMessage.includes('مرحبا') || lowerMessage.includes('السلام عليكم') || lowerMessage.includes('أهلا')) {
+        return 'مرحباً! كيف يمكنني مساعدتك اليوم؟ أنا أحمد، ممثل خدمة العملاء في مجموعة تواصل.';
+      }
+      if (lowerMessage.includes('خدمات') || lowerMessage.includes('ماذا تقدمون') || lowerMessage.includes('ما هي خدماتكم')) {
+        return 'نقدم خدمات متعددة: التأمين الصحي، تجديد الإقامة، خدمات الترجمة، تجديد الجواز، والتصوير الفوري. كيف يمكنني مساعدتك؟';
+      }
+      if (lowerMessage.includes('إقامة') || lowerMessage.includes('تكلفة') || lowerMessage.includes('كم تكلفة')) {
+        return 'تكلفة الإقامة 810 ليرة تركية للبطاقة، بالإضافة للتأمين والرسوم حسب الجنسية والعمر. هل تريد استشارة مجانية؟';
+      }
+      if (lowerMessage.includes('عنوان') || lowerMessage.includes('أين') || lowerMessage.includes('مكتب')) {
+        return 'مكتبنا في: CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin مرسين - التشارشي مقابل ادارة الهجرة. الهاتف: +90 534 962 72 41';
+      }
+      if (lowerMessage.includes('هاتف') || lowerMessage.includes('اتصال') || lowerMessage.includes('رقم')) {
+        return 'يمكنك التواصل معنا على الهاتف: +90 534 962 72 41 أو البريد الإلكتروني: info@tevasul.group';
+      }
+      if (lowerMessage.includes('حماية مؤقتة') || lowerMessage.includes('تحديث بيانات') || lowerMessage.includes('الحماية المؤقتة')) {
+        return 'نعم، نقدم خدمة تحديث البيانات للحماية المؤقتة. نختص في جميع إجراءات تحديث البيانات والمعلومات المطلوبة للحماية المؤقتة في تركيا. يمكننا مساعدتك في المُعاملات والشكاوى اللازمة لكي تحصل على الحماية المؤقتة الجديدة بسهولة. هل هناك أي بيانات مُحددة تحتاجها؟';
+      }
+      return 'عذراً، حدث خطأ في الاتصال. يرجى التواصل معنا مباشرة على الهاتف: +90 534 962 72 41 أو البريد الإلكتروني: info@tevasul.group';
+    } else if (language === 'tr') {
+      if (lowerMessage.includes('merhaba') || lowerMessage.includes('selam') || lowerMessage.includes('merhaba')) {
+        return 'Merhaba! Size nasıl yardımcı olabilirim? Ben Tevasul Group müşteri hizmetleri temsilcisiyim.';
+      }
+      if (lowerMessage.includes('hizmet') || lowerMessage.includes('ne sunuyorsunuz') || lowerMessage.includes('hizmetleriniz')) {
+        return 'Sağlık sigortası, ikamet yenileme, çeviri hizmetleri, pasaport yenileme ve anlık fotoğraf hizmetleri sunuyoruz. Size nasıl yardımcı olabilirim?';
+      }
+      if (lowerMessage.includes('ikamet') || lowerMessage.includes('maliyet') || lowerMessage.includes('fiyat')) {
+        return 'İkamet maliyeti kart için 810 Türk Lirası, ayrıca sigorta ve milliyet ve yaşa göre harçlar. Ücretsiz danışmanlık ister misiniz?';
+      }
+      if (lowerMessage.includes('adres') || lowerMessage.includes('nerede') || lowerMessage.includes('ofis')) {
+        return 'Ofisimiz: CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin - Göç İdaresi karşısı. Telefon: +90 534 962 72 41';
+      }
+      if (lowerMessage.includes('telefon') || lowerMessage.includes('iletişim') || lowerMessage.includes('numara')) {
+        return 'Bize telefon: +90 534 962 72 41 veya e-posta: info@tevasul.group ile ulaşabilirsiniz.';
+      }
+      return 'Üzgünüz, bağlantı hatası oluştu. Lütfen doğrudan telefon: +90 534 962 72 41 veya e-posta: info@tevasul.group ile iletişime geçin.';
+    } else {
+      if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
+        return 'Hello! How can I help you today? I\'m a customer service representative at Tevasul Group.';
+      }
+      if (lowerMessage.includes('services') || lowerMessage.includes('what do you offer') || lowerMessage.includes('help')) {
+        return 'We offer various services: health insurance, residence renewal, translation services, passport renewal, and instant photography. How can I assist you?';
+      }
+      if (lowerMessage.includes('residence') || lowerMessage.includes('cost') || lowerMessage.includes('price')) {
+        return 'Residence permit cost is 810 Turkish Lira for the card, plus insurance and fees based on nationality and age. Would you like a free consultation?';
+      }
+      if (lowerMessage.includes('address') || lowerMessage.includes('where') || lowerMessage.includes('office')) {
+        return 'Our office is at: CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin - opposite Immigration Office. Phone: +90 534 962 72 41';
+      }
+      if (lowerMessage.includes('phone') || lowerMessage.includes('contact') || lowerMessage.includes('number')) {
+        return 'You can contact us at phone: +90 534 962 72 41 or email: info@tevasul.group';
+      }
+      if (lowerMessage.includes('temporary protection') || lowerMessage.includes('data update') || lowerMessage.includes('protection')) {
+        return 'Yes, we provide data update services for temporary protection. We specialize in all procedures for updating data and information required for temporary protection in Turkey. We can help you with the necessary transactions and complaints to obtain new temporary protection easily. Is there any specific data you need?';
+      }
+      return 'Sorry, there was a connection error. Please contact us directly at phone: +90 534 962 72 41 or email: info@tevasul.group';
+    }
+  }
+
   async getResponse(
     userMessage: string,
     sessionId: string,
-    language?: string
+    language?: string,
+    userInfo?: { id?: string; name?: string; email?: string; isRegistered?: boolean }
   ): Promise<string> {
     // Auto-detect language if not provided
     const detectedLanguage = language || this.detectLanguage(userMessage);
@@ -217,9 +309,10 @@ Remember: Always respond in English, be professional and polite, provide accurat
       
       // Add system message if this is the first message
       if (conversation.length === 0) {
+        const systemPrompt = this.getSystemPrompt(detectedLanguage, userInfo);
         conversation.push({
           role: 'system',
-          content: this.getSystemPrompt(detectedLanguage)
+          content: systemPrompt
         });
       }
 
@@ -237,35 +330,22 @@ Remember: Always respond in English, be professional and polite, provide accurat
         ];
       }
 
-      // Use OpenRouter with TNG: DeepSeek R1T2 Chimera (free)
-      const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-      if (!apiKey) {
-        throw new Error('OpenRouter API key not found');
+      // Use Groq with compound-beta-oss model
+      if (!this.groqClient) {
+        throw new Error('Groq client not initialized');
       }
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Tevasul Chat Bot'
-        },
-        body: JSON.stringify({
-          model: 'tngtech/deepseek-r1t2-chimera:free',
-          messages: conversation,
-          max_tokens: 300,
-          temperature: 0.7,
-          stream: false
-        })
+      const completion = await this.groqClient.chat.completions.create({
+        model: "llama3-70b-8192",
+        messages: conversation,
+        temperature: 0.7,
+        max_tokens: 1024,
+        top_p: 1,
+        stream: false,
+        stop: null
       });
 
-      if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const assistantResponse = data.choices[0]?.message?.content || '';
+      const assistantResponse = completion.choices[0]?.message?.content || '';
 
       // Add assistant response to conversation
       conversation.push({
@@ -279,14 +359,10 @@ Remember: Always respond in English, be professional and polite, provide accurat
       return assistantResponse;
     } catch (error) {
       console.error('Error getting AI response:', error);
+      console.log('🔄 Using fallback response...');
       
-      if (detectedLanguage === 'ar') {
-        return 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى أو التواصل مع فريق خدمة العملاء للحصول على المساعدة.';
-      } else if (detectedLanguage === 'tr') {
-        return 'Üzgünüz, isteğinizi işlerken bir hata oluştu. Lütfen tekrar deneyin veya yardım için müşteri hizmetleri ekibimizle iletişime geçin.';
-      } else {
-        return 'Sorry, there was an error processing your request. Please try again or contact our customer service team for assistance.';
-      }
+      // Use fallback response instead of generic error
+      return this.getFallbackResponse(detectedLanguage, userMessage);
     }
   }
 
@@ -294,7 +370,8 @@ Remember: Always respond in English, be professional and polite, provide accurat
     userMessage: string,
     sessionId: string,
     language?: string,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    userInfo?: { id?: string; name?: string; email?: string; isRegistered?: boolean }
   ): Promise<string> {
     // Auto-detect language if not provided
     const detectedLanguage = language || this.detectLanguage(userMessage);
@@ -304,9 +381,10 @@ Remember: Always respond in English, be professional and polite, provide accurat
       
       // Add system message if this is the first message
       if (conversation.length === 0) {
+        const systemPrompt = this.getSystemPrompt(detectedLanguage, userInfo);
         conversation.push({
           role: 'system',
-          content: this.getSystemPrompt(detectedLanguage)
+          content: systemPrompt
         });
       }
 
@@ -324,87 +402,52 @@ Remember: Always respond in English, be professional and polite, provide accurat
         ];
       }
 
-      // Use OpenRouter with TNG: DeepSeek R1T2 Chimera (free)
-      const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-      if (!apiKey) {
-        throw new Error('OpenRouter API key not found');
+      // Use Groq with compound-beta-oss model
+      if (!this.groqClient) {
+        throw new Error('Groq client not initialized');
       }
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Tevasul Chat Bot'
-        },
-        body: JSON.stringify({
-          model: 'tngtech/deepseek-r1t2-chimera:free',
-          messages: conversation,
-          max_tokens: 300,
-          temperature: 0.7,
-          stream: true
-        })
+      const completion = await this.groqClient.chat.completions.create({
+        model: "llama3-70b-8192",
+        messages: conversation,
+        temperature: 0.7,
+        max_tokens: 1024,
+        top_p: 1,
+        stream: true,
+        stop: null
       });
 
-      if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
       let fullResponse = '';
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                // Add assistant response to conversation
-                conversation.push({
-                  role: 'assistant',
-                  content: fullResponse
-                });
-
-                // Update conversation history
-                this.conversationHistory.set(sessionId, conversation);
-                
-                return fullResponse;
-              }
-              
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.choices[0]?.delta?.content) {
-                  const content = parsed.choices[0].delta.content;
-                  fullResponse += content;
-                  onChunk(content);
-                }
-              } catch (e) {
-                console.error('Error parsing JSON:', e);
-              }
-            }
-          }
+      for await (const chunk of completion) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullResponse += content;
+          onChunk(content);
         }
       }
 
+      // Add assistant response to conversation
+      conversation.push({
+        role: 'assistant',
+        content: fullResponse
+      });
+
+      // Update conversation history
+      this.conversationHistory.set(sessionId, conversation);
+      
       return fullResponse;
     } catch (error) {
       console.error('Error getting AI response stream:', error);
+      console.log('🔄 Using fallback response for stream...');
       
-      if (detectedLanguage === 'ar') {
-        return 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى أو التواصل مع فريق خدمة العملاء للحصول على المساعدة.';
-      } else if (detectedLanguage === 'tr') {
-        return 'Üzgünüz, isteğinizi işlerken bir hata oluştu. Lütfen tekrar deneyin veya yardım için müşteri hizmetleri ekibimizle iletişime geçin.';
-      } else {
-        return 'Sorry, there was an error processing your request. Please try again or contact our customer service team for assistance.';
-      }
+      // Use fallback response instead of generic error
+      const fallbackResponse = this.getFallbackResponse(detectedLanguage, userMessage);
+      
+      // Simulate streaming by calling onChunk with the full response
+      onChunk(fallbackResponse);
+      
+      return fallbackResponse;
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, UserPlus, User, Settings, HelpCircle, LogOut, Send, MessageCircle, Code, Volume2, VolumeX } from 'lucide-react';
+import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, UserPlus, User, Settings, HelpCircle, LogOut, Send, Code, Volume2, VolumeX } from 'lucide-react';
 import CustomCursor from './components/CustomCursor';
 import DebugThemeToggle from './components/DebugThemeToggle';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
@@ -1404,9 +1404,9 @@ function App() {
         {/* Blurred Background Overlay for Text Readability */}
         <div className="absolute inset-0 backdrop-blur-[2px] bg-black/30 pointer-events-none"></div>
 
-        <div className="relative text-center px-4 max-w-6xl mx-auto">
+        <div className="relative text-center px-4 max-w-6xl mx-auto py-8 md:py-12">
           {/* Logo Section - Adjusted for mobile with dangerous scroll animation */}
-          <div className="flex items-center justify-center mb-6 md:mb-8 animate-fade-in relative">
+          <div className="flex items-center justify-center mb-8 md:mb-12 animate-fade-in relative">
 
             
             {/* Main logo */}
@@ -1419,28 +1419,28 @@ function App() {
 
           </div>
           
-          <h1 className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 md:mb-6 animate-fade-in-up text-white drop-shadow-lg leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <h1 className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-6 md:mb-8 animate-fade-in-up text-white drop-shadow-lg leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
             <span className="inline-block animate-text-shimmer bg-gradient-to-r from-white via-caribbean-200 to-white bg-clip-text text-transparent bg-[length:200%_100%] leading-relaxed">
               {t('hero.mainTitle')}
             </span>
           </h1>
           
-          <div className={`text-lg md:text-2xl lg:text-3xl xl:text-4xl font-semibold mb-6 md:mb-8 text-white/95 drop-shadow-md animate-fade-in-delay-1 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <div className={`text-lg md:text-2xl lg:text-3xl xl:text-4xl font-semibold mb-8 md:mb-10 text-white/95 drop-shadow-md animate-fade-in-delay-1 ${isLanguageChanging ? 'language-change-text' : ''}`}>
             <span className="relative">
               {t('hero.withUs')}
               <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-caribbean-400 to-indigo-400 rounded-full animate-expand-width"></div>
             </span>
           </div>
           
-          <div className={`text-base md:text-lg lg:text-xl text-white/85 mb-8 md:mb-10 leading-relaxed animate-fade-in-delay-2 max-w-3xl mx-auto drop-shadow-sm px-4 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <div className={`text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 mb-10 md:mb-12 leading-relaxed animate-fade-in-delay-2 max-w-4xl mx-auto drop-shadow-sm px-4 ${isLanguageChanging ? 'language-change-text' : ''}`}>
             <span className="inline-block animate-fade-in-up relative">
               {t('hero.description')}
-              <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-caribbean-400 to-indigo-400 animate-expand-width-delayed"></div>
+              <div className="absolute -bottom-2 left-0 w-0 h-1 bg-gradient-to-r from-caribbean-400 to-indigo-400 animate-expand-width-delayed"></div>
             </span>
           </div>
           
           {/* Stats Counter - Simplified for mobile */}
-          <div className="flex justify-center items-center space-x-4 md:space-x-8 space-x-reverse mb-8 md:mb-10 animate-fade-in-delay-2">
+          <div className="flex justify-center items-center space-x-4 md:space-x-8 space-x-reverse mb-10 md:mb-12 animate-fade-in-delay-2">
             <div className="text-center">
               <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-caribbean-300 animate-count-up">5000+</div>
               <div className="text-xs md:text-sm text-white/70">{t('hero.stats.clients')}</div>
@@ -1457,7 +1457,7 @@ function App() {
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center animate-fade-in-delay-3">
+      <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center animate-fade-in-delay-3 mt-4">
         <button 
           onClick={scrollToServices}
           className="group relative bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-lg md:text-xl hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl flex items-center justify-center overflow-hidden animate-pulse-glow border-2 border-white/20 hover:border-white/40"

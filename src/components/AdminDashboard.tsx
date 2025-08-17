@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CustomCursor from './CustomCursor';
 import AdminNavbar from './AdminNavbar';
-import AdminTopBar from './AdminTopBar';
+
 import { 
   Users, 
   FileText, 
@@ -47,7 +47,10 @@ import {
   Printer,
   Filter,
   AlertTriangle,
-  MessageCircle
+  MessageCircle,
+  RefreshCw,
+  Bot,
+
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
@@ -57,7 +60,7 @@ import VoluntaryReturnForm from './VoluntaryReturnForm';
 import VoluntaryReturnChart from './VoluntaryReturnChart';
 import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
-import AdminChatSupport from './AdminChatSupport';
+
 import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
@@ -145,23 +148,168 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const location = useLocation();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
-
-
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support' | 'webhooks'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
   const [editingRequest, setEditingRequest] = useState<ServiceRequest | null>(null);
   const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
-
-
   const [editingSupport, setEditingSupport] = useState<SupportMessage | null>(null);
-  const [editingFaq, setEditingFaq] = useState<FAQ | null>(null);
+  
+  // Chat messages state
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [selectedChatSession, setSelectedChatSession] = useState<string | null>(null);
+  const [chatReplyText, setChatReplyText] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [newMessageNotification, setNewMessageNotification] = useState<string | null>(null);
+  const [chatFilter, setChatFilter] = useState<'all' | 'user' | 'bot' | 'admin'>('all');
+  const [chatSearchTerm, setChatSearchTerm] = useState('');
+  const [chatDateFilter, setChatDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [claimedSessions, setClaimedSessions] = useState<Set<string>>(new Set());
+
+  // Load claimed sessions from localStorage on component mount
+  useEffect(() => {
+    const savedClaimedSessions = localStorage.getItem('admin_claimed_sessions');
+    if (savedClaimedSessions) {
+      try {
+        const parsedSessions = JSON.parse(savedClaimedSessions);
+        setClaimedSessions(new Set(parsedSessions));
+        console.log('Loaded claimed sessions from localStorage:', parsedSessions);
+      } catch (error) {
+        console.error('Error loading claimed sessions from localStorage:', error);
+      }
+    }
+  }, []);
+  const [clickedSessionId, setClickedSessionId] = useState<string | null>(null);
+  
+  // Auto scroll ref for chat messages
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Real-time subscription for all chat messages
+  useEffect(() => {
+    console.log('Setting up real-time subscription for all chat messages in admin dashboard');
+
+    const channel = supabase
+      .channel(`admin_chat_messages_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        (payload: any) => {
+          console.log('New message received in admin dashboard:', payload.new);
+          const newMessage = payload.new as any;
+          
+          // Update chat sessions list to show new message count
+          setChatSessions(prev => {
+            const updatedSessions = prev.map(session => {
+              if (session.session_id === newMessage.session_id) {
+                return {
+                  ...session,
+                  message_count: session.message_count + 1,
+                  last_message: {
+                    content: newMessage.content,
+                    created_at: newMessage.created_at
+                  },
+                  hasNewMessage: true // Mark as having new message
+                };
+              }
+              return session;
+            });
+            
+            // If this is a new session, add it to the list
+            if (!prev.some(session => session.session_id === newMessage.session_id)) {
+              const newSession = {
+                session_id: newMessage.session_id,
+                messages: [newMessage],
+                last_message: {
+                  content: newMessage.content,
+                  created_at: newMessage.created_at
+                },
+                message_count: 1,
+                created_at: newMessage.created_at,
+                hasNewMessage: true // Mark as having new message
+              };
+              updatedSessions.unshift(newSession); // Add to beginning
+            }
+            
+            return updatedSessions;
+          });
+          
+          // Show notification for new message
+          if (newMessage.sender === 'user') {
+            setNewMessageNotification(`رسالة جديدة من العميل في الجلسة: ${newMessage.session_id.substring(0, 8)}...`);
+            setTimeout(() => setNewMessageNotification(null), 5000); // Hide after 5 seconds
+          }
+          
+          // If this message is for the currently selected session, add it to chat messages
+          if (selectedChatSession === newMessage.session_id) {
+            setChatMessages(prev => {
+              // Check if message already exists
+              if (prev.some(msg => msg.id === newMessage.id)) {
+                console.log('Message already exists in admin dashboard, skipping:', newMessage.id);
+                return prev;
+              }
+              
+              const formattedMessage = {
+                id: newMessage.id,
+                content: newMessage.content,
+                sender: newMessage.sender,
+                created_at: newMessage.created_at,
+                session_id: newMessage.session_id,
+                user_id: newMessage.user_id
+              };
+              
+              console.log('Adding new message to admin dashboard:', formattedMessage);
+              return [...prev, formattedMessage];
+            });
+            
+            // Auto scroll to bottom - Disabled to prevent page jumping
+            // setTimeout(() => {
+            //   if (chatMessagesEndRef.current) {
+            //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            //   }
+            // }, 100);
+          }
+        }
+      )
+      .subscribe((status: any) => {
+        console.log('Admin dashboard real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Real-time subscription active for admin dashboard');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Real-time subscription error for admin dashboard');
+        }
+      });
+
+    return () => {
+      console.log('Cleaning up admin dashboard real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChatSession]);
+
+  // Periodic refresh for chat sessions (fallback)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchChatSessions();
+      
+      // Also refresh messages for currently selected session
+      if (selectedChatSession) {
+        fetchChatMessages(selectedChatSession);
+      }
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedChatSession]);
+
   const [newFaq, setNewFaq] = useState<Partial<FAQ>>({
     question: '',
     answer: '',
@@ -215,8 +363,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       fetchServiceRequests();
       fetchSupportMessages();
       fetchFAQs();
+      fetchChatSessions();
+      
+      // Prevent auto scroll to top when loading chat messages
+      if (activeTab === 'chat-messages') {
+        window.scrollTo(0, 0);
+      }
     }
   }, [user]);
+
+  // Auto-refresh chat sessions every 30 seconds when on chat tab
+  useEffect(() => {
+    if (activeTab === 'chat-messages') {
+      const interval = setInterval(() => {
+        // Only refresh if not currently loading
+        if (!chatLoading) {
+          fetchChatSessions();
+        }
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, chatLoading]);
+
+  // Auto scroll to bottom when chat messages change - Disabled to prevent page jumping
+  // useEffect(() => {
+  //   if (chatMessagesEndRef.current) {
+  //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  //   }
+  // }, [chatMessages]);
 
   // Add timeout to prevent loading state from getting stuck
   useEffect(() => {
@@ -272,34 +447,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search, formParam, viewParam]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'chat-support' | 'webhooks') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages') => {
     setActiveTab(tab);
-    switch (tab) {
-      case 'requests':
-        navigate('/admin/service-requests');
-        break;
-      case 'support':
-        navigate('/admin/support-messages');
-        break;
-      case 'faqs':
-        navigate('/admin/faq');
-        break;
-      case 'chat-support':
-        navigate('/admin/chat-support');
-        break;
-      case 'ready-forms':
-        navigate('/admin/ready-forms');
-        break;
-      case 'moderators':
-        navigate('/admin/moderators');
-        break;
-      case 'health-insurance':
-        navigate('/admin/health-insurance');
-        break;
-      case 'webhooks':
-        navigate('/admin/webhooks');
-        break;
-    }
+    // Stay on the same page, just change the active tab
+    // No need to navigate to different URLs since everything is in one component
   };
 
   const navigateToVoluntaryReturnView = (view: 'list' | 'create' | 'chart') => {
@@ -408,6 +559,356 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     }
   };
 
+  const fetchChatSessions = async () => {
+    try {
+      console.log('🔍 جلب جلسات المحادثات...');
+      setChatLoading(true);
+      
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('خطأ في جلب المحادثات:', error);
+        return;
+      }
+
+      // Group messages by session_id
+      const sessionsMap = new Map();
+      data?.forEach((message: any) => {
+        if (!sessionsMap.has(message.session_id)) {
+          sessionsMap.set(message.session_id, {
+            session_id: message.session_id,
+            messages: [],
+            last_message: message,
+            message_count: 0,
+            created_at: message.created_at
+          });
+        }
+        sessionsMap.get(message.session_id).messages.push(message);
+        sessionsMap.get(message.session_id).message_count += 1;
+      });
+
+      const sessions = Array.from(sessionsMap.values());
+      setChatSessions(sessions);
+      
+      // Select first session by default
+      if (sessions.length > 0 && !selectedChatSession) {
+        setSelectedChatSession(sessions[0].session_id);
+        setChatMessages(sessions[0].messages);
+        
+        // Remove new message indicator for default session
+        setChatSessions(prev => prev.map(session => 
+          session.session_id === sessions[0].session_id 
+            ? { ...session, hasNewMessage: false }
+            : session
+        ));
+      }
+      
+      // Check for claimed sessions from database
+      const claimedSessionsFromDB = new Set<string>();
+      for (const session of sessions) {
+        const { data: claimMessages } = await supabase
+          .from('chat_messages')
+          .select('content')
+          .eq('session_id', session.session_id)
+          .eq('sender', 'admin')
+          .ilike('content', '%تم استلام المحادثة%')
+          .limit(1);
+
+        if (claimMessages && claimMessages.length > 0) {
+          claimedSessionsFromDB.add(session.session_id);
+        }
+      }
+
+      // Update claimed sessions state and localStorage
+      if (claimedSessionsFromDB.size > 0) {
+        setClaimedSessions(prev => {
+          const newSet = new Set([...prev, ...claimedSessionsFromDB]);
+          localStorage.setItem('admin_claimed_sessions', JSON.stringify(Array.from(newSet)));
+          console.log('Updated claimed sessions from database:', Array.from(newSet));
+          return newSet;
+        });
+      }
+      
+      console.log('💬 جلسات المحادثات:', sessions.length);
+    } catch (error) {
+      console.error('خطأ غير متوقع في جلب المحادثات:', error);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const fetchChatMessages = async (sessionId: string) => {
+    try {
+      console.log('🔍 جلب رسائل الجلسة:', sessionId);
+      
+      // Add timeout to prevent hanging
+      const queryPromise = supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
+        
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 10000); // 10 second timeout
+      });
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error('❌ خطأ في جلب رسائل المحادثة:', error);
+        throw error;
+      }
+
+      console.log('✅ تم جلب رسائل المحادثة:', data?.length || 0, 'رسالة');
+      setChatMessages(data || []);
+      
+      // Auto scroll to bottom after fetching messages - Disabled to prevent page jumping
+      // setTimeout(() => {
+      //   if (chatMessagesEndRef.current) {
+      //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // }, 100);
+      
+      // Force a second refresh after a short delay to catch any missed messages
+      setTimeout(() => {
+        if (selectedChatSession === sessionId) {
+          console.log('🔄 Refreshing messages again to catch any missed ones...');
+          supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('session_id', sessionId)
+            .order('created_at', { ascending: true })
+            .then(({ data: refreshData, error: refreshError }) => {
+              if (!refreshError && refreshData) {
+                console.log('🔄 Refresh found:', refreshData.length, 'messages');
+                if (refreshData.length !== data?.length) {
+                  console.log('🔄 Updating messages with new count:', refreshData.length);
+                  setChatMessages(refreshData);
+                }
+              }
+            });
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('❌ خطأ غير متوقع في جلب رسائل المحادثة:', error);
+      setChatMessages([]);
+      throw error;
+    }
+  };
+
+  const sendChatReply = async (sessionId: string, content: string) => {
+    try {
+      // Insert message to database
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+          content,
+          sender: 'admin',
+          session_id: sessionId,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      
+      // Refresh messages and sessions
+      await fetchChatMessages(sessionId);
+      await fetchChatSessions();
+      setChatReplyText('');
+      
+      // Clear notification after sending reply
+      setNewMessageNotification(null);
+      
+      // Remove new message indicator for this session
+      setChatSessions(prev => prev.map(session => 
+        session.session_id === sessionId 
+          ? { ...session, hasNewMessage: false }
+          : session
+      ));
+      
+      // Auto scroll to bottom after sending message - Disabled to prevent page jumping
+      // setTimeout(() => {
+      //   if (chatMessagesEndRef.current) {
+      //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // }, 100);
+      
+      // Auto scroll to bottom after sending message - Disabled to prevent page jumping
+      // setTimeout(() => {
+      //   if (chatMessagesEndRef.current) {
+      //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // }, 100);
+    } catch (error) {
+      console.error('خطأ في إرسال الرد:', error);
+    }
+  };
+
+  const claimChatSession = async (sessionId: string) => {
+    try {
+      console.log('بدء استلام المحادثة:', sessionId);
+      
+      // Add claimed session to state
+      setClaimedSessions(prev => {
+        const newSet = new Set(prev).add(sessionId);
+        // Save to localStorage
+        localStorage.setItem('admin_claimed_sessions', JSON.stringify(Array.from(newSet)));
+        console.log('Saved claimed sessions to localStorage:', Array.from(newSet));
+        return newSet;
+      });
+      
+      // Send notification message to user
+      const notificationMessage = '🔔 تم استلام المحادثة من قبل ممثل خدمة العملاء. سيتم الرد عليك قريباً.';
+      
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          content: notificationMessage,
+          sender: 'admin',
+          session_id: sessionId,
+          created_at: new Date().toISOString()
+        })
+        .select();
+
+      if (error) {
+        console.error('خطأ في إرسال رسالة الاستلام:', error);
+        throw error;
+      }
+      
+      console.log('تم إرسال رسالة الاستلام بنجاح:', data);
+      
+      // Refresh messages and sessions
+      await fetchChatMessages(sessionId);
+      await fetchChatSessions();
+      
+      // Auto scroll to bottom - Disabled to prevent page jumping
+      // setTimeout(() => {
+      //   if (chatMessagesEndRef.current) {
+      //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // }, 100);
+      
+      console.log('تم استلام المحادثة بنجاح:', sessionId);
+    } catch (error) {
+      console.error('خطأ في استلام المحادثة:', error);
+    }
+  };
+
+  const handleChatSessionSelect = async (sessionId: string) => {
+    // Prevent multiple clicks on the same session
+    if (clickedSessionId === sessionId || chatLoading) {
+      console.log('⏸️ منع النقر المتعدد على الجلسة:', sessionId);
+      return;
+    }
+
+    try {
+      console.log('🔍 محاولة فتح جلسة المحادثة:', sessionId);
+      
+      // Set clicked session to prevent multiple clicks
+      setClickedSessionId(sessionId);
+      
+      // Set loading state
+      setChatLoading(true);
+      
+      // Update selected session immediately for UI feedback
+      setSelectedChatSession(sessionId);
+      
+      // Remove new message indicator when session is selected
+      setChatSessions(prev => prev.map(session => 
+        session.session_id === sessionId 
+          ? { ...session, hasNewMessage: false }
+          : session
+      ));
+      
+      // Fetch messages for this session
+      await fetchChatMessages(sessionId);
+      
+      // Auto scroll to bottom when selecting a new session - Disabled to prevent page jumping
+      // setTimeout(() => {
+      //   if (chatMessagesEndRef.current) {
+      //     chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // }, 100);
+      
+      console.log('✅ تم فتح جلسة المحادثة بنجاح:', sessionId);
+    } catch (error) {
+      console.error('❌ خطأ في فتح جلسة المحادثة:', error);
+      // Reset selection on error
+      setSelectedChatSession(null);
+    } finally {
+      setChatLoading(false);
+      // Clear clicked session after a short delay
+      setTimeout(() => {
+        setClickedSessionId(null);
+      }, 1000);
+    }
+  };
+
+  // Filter chat messages based on sender and search term
+  const filteredChatMessages = chatMessages.filter(message => {
+    const matchesFilter = chatFilter === 'all' || message.sender === chatFilter;
+    const matchesSearch = !chatSearchTerm || message.content.toLowerCase().includes(chatSearchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  // Filter chat sessions based on search term and date
+  const filteredChatSessions = chatSessions.filter(session => {
+    const matchesSearch = !chatSearchTerm || session.messages.some((message: any) => 
+      message.content.toLowerCase().includes(chatSearchTerm.toLowerCase())
+    );
+    
+    const sessionDate = new Date(session.created_at);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    let matchesDate = true;
+    if (chatDateFilter === 'today') {
+      matchesDate = sessionDate >= today;
+    } else if (chatDateFilter === 'week') {
+      matchesDate = sessionDate >= weekAgo;
+    } else if (chatDateFilter === 'month') {
+      matchesDate = sessionDate >= monthAgo;
+    }
+    
+    return matchesSearch && matchesDate;
+  });
+
+  const deleteChatSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('session_id', sessionId);
+
+      if (error) throw error;
+      
+      // Remove from claimed sessions
+      setClaimedSessions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sessionId);
+        localStorage.setItem('admin_claimed_sessions', JSON.stringify(Array.from(newSet)));
+        console.log('Removed session from claimed sessions:', sessionId);
+        return newSet;
+      });
+      
+      // Refresh sessions and clear selected session if it was deleted
+      await fetchChatSessions();
+      if (selectedChatSession === sessionId) {
+        setSelectedChatSession(null);
+        setChatMessages([]);
+      }
+      
+      // Clear notification if the deleted session was showing a notification
+      setNewMessageNotification(null);
+    } catch (error) {
+      console.error('خطأ في حذف جلسة المحادثة:', error);
+    }
+  };
+
   const handleEdit = (request: ServiceRequest) => {
     setEditingRequest(request);
     setEditForm({
@@ -487,12 +988,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   };
 
   const handleEditFaq = (faq: FAQ) => {
-    setEditingFaq(faq);
+    setEditingFAQ(faq);
   };
 
   const handleSaveFaq = async (faqData: Partial<FAQ>) => {
     try {
-      if (editingFaq) {
+      if (editingFAQ) {
         // تحديث سؤال موجود
         const { error } = await supabase
           .from('faqs')
@@ -504,7 +1005,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             is_active: faqData.is_active,
             updated_at: new Date().toISOString()
           })
-          .eq('id', editingFaq.id);
+          .eq('id', editingFAQ.id);
 
         if (error) {
           console.error('خطأ في تحديث السؤال:', error);
@@ -529,7 +1030,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       }
 
       await fetchFAQs();
-      setEditingFaq(null);
+      setEditingFAQ(null);
       setShowAddFaq(false);
       setNewFaq({
         question: '',
@@ -843,13 +1344,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
   const getStatusColor = (status: string) => {
     switch (status) {
-              case 'pending': return 'text-sky-600 bg-sky-100 dark:bg-sky-900/20';
-      case 'in_progress': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-      case 'completed': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      case 'resolved': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      case 'cancelled': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
-      case 'closed': return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+      case 'pending': return 'text-amber-600 bg-amber-100/80 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'in_progress': return 'text-purple-600 bg-purple-100/80 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'completed': return 'text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/30 dark:text-emerald-400';
+      case 'resolved': return 'text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/30 dark:text-emerald-400';
+      case 'cancelled': return 'text-red-600 bg-red-100/80 dark:bg-red-900/30 dark:text-red-400';
+      case 'closed': return 'text-slate-600 bg-slate-100/80 dark:bg-slate-900/30 dark:text-slate-400';
+      default: return 'text-slate-600 bg-slate-100/80 dark:bg-slate-900/30 dark:text-slate-400';
     }
   };
 
@@ -867,11 +1368,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
-              case 'high': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-        case 'medium': return 'text-sky-600 bg-sky-100 dark:bg-sky-900/20';
-      case 'low': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+      case 'urgent': return 'text-red-600 bg-red-100/80 dark:bg-red-900/30 dark:text-red-400';
+      case 'high': return 'text-orange-600 bg-orange-100/80 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'medium': return 'text-blue-600 bg-blue-100/80 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'low': return 'text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/30 dark:text-emerald-400';
+      default: return 'text-slate-600 bg-slate-100/80 dark:bg-slate-900/30 dark:text-slate-400';
     }
   };
 
@@ -983,17 +1484,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50/40 to-cyan-50/30 dark:from-jet-900 dark:via-jet-800 dark:to-jet-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
       <CustomCursor isDarkMode={isDarkMode} />
-      {/* Subtle animated background elements */}
+      
+      {/* New Message Notification */}
+      {newMessageNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in">
+          <div className="flex items-center space-x-2 space-x-reverse">
+            <MessageCircle className="w-5 h-5" />
+            <span className="font-medium">{newMessageNotification}</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Enhanced Glass Morphism Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-sky-200/8 to-transparent rounded-full animate-pulse" style={{ animationDuration: '4s' }}></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-bl from-blue-200/6 to-transparent rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }}></div>
-        <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-tr from-cyan-200/4 to-sky-200/4 rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '6s' }}></div>
-        <div className="absolute bottom-40 right-1/3 w-20 h-20 bg-gradient-to-r from-blue-200/5 to-cyan-200/5 rounded-full animate-pulse" style={{ animationDelay: '3s', animationDuration: '4s' }}></div>
+        {/* Subtle floating orbs with glass effect */}
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-200/10 to-indigo-200/5 backdrop-blur-sm rounded-full animate-pulse border border-white/20" style={{ animationDuration: '8s' }}></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-bl from-sky-200/8 to-blue-200/4 backdrop-blur-sm rounded-full animate-pulse border border-white/15" style={{ animationDelay: '2s', animationDuration: '10s' }}></div>
+        <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-tr from-indigo-200/6 to-purple-200/3 backdrop-blur-sm rounded-full animate-pulse border border-white/10" style={{ animationDelay: '1s', animationDuration: '12s' }}></div>
+        <div className="absolute bottom-40 right-1/3 w-20 h-20 bg-gradient-to-r from-sky-200/5 to-indigo-200/3 backdrop-blur-sm rounded-full animate-pulse border border-white/10" style={{ animationDelay: '3s', animationDuration: '9s' }}></div>
+        
+        {/* Additional subtle elements */}
+        <div className="absolute top-1/3 left-1/3 w-16 h-16 bg-gradient-to-br from-purple-200/4 to-pink-200/2 backdrop-blur-sm rounded-full animate-pulse border border-white/5" style={{ animationDelay: '4s', animationDuration: '11s' }}></div>
+        <div className="absolute top-2/3 right-1/4 w-12 h-12 bg-gradient-to-bl from-cyan-200/3 to-blue-200/2 backdrop-blur-sm rounded-full animate-pulse border border-white/5" style={{ animationDelay: '5s', animationDuration: '7s' }}></div>
       </div>
-      {/* Phone number formatting for Arabic */}
+      
+      {/* Enhanced Glass Morphism Styles */}
       <style jsx global>{`
+        /* Enhanced Glass Morphism Effects */
+        .glass-card {
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-card-dark {
+          background: rgba(15, 23, 42, 0.3);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .glass-button {
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(15px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          transition: all 0.3s ease;
+        }
+        
+        .glass-button:hover {
+          background: rgba(255, 255, 255, 0.25);
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .glass-button-dark {
+          background: rgba(15, 23, 42, 0.4);
+          backdrop-filter: blur(15px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: all 0.3s ease;
+        }
+        
+        .glass-button-dark:hover {
+          background: rgba(15, 23, 42, 0.6);
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
         /* Phone number formatting for Arabic */
         .phone-number {
           direction: ltr !important;
@@ -1066,18 +1625,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           }
         }
       `}</style>
-      {/* Admin Top Bar */}
-      <AdminTopBar />
-      
-      {/* Admin Navbar */}
+      {/* Admin Navbar - Now the topmost element */}
       <AdminNavbar 
         onBack={onBack}
         isDarkMode={isDarkMode}
         onToggleDarkMode={onToggleDarkMode}
         onSignOut={onSignOut}
       />
+      
+      {/* Admin Top Bar - Now below navbar */}
+      
 
-      <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
+              <div className="relative max-w-7xl mx-auto px-1 sm:px-2 md:px-3 lg:px-4 py-4 md:py-8 z-10">
         {/* Breadcrumb Navigation */}
         <div className="mb-4 flex items-center text-sm text-jet-600 dark:text-platinum-400">
           <button
@@ -1094,6 +1653,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 {activeTab === 'faqs' && 'الأسئلة الشائعة'}
                 {activeTab === 'ready-forms' && 'نماذج جاهزة'}
                 {activeTab === 'moderators' && (profile?.role === 'admin' ? 'إدارة المشرفين' : 'الوصول مرفوض')}
+                {activeTab === 'chat-messages' && 'المحادثات'}
               </span>
             </>
           )}
@@ -1108,111 +1668,111 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 mb-8 overflow-hidden">
-          <div className="flex border-b border-sky-200 dark:border-jet-700 overflow-x-auto bg-gradient-to-r from-sky-50/20 via-transparent to-blue-50/20 dark:from-sky-900/10 dark:via-transparent dark:to-blue-900/10">
+        {/* Enhanced Glass Morphism Tabs */}
+        <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl mb-8 overflow-hidden border border-white/20 dark:border-white/10`}>
+          <div className="flex border-b border-white/20 dark:border-white/10 overflow-x-auto bg-gradient-to-r from-white/10 via-transparent to-white/10 dark:from-white/5 dark:via-transparent dark:to-white/5">
             <button
               onClick={() => navigateToTab('requests')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'requests'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <FileText className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">طلبات ({requests.length})</span>
+                <FileText className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">طلبات ({requests.length})</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('support')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'support'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <Mail className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">دعم ({supportMessages.length})</span>
+                <Mail className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">دعم ({supportMessages.length})</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('faqs')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'faqs'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <HelpCircle className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">أسئلة ({faqs.length})</span>
+                <HelpCircle className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">أسئلة ({faqs.length})</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('ready-forms')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'ready-forms'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <Globe className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">نماذج جاهزة</span>
+                <Globe className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">نماذج جاهزة</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('moderators')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'moderators'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <Shield className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">المشرفين</span>
+                <Shield className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">المشرفين</span>
+              </div>
+            </button>
+            <button
+              onClick={() => navigateToTab('chat-messages')}
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
+                activeTab === 'chat-messages'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center">
+                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">المحادثات</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('health-insurance')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'health-insurance'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <Shield className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">التأمين الصحي</span>
-              </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('chat-support')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                activeTab === 'chat-support'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-              }`}
-            >
-              <div className="flex items-center">
-                <MessageCircle className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">الشات بوت</span>
+                <Heart className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">التأمين الصحي</span>
               </div>
             </button>
             <button
               onClick={() => navigateToTab('webhooks')}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'webhooks'
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
               }`}
             >
               <div className="flex items-center">
-                <Zap className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">الـ Webhooks</span>
+                <Zap className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">الـ Webhooks</span>
               </div>
             </button>
           </div>
@@ -1221,50 +1781,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         {/* Service Requests Tab */}
         {activeTab === 'requests' && (
           <>
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+            {/* Enhanced Glass Morphism Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
               <button
                 onClick={() => setRequestFilter('all')}
-                className={`group bg-gradient-to-br from-white via-sky-50/20 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-4 md:p-6 rounded-xl shadow-lg border transition-all duration-300 transform hover:scale-105 hover:shadow-xl text-right ${
+                className={`group ${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden ${
                   requestFilter === 'all'
-                    ? 'border-sky-300 dark:border-sky-500 shadow-sky-200/50 dark:shadow-sky-500/20'
-                    : 'border-sky-200 dark:border-jet-700'
+                    ? 'ring-2 ring-blue-500/50 dark:ring-blue-400/50 shadow-blue-500/20'
+                    : ''
                 }`}
               >
-                <div className="flex items-center">
-                  <div className={`p-3 rounded-lg transition-all duration-300 ${
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className={`p-3 rounded-xl transition-all duration-300 ${
                     requestFilter === 'all'
-                      ? 'bg-caribbean-200 dark:bg-caribbean-800 group-hover:animate-pulse'
-                      : 'bg-caribbean-100 dark:bg-caribbean-900/20'
+                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg group-hover:animate-pulse'
+                      : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-600 dark:text-blue-400'
                   }`}>
-                    <FileText className="w-6 h-6 text-caribbean-600 dark:text-caribbean-400" />
+                    <FileText className="w-6 h-6" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">إجمالي الطلبات</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">{requests.length}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">إجمالي الطلبات</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">{requests.length}</p>
                   </div>
                 </div>
               </button>
 
               <button
                 onClick={() => setRequestFilter('pending')}
-                className={`group bg-gradient-to-br from-white via-sky-50/20 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-4 md:p-6 rounded-xl shadow-lg border transition-all duration-300 transform hover:scale-105 hover:shadow-xl text-right ${
+                className={`group ${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden ${
                   requestFilter === 'pending'
-                    ? 'border-sky-300 dark:border-sky-500 shadow-sky-200/50 dark:shadow-sky-500/20'
-                    : 'border-sky-200 dark:border-jet-700'
+                    ? 'ring-2 ring-amber-500/50 dark:ring-amber-400/50 shadow-amber-500/20'
+                    : ''
                 }`}
               >
-                <div className="flex items-center">
-                  <div className={`p-3 rounded-lg transition-all duration-300 ${
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className={`p-3 rounded-xl transition-all duration-300 ${
                     requestFilter === 'pending'
-                      ? 'bg-sky-200 dark:bg-sky-800 group-hover:animate-pulse'
-                      : 'bg-sky-100 dark:bg-sky-900/20'
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg group-hover:animate-pulse'
+                      : 'bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-600 dark:text-amber-400'
                   }`}>
-                    <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+                    <Clock className="w-6 h-6" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">قيد الانتظار</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">قيد الانتظار</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {requests.filter(r => r.status === 'pending').length}
                     </p>
                   </div>
@@ -1273,23 +1835,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
               <button
                 onClick={() => setRequestFilter('in_progress')}
-                            className={`group bg-gradient-to-br from-white via-sky-50/20 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-4 md:p-6 rounded-xl shadow-lg border transition-all duration-300 transform hover:scale-105 hover:shadow-xl text-right ${
-              requestFilter === 'in_progress'
-                ? 'border-blue-300 dark:border-blue-500 shadow-blue-200/50 dark:shadow-blue-500/20'
-                : 'border-sky-200 dark:border-jet-700'
-            }`}
+                className={`group ${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden ${
+                  requestFilter === 'in_progress'
+                    ? 'ring-2 ring-purple-500/50 dark:ring-purple-400/50 shadow-purple-500/20'
+                    : ''
+                }`}
               >
-                <div className="flex items-center">
-                  <div className={`p-3 rounded-lg transition-all duration-300 ${
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className={`p-3 rounded-xl transition-all duration-300 ${
                     requestFilter === 'in_progress'
-                      ? 'bg-blue-200 dark:bg-blue-800 group-hover:animate-pulse'
-                      : 'bg-blue-100 dark:bg-blue-900/20'
+                      ? 'bg-gradient-to-br from-purple-500 to-violet-600 text-white shadow-lg group-hover:animate-pulse'
+                      : 'bg-gradient-to-br from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 text-purple-600 dark:text-purple-400'
                   }`}>
-                    <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    <AlertCircle className="w-6 h-6" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">قيد التنفيذ</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">قيد التنفيذ</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {requests.filter(r => r.status === 'in_progress').length}
                     </p>
                   </div>
@@ -1298,23 +1861,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
               <button
                 onClick={() => setRequestFilter('completed')}
-                            className={`group bg-gradient-to-br from-white via-sky-50/20 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-4 md:p-6 rounded-xl shadow-lg border transition-all duration-300 transform hover:scale-105 hover:shadow-xl text-right ${
-              requestFilter === 'completed'
-                ? 'border-green-300 dark:border-green-500 shadow-green-200/50 dark:shadow-green-500/20'
-                : 'border-sky-200 dark:border-jet-700'
-            }`}
+                className={`group ${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden ${
+                  requestFilter === 'completed'
+                    ? 'ring-2 ring-emerald-500/50 dark:ring-emerald-400/50 shadow-emerald-500/20'
+                    : ''
+                }`}
               >
-                <div className="flex items-center">
-                  <div className={`p-3 rounded-lg transition-all duration-300 ${
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className={`p-3 rounded-xl transition-all duration-300 ${
                     requestFilter === 'completed'
-                      ? 'bg-green-200 dark:bg-green-800 group-hover:animate-pulse'
-                      : 'bg-green-100 dark:bg-green-900/20'
+                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg group-hover:animate-pulse'
+                      : 'bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 text-emerald-600 dark:text-emerald-400'
                   }`}>
-                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    <CheckCircle className="w-6 h-6" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">مكتملة</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">مكتملة</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {requests.filter(r => r.status === 'completed').length}
                     </p>
                   </div>
@@ -1349,31 +1913,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
             )}
 
-            {/* Filters */}
-            <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-6 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-jet-400 dark:text-platinum-500 w-5 h-5" />
+            {/* Enhanced Glass Morphism Filters */}
+            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl mb-8 border border-white/20 dark:border-white/10`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
                   <input
                     type="text"
                     placeholder="البحث في الطلبات..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                    className="w-full pl-12 pr-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   />
                 </div>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
-                >
-                  <option value="all">جميع الحالات</option>
-                  <option value="pending">قيد الانتظار</option>
-                  <option value="in_progress">قيد التنفيذ</option>
-                  <option value="completed">مكتملة</option>
-                  <option value="cancelled">ملغية</option>
-                </select>
+                <div className="relative group">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300 appearance-none cursor-pointer"
+                  >
+                    <option value="all">جميع الحالات</option>
+                    <option value="pending">قيد الانتظار</option>
+                    <option value="in_progress">قيد التنفيذ</option>
+                    <option value="completed">مكتملة</option>
+                    <option value="cancelled">ملغية</option>
+                  </select>
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <Filter className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1387,83 +1956,89 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 </div>
               ) : (
                 filteredRequests.map((request) => (
-                  <div key={request.id} className="group bg-gradient-to-br from-white via-sky-50/20 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 p-4 md:p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={request.id} className={`group ${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-6 hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] relative overflow-hidden`}>
+                    {/* Subtle gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    <div className="relative flex items-start justify-between mb-6">
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <h3 className="text-xl font-bold text-jet-800 dark:text-white ml-3">
+                        <div className="flex items-center mb-4">
+                          <h3 className="text-xl font-bold text-slate-800 dark:text-white ml-4">
                             {request.title}
                           </h3>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold backdrop-blur-sm border border-white/20 ${getStatusColor(request.status)}`}>
                             {getStatusIcon(request.status)}
-                            <span className="mr-1">{getStatusArabic(request.status)}</span>
+                            <span className="mr-2">{getStatusArabic(request.status)}</span>
                           </span>
                         </div>
-                        <p className="text-jet-600 dark:text-platinum-400 mb-2">
+                        <p className="text-slate-600 dark:text-slate-300 mb-3 font-medium">
                           <strong>نوع الخدمة:</strong> {getServiceTypeArabic(request.service_type)}
                         </p>
                         {request.description && (
-                          <p className="text-jet-700 dark:text-platinum-300 mb-3">
+                          <p className="text-slate-700 dark:text-slate-200 mb-4 leading-relaxed">
                             {request.description}
                           </p>
                         )}
                         
-                        {/* File Display */}
+                        {/* Enhanced File Display */}
                         {request.file_url && (
-                          <div className="mb-3 p-3 bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/10 dark:to-blue-900/10 rounded-lg border border-sky-200 dark:border-sky-700/30">
-                            <p className="text-sm text-sky-800 dark:text-sky-300 mb-2">
+                          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-xl border border-blue-200/30 dark:border-blue-700/20 backdrop-blur-sm">
+                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-3 font-medium">
                               <strong>الملف المرفق:</strong> {request.file_name || 'ملف مرفق'}
                               {request.file_url.startsWith('base64://') && (
-                                <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400">
+                                <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
                                   (محفوظ في قاعدة البيانات)
                                 </span>
                               )}
                             </p>
-                            <div className="flex space-x-2 space-x-reverse">
+                            <div className="flex space-x-3 space-x-reverse">
                               <button
                                 onClick={() => handleFileView(request.file_url!, request.file_name || 'file', request.id)}
-                                className="group flex items-center px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-500 text-white text-sm rounded-xl hover:from-sky-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                                className="group flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform font-semibold"
                               >
                                 <Eye className="w-4 h-4 ml-2 group-hover:animate-pulse" />
-                                <span className="font-semibold">عرض</span>
+                                <span>عرض</span>
                               </button>
                               <button
                                 onClick={() => handleFileDownload(request.file_url!, request.file_name || 'file', request.id)}
-                                className="group flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
+                                className="group flex items-center px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform font-semibold"
                               >
                                 <Download className="w-4 h-4 ml-2 group-hover:animate-bounce" />
-                                <span className="font-semibold">تحميل</span>
+                                <span>تحميل</span>
                               </button>
                             </div>
                           </div>
                         )}
                         
-                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500 mb-3">
+                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-slate-500 dark:text-slate-400 mb-4">
                           <div className="flex items-center">
-                            <Calendar className="w-4 h-4 ml-1" />
+                            <Calendar className="w-4 h-4 ml-2" />
                             <span>{formatDisplayDate(request.created_at)}</span>
                           </div>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm border border-white/20 ${getPriorityColor(request.priority)}`}>
                             {getPriorityArabic(request.priority)}
                           </span>
                         </div>
                         
-                        {/* Contact Info */}
-                        <div className="bg-platinum-50 dark:bg-jet-700 p-3 rounded-lg mb-3">
-                          <h4 className="font-medium text-jet-800 dark:text-white mb-2">معلومات التواصل</h4>
-                          <div className="text-sm text-jet-600 dark:text-platinum-400 space-y-1">
+                        {/* Enhanced Contact Info */}
+                        <div className="bg-gradient-to-r from-slate-50/50 to-blue-50/30 dark:from-slate-800/30 dark:to-blue-900/10 p-4 rounded-xl border border-slate-200/30 dark:border-slate-700/20 backdrop-blur-sm mb-4">
+                          <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
+                            <User className="w-4 h-4 ml-2" />
+                            معلومات التواصل
+                          </h4>
+                          <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
                             <p><strong>الاسم:</strong> {request.contact_name}</p>
                             <p><strong>البريد الإلكتروني:</strong> {request.contact_email}</p>
                             {request.contact_phone && (
                               <div className="flex items-center">
-                                <span className="text-jet-600 dark:text-platinum-400">
+                                <span className="text-slate-600 dark:text-slate-300">
                                   <strong>رقم الجوال:</strong> <span className="font-mono text-left font-bold" dir="ltr">{request.contact_country_code} {request.contact_phone}</span>
                                 </span>
                                 <a
                                   href={`https://wa.me/${formatPhoneForWhatsApp(request.contact_country_code + request.contact_phone)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors cursor-pointer"
+                                  className="p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-300 cursor-pointer ml-2"
                                   title="فتح الواتساب"
                                 >
                                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -1473,10 +2048,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                               </div>
                             )}
                             <div className="flex items-center">
-                              <Mail className="w-4 h-4 ml-1" />
+                              <Mail className="w-4 h-4 ml-2" />
                               <a 
                                 href={`mailto:${request.contact_email}?subject=بخصوص طلبك: ${request.title}`}
-                                className="text-caribbean-600 dark:text-caribbean-400 hover:underline"
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors duration-300"
                               >
                                 إرسال بريد إلكتروني
                               </a>
@@ -1485,27 +2060,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                         </div>
                         
                         {request.admin_notes && (
-                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                            <p className="text-sm text-green-800 dark:text-green-300">
+                          <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-xl border border-emerald-200/30 dark:border-emerald-700/20 backdrop-blur-sm">
+                            <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium">
                               <strong>ملاحظات الإدارة:</strong> {request.admin_notes}
                             </p>
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2 space-x-reverse">
+                      <div className="flex items-center space-x-3 space-x-reverse">
                         <button
                           onClick={() => handleEdit(request)}
-                          className="p-2 text-caribbean-600 hover:text-caribbean-700 dark:text-caribbean-400 dark:hover:text-caribbean-300 hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 rounded-lg transition-colors duration-200"
+                          className="p-3 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title="تعديل الطلب"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(request.id, `طلب ${request.service_type}`, 'request')}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="p-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title={language === 'ar' ? 'حذف' : 'Delete'}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -1519,56 +2094,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         {/* Support Messages Tab */}
         {activeTab === 'support' && (
           <>
-            {/* Support Stats */}
+            {/* Enhanced Support Stats with Glass Morphism */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
                 <div className="flex items-center">
-                  <div className="p-3 bg-caribbean-100 dark:bg-caribbean-900/20 rounded-lg">
-                    <Mail className="w-6 h-6 text-caribbean-600 dark:text-caribbean-400" />
+                  <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl">
+                    <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">إجمالي الرسائل</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">{supportMessages.length}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">إجمالي الرسائل</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">{supportMessages.length}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
                 <div className="flex items-center">
-                                  <div className="p-3 bg-sky-100 dark:bg-sky-900/20 rounded-lg">
-                  <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+                  <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl">
+                    <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">قيد الانتظار</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">قيد الانتظار</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {supportMessages.filter(m => m.status === 'pending').length}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
                 <div className="flex items-center">
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-3 bg-gradient-to-br from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 rounded-xl">
+                    <AlertCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">قيد المعالجة</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">قيد المعالجة</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {supportMessages.filter(m => m.status === 'in_progress').length}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
                 <div className="flex items-center">
-                  <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  <div className="p-3 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-xl">
+                    <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="mr-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">محلولة</p>
-                    <p className="text-2xl font-bold text-jet-800 dark:text-white">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">محلولة</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
                       {supportMessages.filter(m => m.status === 'resolved').length}
                     </p>
                   </div>
@@ -1576,31 +2151,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
             </div>
 
-            {/* Support Filters */}
-            <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-jet-400 dark:text-platinum-500 w-5 h-5" />
+            {/* Enhanced Support Filters with Glass Morphism */}
+            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl mb-8 border border-white/20 dark:border-white/10`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
                   <input
                     type="text"
                     placeholder="البحث في رسائل الدعم..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                    className="w-full pl-12 pr-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   />
                 </div>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
-                >
-                  <option value="all">جميع الحالات</option>
-                  <option value="pending">قيد الانتظار</option>
-                  <option value="in_progress">قيد المعالجة</option>
-                  <option value="resolved">محلولة</option>
-                  <option value="closed">مغلقة</option>
-                </select>
+                <div className="relative group">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300 appearance-none cursor-pointer"
+                  >
+                    <option value="all">جميع الحالات</option>
+                    <option value="pending">قيد الانتظار</option>
+                    <option value="in_progress">قيد المعالجة</option>
+                    <option value="resolved">محلولة</option>
+                    <option value="closed">مغلقة</option>
+                  </select>
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <Filter className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1614,38 +2194,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 </div>
               ) : (
                 filteredSupportMessages.map((message) => (
-                  <div key={message.id} className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={message.id} className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-6 hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] relative overflow-hidden`}>
+                    {/* Subtle gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    <div className="relative flex items-start justify-between mb-6">
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <h3 className="text-xl font-bold text-jet-800 dark:text-white ml-3">
+                        <div className="flex items-center mb-4">
+                          <h3 className="text-xl font-bold text-slate-800 dark:text-white ml-4">
                             {message.subject}
                           </h3>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(message.status)}`}>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold backdrop-blur-sm border border-white/20 ${getStatusColor(message.status)}`}>
                             {getStatusIcon(message.status)}
-                            <span className="mr-1">{getStatusArabic(message.status)}</span>
+                            <span className="mr-2">{getStatusArabic(message.status)}</span>
                           </span>
                         </div>
                         
-                        <div className="mb-3">
-                          <p className="text-jet-600 dark:text-platinum-400 mb-2">
+                        <div className="mb-4">
+                          <p className="text-slate-600 dark:text-slate-300 mb-3 font-medium">
                             <strong>من:</strong> {message.name} ({message.email})
                           </p>
-                          <p className="text-jet-700 dark:text-platinum-300 bg-platinum-50 dark:bg-jet-700 p-3 rounded-lg">
+                          <p className="text-slate-700 dark:text-slate-200 bg-gradient-to-r from-slate-50/50 to-blue-50/30 dark:from-slate-800/30 dark:to-blue-900/10 p-4 rounded-xl border border-slate-200/30 dark:border-slate-700/20 backdrop-blur-sm leading-relaxed">
                             {message.message}
                           </p>
                         </div>
                         
-                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500 mb-3">
+                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-slate-500 dark:text-slate-400 mb-4">
                           <div className="flex items-center">
-                            <Calendar className="w-4 h-4 ml-1" />
+                            <Calendar className="w-4 h-4 ml-2" />
                             <span>{formatDisplayDate(message.created_at)}</span>
                           </div>
                           <div className="flex items-center">
-                            <Mail className="w-4 h-4 ml-1" />
+                            <Mail className="w-4 h-4 ml-2" />
                             <a 
                               href={`mailto:${message.email}?subject=رد على: ${message.subject}`}
-                              className="text-caribbean-600 dark:text-caribbean-400 hover:underline"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors duration-300"
                             >
                               رد بالبريد الإلكتروني
                             </a>
@@ -1653,32 +2236,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                         </div>
                         
                         {message.admin_reply && (
-                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                            <p className="text-sm text-green-800 dark:text-green-300">
+                          <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-xl border border-emerald-200/30 dark:border-emerald-700/20 backdrop-blur-sm">
+                            <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium">
                               <strong>رد الإدارة:</strong> {message.admin_reply}
                             </p>
                             {message.admin_reply_date && (
-                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
                                 تاريخ الرد: {formatDisplayDate(message.admin_reply_date)}
                               </p>
                             )}
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2 space-x-reverse">
+                      <div className="flex items-center space-x-3 space-x-reverse">
                         <button
                           onClick={() => handleEditSupport(message)}
-                          className="p-2 text-caribbean-600 hover:text-caribbean-700 dark:text-caribbean-400 dark:hover:text-caribbean-300 hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 rounded-lg transition-colors duration-200"
+                          className="p-3 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title="الرد على الرسالة"
                         >
-                          <Reply className="w-4 h-4" />
+                          <Reply className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(message.id, `رسالة من ${message.name}`, 'message')}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="p-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title={language === 'ar' ? 'حذف' : 'Delete'}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -1689,31 +2272,361 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           </>
         )}
 
+        {/* Chat Messages Tab */}
+        {activeTab === 'chat-messages' && (
+          <>
+            {/* Enhanced Chat Header */}
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة المحادثات</h2>
+              <div className="flex space-x-3 space-x-reverse">
+                <button
+                  onClick={() => fetchChatSessions()}
+                  className="flex items-center px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <RefreshCw className="w-5 h-5 ml-3" />
+                  تحديث المحادثات
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-600 dark:text-blue-400">
+                    <MessageCircle className="w-6 h-6" />
+                  </div>
+                  <div className="mr-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">إجمالي الجلسات</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">{filteredChatSessions.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-600 dark:text-green-400">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div className="mr-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">رسائل العملاء</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                      {chatMessages.filter(m => m.sender === 'user').length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-100 to-violet-100 dark:from-purple-900/30 dark:to-violet-900/30 text-purple-600 dark:text-purple-400">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <div className="mr-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">ردود البوت</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                      {chatMessages.filter(m => m.sender === 'bot').length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-5 md:p-6 rounded-2xl transition-all duration-500 transform hover:scale-105 hover:shadow-2xl text-right relative overflow-hidden`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-600 dark:text-amber-400">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <div className="mr-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">ردود المدير</p>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                      {chatMessages.filter(m => m.sender === 'admin').length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat Search and Filters - Responsive */}
+            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-4 md:p-6 rounded-2xl shadow-xl mb-4 md:mb-6 border border-white/20 dark:border-white/10`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                <div className="relative group">
+                  <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 md:w-5 h-4 md:h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
+                  <input
+                    type="text"
+                    placeholder="البحث في المحادثات..."
+                    value={chatSearchTerm}
+                    onChange={(e) => setChatSearchTerm(e.target.value)}
+                    className="w-full pl-10 md:pl-12 pr-3 md:pr-4 py-2 md:py-3 text-sm md:text-base border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
+                  />
+                </div>
+                <div className="relative group">
+                  <Calendar className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 md:w-5 h-4 md:h-5" />
+                  <select
+                    value={chatDateFilter}
+                    onChange={(e) => setChatDateFilter(e.target.value as any)}
+                    className="w-full pl-10 md:pl-12 pr-3 md:pr-4 py-2 md:py-3 text-sm md:text-base border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300"
+                  >
+                    <option value="all">جميع التواريخ</option>
+                    <option value="today">اليوم</option>
+                    <option value="week">آخر أسبوع</option>
+                    <option value="month">آخر شهر</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat Sessions and Messages Layout - Full Height Responsive */}
+            <div className="grid grid-cols-1 xl:grid-cols-8 lg:grid-cols-7 md:grid-cols-1 gap-4 h-[calc(100vh-300px)] min-h-[600px]">
+              {/* Chat Sessions List */}
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 overflow-hidden flex flex-col xl:col-span-2 lg:col-span-2 md:col-span-1`}>
+                <div className="p-4 md:p-6 border-b border-white/20 dark:border-white/10 flex-shrink-0">
+                  <h3 className="text-base md:text-lg font-bold text-slate-800 dark:text-white mb-4">جلسات المحادثات</h3>
+                  {chatLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : filteredChatSessions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageCircle className="w-8 md:w-12 h-8 md:h-12 text-slate-400 mx-auto mb-3" />
+                      <p className="text-sm md:text-base text-slate-600 dark:text-slate-400">لا توجد محادثات</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 md:space-y-3 flex-1 overflow-y-auto max-h-[400px] scrollbar-thin">
+                      {filteredChatSessions.map((session) => (
+                        <div
+                          key={session.session_id}
+                          className={`w-full p-3 md:p-4 rounded-xl text-right transition-all duration-300 hover:shadow-lg cursor-pointer ${
+                            selectedChatSession === session.session_id
+                              ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-600'
+                              : 'bg-white/50 dark:bg-white/5 hover:bg-white/70 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(session.created_at).toLocaleDateString('ar-SA')}
+                            </span>
+                            <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
+                              {claimedSessions.has(session.session_id) && (
+                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Shield className="w-3 h-3" />
+                                  مستلمة
+                                </span>
+                              )}
+                              <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full">
+                                {session.message_count} رسالة
+                              </span>
+                              {session.session_id === selectedChatSession && (
+                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full animate-pulse">
+                                  🔴 متصل
+                                </span>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('هل أنت متأكد من حذف هذه الجلسة؟')) {
+                                    deleteChatSession(session.session_id);
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                title="حذف الجلسة"
+                              >
+                                <Trash2 className="w-3 md:w-4 h-3 md:h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleChatSessionSelect(session.session_id)}
+                            className={`w-full text-right transition-all duration-200 ${
+                              chatLoading && clickedSessionId === session.session_id
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer'
+                            }`}
+                            disabled={chatLoading && clickedSessionId === session.session_id}
+                          >
+                            <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-white truncate">
+                              {session.last_message?.content?.substring(0, 40)}...
+                            </p>
+                            {chatLoading && selectedChatSession === session.session_id && (
+                              <div className="flex items-center justify-center mt-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                <span className="text-xs text-blue-600 mr-2">جاري التحميل...</span>
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Messages - Full Height */}
+              <div className="xl:col-span-6 lg:col-span-5 md:col-span-1">
+                <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 h-full flex flex-col`}>
+                  <div className="p-4 md:p-6 border-b border-white/20 dark:border-white/10 flex-shrink-0">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <h3 className="text-base md:text-lg font-bold text-slate-800 dark:text-white">
+                        المحادثة
+                        {selectedChatSession && (
+                          <span className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mr-2">
+                            (جلسة: {selectedChatSession.substring(0, 8)}...)
+                          </span>
+                        )}
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full ml-2 animate-pulse">
+                          🔴 متصل مباشر
+                        </span>
+                      </h3>
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <select
+                          value={chatFilter}
+                          onChange={(e) => setChatFilter(e.target.value as any)}
+                          className="px-2 md:px-3 py-1 text-xs md:text-sm border border-white/30 dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5 text-slate-900 dark:text-white"
+                        >
+                          <option value="all">جميع الرسائل</option>
+                          <option value="user">رسائل العميل</option>
+                          <option value="bot">ردود البوت</option>
+                          <option value="admin">ردود المدير</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Messages Area - Full Height */}
+                  <div className="flex-1 p-3 md:p-4 overflow-y-auto space-y-3 max-h-[500px] scrollbar-thin">
+                    {selectedChatSession ? (
+                      filteredChatMessages.length === 0 ? (
+                        <div className="text-center py-8">
+                          <MessageCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                          <p className="text-slate-600 dark:text-slate-400">لا توجد رسائل تطابق الفلتر المحدد</p>
+                        </div>
+                      ) : (
+                        <>
+                          {filteredChatMessages.map((message) => (
+                            <div
+                              key={message.id}
+                              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-xs lg:max-w-md p-4 rounded-2xl ${
+                                  message.sender === 'user'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-slate-800 dark:text-white'
+                                    : message.sender === 'admin'
+                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-slate-800 dark:text-white'
+                                    : 'bg-gray-100 dark:bg-gray-900/30 text-slate-800 dark:text-white'
+                                }`}
+                              >
+                                <div className="flex items-center mb-2">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    {message.sender === 'user' ? 'العميل' : message.sender === 'admin' ? 'المدير' : 'البوت'}
+                                  </span>
+                                  <span className="text-xs text-slate-400 dark:text-slate-500 mr-2">
+                                    {new Date(message.created_at).toLocaleTimeString('ar-SA')}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{message.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Auto scroll target - Disabled to prevent auto scrolling */}
+                          {/* <div ref={chatMessagesEndRef} /> */}
+                        </>
+                      )
+                    ) : (
+                      <div className="text-center py-8">
+                        <MessageCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                        <p className="text-slate-600 dark:text-slate-400">اختر جلسة محادثة لعرض الرسائل</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reply Input - Responsive */}
+                  {selectedChatSession && (
+                    <div className="p-3 md:p-4 border-t border-white/20 dark:border-white/10 flex-shrink-0">
+                      {/* Claim Chat Button */}
+                      {!claimedSessions.has(selectedChatSession) && (
+                        <div className="mb-3">
+                          <button
+                            onClick={() => claimChatSession(selectedChatSession)}
+                            className="w-full px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            <Shield className="w-4 md:w-5 h-4 md:h-5" />
+                            <span className="text-sm md:text-base font-semibold">استلام المحادثة</span>
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Claimed Status */}
+                      {claimedSessions.has(selectedChatSession) && (
+                        <div className="mb-3 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-600 rounded-xl">
+                          <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-400">
+                            <Shield className="w-4 h-4" />
+                            <span className="text-sm font-semibold">تم استلام المحادثة - البوت متوقف</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <input
+                          type="text"
+                          value={chatReplyText}
+                          onChange={(e) => setChatReplyText(e.target.value)}
+                          placeholder="اكتب ردك هنا..."
+                          className="flex-1 px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && chatReplyText.trim()) {
+                              sendChatReply(selectedChatSession, chatReplyText.trim());
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (chatReplyText.trim()) {
+                              sendChatReply(selectedChatSession, chatReplyText.trim());
+                            }
+                          }}
+                          disabled={!chatReplyText.trim()}
+                          className="px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center"
+                        >
+                          <Send className="w-4 md:w-5 h-4 md:h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* FAQs Tab */}
         {activeTab === 'faqs' && (
           <>
-            {/* FAQ Header */}
+            {/* Enhanced FAQ Header */}
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white">إدارة الأسئلة المتكررة</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة الأسئلة المتكررة</h2>
               <button
                 onClick={() => setShowAddFaq(true)}
-                className="flex items-center px-4 py-2 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300"
+                className="flex items-center px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                <Plus className="w-4 h-4 ml-2" />
+                <Plus className="w-5 h-5 ml-3" />
                 إضافة سؤال جديد
               </button>
             </div>
 
-            {/* FAQ Search */}
-            <div className="bg-white dark:bg-jet-800 p-6 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-jet-400 dark:text-platinum-500 w-5 h-5" />
+            {/* Enhanced FAQ Search with Glass Morphism */}
+            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-6 rounded-2xl shadow-xl mb-8 border border-white/20 dark:border-white/10`}>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
                 <input
                   type="text"
                   placeholder="البحث في الأسئلة المتكررة..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full pl-12 pr-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                 />
               </div>
             </div>
@@ -1728,51 +2641,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 </div>
               ) : (
                 filteredFaqs.map((faq) => (
-                  <div key={faq.id} className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={faq.id} className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-6 hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] relative overflow-hidden`}>
+                    {/* Subtle gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    <div className="relative flex items-start justify-between mb-6">
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <h3 className="text-lg font-bold text-jet-800 dark:text-white ml-3">
+                        <div className="flex items-center mb-4">
+                          <h3 className="text-lg font-bold text-slate-800 dark:text-white ml-4">
                             {faq.question}
                           </h3>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold backdrop-blur-sm border border-white/20 ${
                             faq.is_active 
-                              ? 'text-green-600 bg-green-100 dark:bg-green-900/20' 
-                              : 'text-red-600 bg-red-100 dark:bg-red-900/20'
+                              ? 'text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                              : 'text-red-600 bg-red-100/80 dark:bg-red-900/30 dark:text-red-400'
                           }`}>
                             {faq.is_active ? 'نشط' : 'غير نشط'}
                           </span>
-                          <span className="inline-block px-2 py-1 bg-caribbean-100 dark:bg-caribbean-900/20 text-caribbean-700 dark:text-caribbean-400 text-xs rounded-full mr-2">
+                          <span className="inline-block px-3 py-1.5 bg-gradient-to-r from-blue-100/80 to-indigo-100/80 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-full mr-3 font-medium backdrop-blur-sm border border-white/20">
                             {faq.category}
                           </span>
                         </div>
                         
-                        <p className="text-jet-700 dark:text-platinum-300 mb-3 bg-platinum-50 dark:bg-jet-700 p-3 rounded-lg">
+                        <p className="text-slate-700 dark:text-slate-200 mb-4 bg-gradient-to-r from-slate-50/50 to-blue-50/30 dark:from-slate-800/30 dark:to-blue-900/10 p-4 rounded-xl border border-slate-200/30 dark:border-slate-700/20 backdrop-blur-sm leading-relaxed">
                           {faq.answer}
                         </p>
                         
-                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-jet-500 dark:text-platinum-500">
+                        <div className="flex items-center space-x-4 space-x-reverse text-sm text-slate-500 dark:text-slate-400">
                           <div className="flex items-center">
-                            <Calendar className="w-4 h-4 ml-1" />
+                            <Calendar className="w-4 h-4 ml-2" />
                             <span>{formatDisplayDate(faq.created_at)}</span>
                           </div>
-                          <span>ترتيب: {faq.order_index}</span>
+                          <span className="bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-full text-xs font-medium">ترتيب: {faq.order_index}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2 space-x-reverse">
+                      <div className="flex items-center space-x-3 space-x-reverse">
                         <button
                           onClick={() => handleEditFaq(faq)}
-                          className="p-2 text-caribbean-600 hover:text-caribbean-700 dark:text-caribbean-400 dark:hover:text-caribbean-300 hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 rounded-lg transition-colors duration-200"
+                          className="p-3 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title="تعديل السؤال"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(faq.id, faq.question, 'faq')}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="p-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-xl"
                           title={language === 'ar' ? 'حذف' : 'Delete'}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -1880,7 +2796,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 </div>
 
                 {/* Voluntary Return Content */}
-                <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+                <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20">
                   {voluntaryReturnView === 'list' ? (
                     <VoluntaryReturnFormsList isDarkMode={isDarkMode} />
                   ) : voluntaryReturnView === 'create' ? (
@@ -1939,30 +2855,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
       </div>
 
-      {/* Edit Modal */}
+      {/* Enhanced Edit Modal with Glass Morphism */}
       {editingRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingRequest(null)}></div>
-          <div className="relative bg-white dark:bg-jet-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 border border-platinum-300 dark:border-jet-600">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white">تحديث الطلب</h2>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingRequest(null)}></div>
+          <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8 border border-white/30 dark:border-white/20">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">تحديث الطلب</h2>
               <button
                 onClick={() => setEditingRequest(null)}
-                className="text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200"
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-300"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   حالة الطلب
                 </label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({...editForm, status: e.target.value as any})}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300"
                 >
                   <option value="pending">قيد الانتظار</option>
                   <option value="in_progress">قيد التنفيذ</option>
@@ -1972,13 +2888,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   أولوية الطلب
                 </label>
                 <select
                   value={editForm.priority}
                   onChange={(e) => setEditForm({...editForm, priority: e.target.value as any})}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300"
                 >
                   <option value="low">منخفضة</option>
                   <option value="medium">متوسطة</option>
@@ -1988,29 +2904,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   ملاحظات الإدارة
                 </label>
                 <textarea
                   value={editForm.admin_notes}
                   onChange={(e) => setEditForm({...editForm, admin_notes: e.target.value})}
                   rows={4}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="أضف ملاحظات للعميل..."
                 />
               </div>
 
-              <div className="flex space-x-4 space-x-reverse pt-4">
+              <div className="flex space-x-4 space-x-reverse pt-6">
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 flex items-center justify-center"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <Save className="w-4 h-4 ml-2" />
+                  <Save className="w-5 h-5 ml-3" />
                   حفظ التغييرات
                 </button>
                 <button
                   onClick={() => setEditingRequest(null)}
-                  className="flex-1 bg-gray-200 dark:bg-jet-600 text-jet-800 dark:text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors duration-300"
+                  className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white py-3 px-6 rounded-xl font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   إلغاء
                 </button>
@@ -2020,39 +2936,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         </div>
       )}
 
-      {/* Support Reply Modal */}
+      {/* Enhanced Support Reply Modal with Glass Morphism */}
       {editingSupport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingSupport(null)}></div>
-          <div className="relative bg-white dark:bg-jet-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 border border-platinum-300 dark:border-jet-600">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white">الرد على الرسالة</h2>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingSupport(null)}></div>
+          <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8 border border-white/30 dark:border-white/20">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">الرد على الرسالة</h2>
               <button
                 onClick={() => setEditingSupport(null)}
-                className="text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200"
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-300"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-platinum-50 dark:bg-jet-700 p-3 rounded-lg">
-                <p className="text-sm text-jet-600 dark:text-platinum-400 mb-1">
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-slate-50/50 to-blue-50/30 dark:from-slate-800/30 dark:to-blue-900/10 p-4 rounded-xl border border-slate-200/30 dark:border-slate-700/20 backdrop-blur-sm">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-2 font-medium">
                   <strong>الموضوع:</strong> {editingSupport.subject}
                 </p>
-                <p className="text-sm text-jet-600 dark:text-platinum-400">
+                <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">
                   <strong>من:</strong> {editingSupport.name} ({editingSupport.email})
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   حالة الرسالة
                 </label>
                 <select
                   value={supportReplyForm.status}
                   onChange={(e) => setSupportReplyForm({...supportReplyForm, status: e.target.value as any})}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white transition-all duration-300"
                 >
                   <option value="pending">قيد الانتظار</option>
                   <option value="in_progress">قيد المعالجة</option>
@@ -2062,29 +2978,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   رد الإدارة
                 </label>
                 <textarea
                   value={supportReplyForm.admin_reply}
                   onChange={(e) => setSupportReplyForm({...supportReplyForm, admin_reply: e.target.value})}
                   rows={4}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="اكتب ردك هنا..."
                 />
               </div>
 
-              <div className="flex space-x-4 space-x-reverse pt-4">
+              <div className="flex space-x-4 space-x-reverse pt-6">
                 <button
                   onClick={handleSaveSupportReply}
-                  className="flex-1 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 flex items-center justify-center"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <Reply className="w-4 h-4 ml-2" />
+                  <Reply className="w-5 h-5 ml-3" />
                   إرسال الرد
                 </button>
                 <button
                   onClick={() => setEditingSupport(null)}
-                  className="flex-1 bg-gray-200 dark:bg-jet-600 text-jet-800 dark:text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors duration-300"
+                  className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white py-3 px-6 rounded-xl font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   إلغاء
                 </button>
@@ -2094,103 +3010,103 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         </div>
       )}
 
-      {/* Add/Edit FAQ Modal */}
-      {(showAddFaq || editingFaq) && (
+      {/* Enhanced Add/Edit FAQ Modal with Glass Morphism */}
+      {(showAddFaq || editingFAQ) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => {
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => {
             setShowAddFaq(false);
-            setEditingFaq(null);
+            setEditingFAQ(null);
           }}></div>
-          <div className="relative bg-white dark:bg-jet-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 border border-platinum-300 dark:border-jet-600 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-jet-800 dark:text-white">
-                {editingFaq ? 'تعديل السؤال' : 'إضافة سؤال جديد'}
+          <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8 border border-white/30 dark:border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+                {editingFAQ ? 'تعديل السؤال' : 'إضافة سؤال جديد'}
               </h2>
               <button
                 onClick={() => {
                   setShowAddFaq(false);
-                  setEditingFaq(null);
+                  setEditingFAQ(null);
                 }}
-                className="text-jet-400 hover:text-jet-600 dark:text-platinum-400 dark:hover:text-platinum-200"
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-300"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   السؤال
                 </label>
                 <input
                   type="text"
-                  value={editingFaq ? editingFaq.question : newFaq.question}
+                  value={editingFAQ ? editingFAQ.question : newFaq.question}
                   onChange={(e) => {
-                    if (editingFaq) {
-                      setEditingFaq({...editingFaq, question: e.target.value});
+                    if (editingFAQ) {
+                      setEditingFAQ({...editingFAQ, question: e.target.value});
                     } else {
                       setNewFaq({...newFaq, question: e.target.value});
                     }
                   }}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="اكتب السؤال هنا..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   الإجابة
                 </label>
                 <textarea
-                  value={editingFaq ? editingFaq.answer : newFaq.answer}
+                  value={editingFAQ ? editingFAQ.answer : newFaq.answer}
                   onChange={(e) => {
-                    if (editingFaq) {
-                      setEditingFaq({...editingFaq, answer: e.target.value});
+                    if (editingFAQ) {
+                      setEditingFAQ({...editingFAQ, answer: e.target.value});
                     } else {
                       setNewFaq({...newFaq, answer: e.target.value});
                     }
                   }}
                   rows={4}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="اكتب الإجابة هنا..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   التصنيف
                 </label>
                 <input
                   type="text"
-                  value={editingFaq ? editingFaq.category : newFaq.category}
+                  value={editingFAQ ? editingFAQ.category : newFaq.category}
                   onChange={(e) => {
-                    if (editingFaq) {
-                      setEditingFaq({...editingFaq, category: e.target.value});
+                    if (editingFAQ) {
+                      setEditingFAQ({...editingFAQ, category: e.target.value});
                     } else {
                       setNewFaq({...newFaq, category: e.target.value});
                     }
                   }}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="مثال: عام، خدمات، أسعار..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                   ترتيب العرض
                 </label>
                 <input
                   type="number"
-                  value={editingFaq ? editingFaq.order_index : newFaq.order_index}
+                  value={editingFAQ ? editingFAQ.order_index : newFaq.order_index}
                   onChange={(e) => {
                     const value = parseInt(e.target.value) || 0;
-                    if (editingFaq) {
-                      setEditingFaq({...editingFaq, order_index: value});
+                    if (editingFAQ) {
+                      setEditingFAQ({...editingFAQ, order_index: value});
                     } else {
                       setNewFaq({...newFaq, order_index: value});
                     }
                   }}
-                  className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent bg-white dark:bg-jet-700 text-jet-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all duration-300"
                   placeholder="0"
                 />
               </div>
@@ -2199,35 +3115,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 <input
                   type="checkbox"
                   id="is_active"
-                  checked={editingFaq ? editingFaq.is_active : newFaq.is_active}
+                  checked={editingFAQ ? editingFAQ.is_active : newFaq.is_active}
                   onChange={(e) => {
-                    if (editingFaq) {
-                      setEditingFaq({...editingFaq, is_active: e.target.checked});
+                    if (editingFAQ) {
+                      setEditingFAQ({...editingFAQ, is_active: e.target.checked});
                     } else {
                       setNewFaq({...newFaq, is_active: e.target.checked});
                     }
                   }}
-                  className="w-4 h-4 text-caribbean-600 bg-white dark:bg-jet-700 border-platinum-300 dark:border-jet-600 rounded focus:ring-caribbean-500 dark:focus:ring-caribbean-400 focus:ring-2"
+                  className="w-5 h-5 text-blue-600 bg-white/50 dark:bg-white/5 border-white/30 dark:border-white/10 rounded focus:ring-blue-500/50 focus:ring-2 backdrop-blur-sm"
                 />
-                <label htmlFor="is_active" className="mr-2 text-sm font-medium text-jet-700 dark:text-platinum-300">
+                <label htmlFor="is_active" className="mr-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   نشط (يظهر للعملاء)
                 </label>
               </div>
 
-              <div className="flex space-x-4 space-x-reverse pt-4">
+              <div className="flex space-x-4 space-x-reverse pt-6">
                 <button
-                  onClick={() => handleSaveFaq(editingFaq || newFaq)}
-                  className="flex-1 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 flex items-center justify-center"
+                  onClick={() => handleSaveFaq(editingFAQ || newFaq)}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <Save className="w-4 h-4 ml-2" />
-                  {editingFaq ? 'حفظ التغييرات' : 'إضافة السؤال'}
+                  <Save className="w-5 h-5 ml-3" />
+                  {editingFAQ ? 'حفظ التغييرات' : 'إضافة السؤال'}
                 </button>
                 <button
                   onClick={() => {
                     setShowAddFaq(false);
-                    setEditingFaq(null);
+                    setEditingFAQ(null);
                   }}
-                  className="flex-1 bg-gray-200 dark:bg-jet-600 text-jet-800 dark:text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors duration-300"
+                  className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white py-3 px-6 rounded-xl font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   إلغاء
                 </button>
@@ -2488,7 +3404,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         <>
           {/* Show moderator management for admin users */}
           {profile?.role === 'admin' && (
-            <ModeratorManagement isDarkMode={isDarkMode} />
+            <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20">
+              <ModeratorManagement isDarkMode={isDarkMode} />
+            </div>
           )}
           
           {/* Show access denied for non-admin users */}
@@ -2496,18 +3414,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             <div className="flex-1 p-6">
               <div className="max-w-4xl mx-auto">
                 {/* Access Denied Message */}
-                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-8 text-center">
                   <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
                     <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
                     🔒 الوصول مرفوض
                   </h2>
-                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                  <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
                     فقط الأدمن يمكنه الوصول إلى هذه الصفحة
                   </p>
                   <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                       هذه الصفحة مخصصة لإدارة المشرفين وتتطلب صلاحيات أدمن كاملة
                     </p>
                   </div>
@@ -2529,7 +3447,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
 
               {/* Health Insurance Content */}
-              <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+              <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20">
                 <HealthInsuranceManagement />
               </div>
             </>
@@ -2540,18 +3458,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             <div className="flex-1 p-6">
               <div className="max-w-4xl mx-auto">
                 {/* Access Denied Message */}
-                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-8 text-center">
                   <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
                     <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
                     🔒 الوصول مرفوض
                   </h2>
-                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                  <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
                     فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
                   </p>
                   <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                       هذه الصفحة مخصصة لإدارة التأمين الصحي وتتطلب صلاحيات أدمن أو مشرف
                     </p>
                   </div>
@@ -2562,55 +3480,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         </>
       )}
 
-      {/* Chat Support Tab */}
-      {activeTab === 'chat-support' && (
-        <>
-          {(profile?.role === 'admin' || profile?.role === 'moderator') && (
-            <>
-              {/* Chat Support Header */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8 space-y-4 md:space-y-0">
-                <h2 className="text-xl md:text-2xl font-bold text-jet-800 dark:text-white text-center md:text-right">إدارة الشات بوت</h2>
-              </div>
 
-              {/* Chat Support Content */}
-              <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 relative z-20 overflow-hidden" style={{ height: 'calc(100vh - 320px)', maxHeight: 'calc(100vh - 320px)' }}>
-                <AdminChatSupport />
-              </div>
-            </>
-          )}
-          
-          {/* Show access denied for non-admin/moderator users */}
-          {(profile?.role !== 'admin' && profile?.role !== 'moderator') && (
-            <div className="flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                {/* Access Denied Message */}
-                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
-                  <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
-                    🔒 الوصول مرفوض
-                  </h2>
-                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
-                    فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
-                  </p>
-                  <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">
-                      هذه الصفحة مخصصة لإدارة الشات بوت وتتطلب صلاحيات أدمن أو مشرف
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       {/* Webhooks Tab */}
       {activeTab === 'webhooks' && (
         <>
           {(profile?.role === 'admin' || profile?.role === 'moderator') && (
-            <WebhookSettings isDarkMode={isDarkMode} />
+            <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20">
+              <WebhookSettings isDarkMode={isDarkMode} />
+            </div>
           )}
           
           {/* Show access denied for non-admin/moderator users */}
@@ -2618,18 +3496,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             <div className="flex-1 p-6">
               <div className="max-w-4xl mx-auto">
                 {/* Access Denied Message */}
-                <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-8 text-center">
+                <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-8 text-center">
                   <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
                     <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-jet-800 dark:text-white mb-4">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
                     🔒 الوصول مرفوض
                   </h2>
-                  <p className="text-lg text-jet-600 dark:text-platinum-400 mb-6">
+                  <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
                     فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
                   </p>
                   <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
-                    <p className="text-sm text-jet-600 dark:text-platinum-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                       هذه الصفحة مخصصة لإدارة إعدادات الـ webhooks وتتطلب صلاحيات أدمن أو مشرف
                     </p>
                   </div>
@@ -2643,24 +3521,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       {/* Success Message */}
       {updateSuccess && (
         <div className="fixed top-4 right-4 z-50">
-          <div className="bg-white/20 dark:bg-jet-800/20 backdrop-blur-md border border-white/30 dark:border-jet-600/30 rounded-2xl shadow-2xl p-6 text-center animate-fade-in">
+          <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-6 text-center animate-fade-in">
             <div className="w-16 h-16 bg-green-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-in">
               <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
-            <h3 className="text-lg font-bold text-jet-800 dark:text-white mb-2">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
               تم الحفظ بنجاح! ✨
             </h3>
-            <p className="text-jet-600 dark:text-platinum-400 text-sm">
+            <p className="text-slate-600 dark:text-slate-300 text-sm">
               تم تحديث البيانات بنجاح
             </p>
             
             {/* Progress bar */}
-            <div className="mt-4 w-full bg-white/20 dark:bg-jet-700/20 rounded-full h-1 overflow-hidden">
+            <div className="mt-4 w-full bg-white/20 dark:bg-white/10 rounded-full h-1 overflow-hidden">
               <div className="h-full bg-green-500/60 rounded-full animate-expand-width"></div>
             </div>
           </div>
         </div>
       )}
+
+
     </div>
   );
 };

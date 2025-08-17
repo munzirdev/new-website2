@@ -2,17 +2,25 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Origin': 'https://tevasul.group',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+  'Access-Control-Max-Age': '86400',
 }
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { 
+      status: 200,
+      headers: corsHeaders 
+    })
   }
 
   try {
+    console.log('🔧 create-moderator function called');
+    console.log('📋 Request method:', req.method);
+    console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
     // Create a Supabase client with the Auth context of the function
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -134,9 +142,19 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('❌ Error in create-moderator function:', error)
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
+    
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message,
+        timestamp: new Date().toISOString()
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

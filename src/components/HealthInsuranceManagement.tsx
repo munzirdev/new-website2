@@ -499,6 +499,8 @@ const HealthInsuranceManagement: React.FC = () => {
     }
   };
 
+
+
   const handleDeletePricing = (pricing: PricingData) => {
     setDeleteTarget({
       id: pricing.id,
@@ -748,6 +750,20 @@ const HealthInsuranceManagement: React.FC = () => {
     return pricingData.filter(p => p.company_id === selectedCompany);
   };
 
+  // Get age groups that have pricing data
+  const getAgeGroupsWithPricing = () => {
+    const companyData = getCompanyPricingData();
+    const ageGroupsWithPricing = new Set();
+    
+    companyData.forEach(pricing => {
+      if (pricing.duration_months === 12) {
+        ageGroupsWithPricing.add(pricing.age_group_id);
+      }
+    });
+    
+    return ageGroups.filter(ageGroup => ageGroupsWithPricing.has(ageGroup.id));
+  };
+
   // Group pricing data by age group
   const getGroupedPricingData = () => {
     const companyData = getCompanyPricingData();
@@ -762,21 +778,20 @@ const HealthInsuranceManagement: React.FC = () => {
           ageGroupNameAr: pricing.age_group_name_ar,
           minAge: pricing.min_age,
           maxAge: pricing.max_age,
-          pricing1Year: null,
-          pricing2Years: null
+          pricing1Year: null
         });
       }
 
       const group = grouped.get(ageGroupKey);
       if (pricing.duration_months === 12) {
         group.pricing1Year = pricing;
-      } else if (pricing.duration_months === 24) {
-        group.pricing2Years = pricing;
       }
     });
 
-    // Convert to array and sort by min age
-    return Array.from(grouped.values()).sort((a, b) => a.minAge - b.minAge);
+    // Convert to array, filter out age groups with no pricing, and sort by min age
+    return Array.from(grouped.values())
+      .filter(group => group.pricing1Year) // Only show age groups that have first year pricing
+      .sort((a, b) => a.minAge - b.minAge);
   };
 
   if (loading) {
@@ -788,90 +803,108 @@ const HealthInsuranceManagement: React.FC = () => {
   }
 
   return (
-    <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
-      {/* Success Message */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 animate-bounce">
-          <div className="flex items-center space-x-2 space-x-reverse">
-            <Check className="w-5 h-5" />
-            <span>{successMessage}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/80 via-blue-50/60 to-indigo-50/40 dark:from-slate-900/90 dark:via-slate-800/80 dark:to-slate-900/90 p-6 relative overflow-hidden">
+      {/* Enhanced Glass Morphism Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-24 h-24 bg-gradient-to-br from-blue-200/12 to-indigo-200/8 backdrop-blur-sm rounded-full animate-pulse border border-white/8" style={{ animationDuration: '8s' }}></div>
+        <div className="absolute -bottom-10 -left-10 w-20 h-20 bg-gradient-to-tr from-indigo-200/10 to-purple-200/6 backdrop-blur-sm rounded-full animate-pulse border border-white/6" style={{ animationDelay: '2s', animationDuration: '10s' }}></div>
+        <div className="absolute top-1/3 left-1/4 w-16 h-16 bg-gradient-to-r from-sky-200/6 to-blue-200/5 backdrop-blur-sm rounded-full animate-pulse border border-white/5" style={{ animationDelay: '4s', animationDuration: '12s' }}></div>
+        <div className="absolute bottom-1/3 right-1/4 w-12 h-12 bg-gradient-to-l from-purple-200/6 to-pink-200/4 backdrop-blur-sm rounded-full animate-pulse border border-white/5" style={{ animationDelay: '1s', animationDuration: '9s' }}></div>
+      </div>
+      
+      <div className="relative max-w-7xl mx-auto z-10">
+        {/* Enhanced Success Message with Glass Morphism */}
+        {showSuccessMessage && (
+          <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-500 animate-bounce border border-emerald-400/30">
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <Check className="w-5 h-5" />
+              <span className="font-semibold">{successMessage}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Header with Glass Morphism */}
+        <div className="mb-8">
+          <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/30 dark:border-white/20 shadow-xl">
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  {isArabic ? 'إدارة التأمين الصحي' : 'Health Insurance Management'}
+                </h2>
+                <p className="text-slate-600 dark:text-slate-300 font-medium mt-1">
+                  {isArabic ? 'إدارة شركات التأمين والفئات العمرية والأسعار والطلبات' : 'Manage insurance companies, age groups, pricing, and requests'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Header */}
-      <div className="flex items-center space-x-4 space-x-reverse mb-8">
-        <Shield className="w-8 h-8 text-caribbean-600 dark:text-caribbean-400" />
-        <h2 className="text-3xl font-bold text-jet-900 dark:text-white">
-          {isArabic ? 'إدارة التأمين الصحي' : 'Health Insurance Management'}
-        </h2>
-      </div>
-
-
-
-      {/* Tabs */}
-      <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 mb-8 overflow-hidden relative z-10">
-        <div className="flex border-b border-sky-200 dark:border-jet-700 overflow-x-auto bg-gradient-to-r from-sky-50/20 via-transparent to-blue-50/20 dark:from-sky-900/10 dark:via-transparent dark:to-blue-900/10 px-2">
-          {[
-            { id: 'companies', label: isArabic ? 'الشركات' : 'Companies', icon: Building },
-            { id: 'requests', label: isArabic ? 'الطلبات' : 'Requests', icon: Users },
-            { id: 'ageGroups', label: isArabic ? 'الفئات العمرية' : 'Age Groups', icon: Calendar }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                activeTab === tab.id
-                  ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                  : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-              }`}
-            >
-              <div className="flex items-center">
-                <tab.icon className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                <span className="text-sm md:text-base">{tab.label}</span>
-              </div>
-            </button>
-          ))}
+        {/* Enhanced Tabs with Glass Morphism */}
+        <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20 mb-8 overflow-hidden">
+          <div className="flex border-b border-white/20 dark:border-white/10 overflow-x-auto bg-gradient-to-r from-blue-50/20 via-transparent to-indigo-50/20 dark:from-blue-900/10 dark:via-transparent dark:to-indigo-900/10 px-3">
+            {[
+              { id: 'companies', label: isArabic ? 'الشركات' : 'Companies', icon: Building },
+              { id: 'requests', label: isArabic ? 'الطلبات' : 'Requests', icon: Users },
+              { id: 'ageGroups', label: isArabic ? 'الفئات العمرية' : 'Age Groups', icon: Calendar }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-500 whitespace-nowrap flex-shrink-0 ${
+                  activeTab === tab.id
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-gradient-to-r from-blue-50/30 to-indigo-50/30 dark:from-blue-900/20 dark:to-indigo-900/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10'
+                }`}
+              >
+                <div className="flex items-center">
+                  <tab.icon className="w-5 h-5 md:w-6 md:h-6 ml-3" />
+                  <span className="text-sm md:text-base">{tab.label}</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Companies Tab - Enhanced with Company Tabs */}
+      {/* Enhanced Companies Tab with Glass Morphism */}
       {activeTab === 'companies' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-jet-800 dark:text-white">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white">
               {isArabic ? 'إدارة أسعار التأمين الصحي' : 'Health Insurance Pricing Management'}
             </h3>
             <button
               onClick={() => setShowAddCompany(true)}
-              className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
+              className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-5 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-800 transition-all duration-500 flex items-center space-x-3 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
             >
-              <Plus className="w-4 h-4" />
-              <span>{isArabic ? 'إضافة شركة' : 'Add Company'}</span>
+              <Plus className="w-5 h-5" />
+              <span className="font-semibold">{isArabic ? 'إضافة شركة' : 'Add Company'}</span>
             </button>
           </div>
 
-          {/* Company Selection Tabs */}
-          <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 overflow-hidden relative z-10">
-            <div className="border-b border-sky-200 dark:border-jet-700 bg-gradient-to-r from-sky-50/20 via-transparent to-blue-50/20 dark:from-sky-900/10 dark:via-transparent dark:to-blue-900/10">
-              <div className="flex overflow-x-auto px-2">
+          {/* Enhanced Company Selection Tabs with Glass Morphism */}
+          <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20 overflow-hidden">
+            <div className="border-b border-white/20 dark:border-white/10 bg-gradient-to-r from-blue-50/20 via-transparent to-indigo-50/20 dark:from-blue-900/10 dark:via-transparent dark:to-indigo-900/10">
+              <div className="flex overflow-x-auto px-3">
                 {companies.map((company) => (
                   <button
                     key={company.id}
                     onClick={() => setSelectedCompany(company.id)}
-                    className={`flex-shrink-0 px-4 md:px-6 py-3 md:py-4 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                    className={`flex-shrink-0 px-5 md:px-6 py-4 md:py-5 text-sm font-semibold border-b-2 transition-all duration-500 whitespace-nowrap ${
                       selectedCompany === company.id
-                        ? 'border-caribbean-500 text-caribbean-600 dark:text-caribbean-400 bg-gradient-to-r from-caribbean-50/50 to-sky-50/50 dark:from-caribbean-900/20 dark:to-sky-900/20'
-                        : 'border-transparent text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400 hover:bg-gradient-to-r hover:from-sky-50/30 hover:to-blue-50/30 dark:hover:from-sky-900/10 dark:hover:to-blue-900/10'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/30 dark:to-indigo-900/30 shadow-lg'
+                        : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10'
                     }`}
                   >
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Building className="w-4 h-4 md:w-5 md:h-5" />
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <Building className="w-5 h-5 md:w-6 md:h-6" />
                       <span className="text-sm md:text-base">{isArabic ? company.name_ar : company.name}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                      <span className={`px-3 py-1.5 text-xs rounded-full font-semibold backdrop-blur-sm border border-white/20 ${
                         company.is_active 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          ? 'bg-emerald-100/80 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                          : 'bg-red-100/80 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                       }`}>
                         {company.is_active ? (isArabic ? 'نشط' : 'Active') : (isArabic ? 'غير نشط' : 'Inactive')}
                       </span>
@@ -886,55 +919,55 @@ const HealthInsuranceManagement: React.FC = () => {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h4 className="text-xl font-bold text-jet-900 dark:text-white">
+                    <h4 className="text-xl font-bold text-slate-700 dark:text-white">
                       {isArabic ? companies.find(c => c.id === selectedCompany)?.name_ar : companies.find(c => c.id === selectedCompany)?.name}
                     </h4>
-                    <p className="text-sm text-jet-500 dark:text-jet-400">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       {isArabic ? 'إدارة الأسعار والفئات العمرية' : 'Manage pricing and age groups'}
                     </p>
                   </div>
                   <button
                     onClick={() => setShowAddPricing(true)}
-                    className="bg-gradient-to-r from-caribbean-600 to-sky-600 text-white px-4 py-2 rounded-lg hover:from-caribbean-700 hover:to-sky-700 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-800 transition-all duration-200 flex items-center space-x-2 space-x-reverse shadow-lg hover:shadow-xl transform hover:scale-105 relative z-20"
                   >
                     <Plus className="w-4 h-4" />
                     <span>{isArabic ? 'إضافة سعر' : 'Add Price'}</span>
                   </button>
                 </div>
 
-                {/* Enhanced Pricing Table with Grouped Age Groups */}
-                <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 overflow-hidden relative z-10">
+                {/* Enhanced Pricing Table with Glass Morphism */}
+                <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20 overflow-hidden relative z-10">
                   <div className="overflow-x-auto px-2">
-                    <table className="min-w-full divide-y divide-sky-200 dark:divide-jet-600 relative z-10">
-                      <thead className="bg-gradient-to-r from-sky-50/50 via-caribbean-50/30 to-blue-50/50 dark:from-sky-900/20 dark:via-jet-700 dark:to-blue-900/20">
+                    <table className="min-w-full divide-y divide-white/20 dark:divide-white/10 relative z-10">
+                      <thead className="bg-gradient-to-r from-blue-50/30 via-indigo-50/20 to-purple-50/30 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 backdrop-blur-sm">
                         <tr>
-                          <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
+                          <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
                             {isArabic ? 'الفئة العمرية' : 'Age Group'}
                           </th>
-                          <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
+                          <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
                             {isArabic ? 'سنة واحدة' : '1 Year'}
                           </th>
-                          <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                            {isArabic ? 'سنتان' : '2 Years'}
+                          <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                            {isArabic ? 'مجموع السنتين' : '2 Years Total'}
                           </th>
-                          <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
+                          <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
                             {isArabic ? 'الإجراءات' : 'Actions'}
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white dark:bg-jet-800 divide-y divide-platinum-100 dark:divide-jet-600">
+                      <tbody className="bg-white/50 dark:bg-white/5 divide-y divide-white/20 dark:divide-white/10">
                         {getGroupedPricingData().length === 0 ? (
                           <tr>
                             <td colSpan={4} className="px-6 py-12 text-center">
                               <div className="flex flex-col items-center space-y-3 space-y-reverse">
-                                <div className="w-16 h-16 bg-sky-100 dark:bg-jet-700 rounded-full flex items-center justify-center">
-                                  <DollarSign className="w-8 h-8 text-sky-400 dark:text-jet-500" />
+                                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                                  <DollarSign className="w-8 h-8 text-blue-400 dark:text-blue-400" />
                                 </div>
                                 <div>
-                                  <p className="text-lg font-medium text-jet-700 dark:text-white">
+                                  <p className="text-lg font-medium text-slate-700 dark:text-white">
                                     {isArabic ? 'لا توجد أسعار محددة' : 'No pricing data'}
                                   </p>
-                                  <p className="text-sm text-jet-600 dark:text-platinum-300">
+                                  <p className="text-sm text-slate-500 dark:text-slate-300">
                                     {isArabic ? 'اضغط على "إضافة سعر" لبدء إضافة الأسعار' : 'Click "Add Price" to start adding pricing'}
                                   </p>
                                 </div>
@@ -943,18 +976,18 @@ const HealthInsuranceManagement: React.FC = () => {
                           </tr>
                         ) : (
                           getGroupedPricingData().map((group, index) => (
-                            <tr key={group.ageGroupId} className={`hover:bg-sky-50 dark:hover:bg-jet-700 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white dark:bg-jet-800' : 'bg-sky-25 dark:bg-jet-750'}`}>
+                            <tr key={group.ageGroupId} className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white/30 dark:bg-white/5' : 'bg-white/20 dark:bg-white/3'}`}>
                               {/* Age Group Column */}
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
-                                  <div className="w-8 h-8 bg-sky-100 dark:bg-sky-900 rounded-lg flex items-center justify-center mr-3">
-                                    <Users className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3">
+                                    <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                   </div>
                                   <div>
-                                    <span className="text-sm font-medium text-jet-900 dark:text-white">
+                                    <span className="text-sm font-medium text-slate-700 dark:text-white">
                                       {isArabic ? group.ageGroupNameAr : group.ageGroupName}
                                     </span>
-                                    <div className="text-xs text-jet-500 dark:text-jet-400">
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
                                       {group.minAge} - {group.maxAge} {isArabic ? 'سنة' : 'years'}
                                     </div>
                                   </div>
@@ -968,14 +1001,14 @@ const HealthInsuranceManagement: React.FC = () => {
                                     {/* Price */}
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center">
-                                        <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                                        <span className="text-sm font-semibold text-jet-900 dark:text-white">
+                                        <DollarSign className="w-4 h-4 text-emerald-500 mr-1" />
+                                        <span className="text-sm font-semibold text-slate-700 dark:text-white">
                                           {formatPrice(group.pricing1Year.price_try)}
                                         </span>
                                       </div>
                                       <button
                                         onClick={() => startInlineEdit(group.pricing1Year.id, 'price_try', group.pricing1Year.price_try.toString())}
-                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50 relative z-20"
+                                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 relative z-20"
                                         title={isArabic ? 'تعديل السعر' : 'Edit Price'}
                                       >
                                         <Edit className="w-3 h-3" />
@@ -992,8 +1025,8 @@ const HealthInsuranceManagement: React.FC = () => {
                                           onClick={() => handleUpdatePricing({ ...group.pricing1Year, is_active: !group.pricing1Year.is_active })}
                                           className={`p-1 rounded transition-colors duration-200 relative z-20 ${
                                             group.pricing1Year.is_active 
-                                              ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                                              : 'text-green-600 hover:text-green-900 hover:bg-green-50'
+                                              ? 'text-red-600 hover:text-red-900 hover:bg-red-50/50'
+                                              : 'text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50/50'
                                           }`}
                                           title={group.pricing1Year.is_active ? (isArabic ? 'إلغاء التفعيل' : 'Deactivate') : (isArabic ? 'تفعيل' : 'Activate')}
                                         >
@@ -1001,7 +1034,7 @@ const HealthInsuranceManagement: React.FC = () => {
                                         </button>
                                         <button
                                           onClick={() => handleDeletePricing(group.pricing1Year)}
-                                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors duration-200 relative z-20"
+                                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50/50 transition-colors duration-200 relative z-20"
                                           title={isArabic ? 'حذف السعر' : 'Delete Price'}
                                         >
                                           <Trash2 className="w-3 h-3" />
@@ -1011,64 +1044,32 @@ const HealthInsuranceManagement: React.FC = () => {
                                   </div>
                                 ) : (
                                   <div className="text-center py-2">
-                                    <span className="text-xs text-jet-400 dark:text-jet-500">
+                                    <span className="text-xs text-slate-400 dark:text-slate-500">
                                       {isArabic ? 'غير محدد' : 'Not set'}
                                     </span>
                                   </div>
                                 )}
                               </td>
 
-                              {/* 2 Years Pricing Column */}
+
+
+                              {/* 2 Years Total Column */}
                               <td className="px-6 py-4 whitespace-nowrap">
-                                {group.pricing2Years ? (
-                                  <div className="space-y-2">
-                                    {/* Price */}
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center">
-                                        <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                                        <span className="text-sm font-semibold text-jet-900 dark:text-white">
-                                          {formatPrice(group.pricing2Years.price_try)}
-                                        </span>
-                                      </div>
-                                      <button
-                                        onClick={() => startInlineEdit(group.pricing2Years.id, 'price_try', group.pricing2Years.price_try.toString())}
-                                        className="text-caribbean-600 hover:text-caribbean-900 p-1 rounded hover:bg-caribbean-50 relative z-20"
-                                        title={isArabic ? 'تعديل السعر' : 'Edit Price'}
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                    
-                                    {/* Status */}
-                                    <div className="flex items-center justify-between">
-                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${group.pricing2Years.is_active ? 'text-green-800 bg-green-100 dark:bg-green-900/20 dark:text-green-400' : 'text-red-800 bg-red-100 dark:bg-red-900/20 dark:text-red-400'}`}>
-                                        {group.pricing2Years.is_active ? (isArabic ? 'نشط' : 'Active') : (isArabic ? 'غير نشط' : 'Inactive')}
+                                {group.pricing1Year ? (
+                                  <div className="text-center py-2">
+                                    <div className="flex items-center justify-center">
+                                      <DollarSign className="w-4 h-4 text-purple-500 mr-1" />
+                                      <span className="text-sm font-bold text-slate-700 dark:text-white">
+                                        {formatPrice(group.pricing1Year.price_try + (group.pricing1Year.price_try * 1.8))}
                                       </span>
-                                      <div className="flex items-center space-x-1 space-x-reverse">
-                                        <button
-                                          onClick={() => handleUpdatePricing({ ...group.pricing2Years, is_active: !group.pricing2Years.is_active })}
-                                          className={`p-1 rounded transition-colors duration-200 relative z-20 ${
-                                            group.pricing2Years.is_active 
-                                              ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                                              : 'text-green-600 hover:text-green-900 hover:bg-green-50'
-                                          }`}
-                                          title={group.pricing2Years.is_active ? (isArabic ? 'إلغاء التفعيل' : 'Deactivate') : (isArabic ? 'تفعيل' : 'Activate')}
-                                        >
-                                          {group.pricing2Years.is_active ? <AlertCircle className="w-3 h-3" /> : <Check className="w-3 h-3" />}
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeletePricing(group.pricing2Years)}
-                                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors duration-200 relative z-20"
-                                          title={isArabic ? 'حذف السعر' : 'Delete Price'}
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      </div>
+                                    </div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                      {isArabic ? 'محسوب تلقائياً' : 'Auto-calculated'}
                                     </div>
                                   </div>
                                 ) : (
                                   <div className="text-center py-2">
-                                    <span className="text-xs text-jet-400 dark:text-jet-500">
+                                    <span className="text-xs text-slate-400 dark:text-slate-500">
                                       {isArabic ? 'غير محدد' : 'Not set'}
                                     </span>
                                   </div>
@@ -1080,14 +1081,14 @@ const HealthInsuranceManagement: React.FC = () => {
                                 <div className="flex items-center space-x-2 space-x-reverse">
                                   <button
                                     onClick={() => setShowAddPricing(true)}
-                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
+                                    className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors duration-200 relative z-20"
                                     title={isArabic ? 'إضافة سعر' : 'Add Price'}
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
                                   <button
                                     onClick={() => setEditingPricing(group.pricing1Year || group.pricing2Years)}
-                                    className="text-caribbean-600 hover:text-caribbean-900 dark:text-caribbean-400 dark:hover:text-caribbean-300 p-2 rounded-lg hover:bg-caribbean-50 dark:hover:bg-caribbean-900/20 transition-colors duration-200 relative z-20"
+                                    className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors duration-200 relative z-20"
                                     title={isArabic ? 'تعديل' : 'Edit'}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -1123,74 +1124,74 @@ const HealthInsuranceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Requests Tab */}
+      {/* Enhanced Requests Tab with Glass Morphism */}
       {activeTab === 'requests' && (
         <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-jet-900 dark:text-white">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">
             {isArabic ? 'طلبات التأمين الصحي' : 'Health Insurance Requests'}
           </h3>
 
-          <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 overflow-hidden relative z-10">
-            <div className="overflow-x-auto px-2">
-              <table className="min-w-full divide-y divide-sky-200 dark:divide-jet-600 relative z-10">
-                <thead className="bg-gradient-to-r from-sky-50/50 via-caribbean-50/30 to-blue-50/50 dark:from-sky-900/20 dark:via-jet-700 dark:to-blue-900/20">
-                  <tr>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'العميل' : 'Client'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'العمر' : 'Age'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'تاريخ الميلاد' : 'Birth Date'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'الشركة' : 'Company'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'السعر' : 'Price'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'الحالة' : 'Status'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'تاريخ التقديم' : 'Submission Date'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'الملف المرفوع' : 'Attached File'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-jet-700 dark:text-white tracking-wider">
-                      {isArabic ? 'الإجراءات' : 'Actions'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-jet-800 divide-y divide-platinum-100 dark:divide-jet-600">
-                  {requests.length === 0 ? (
+          <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20 overflow-hidden">
+                          <div className="overflow-x-auto px-3">
+                <table className="min-w-full divide-y divide-white/20 dark:divide-white/10 relative z-10">
+                  <thead className="bg-gradient-to-r from-blue-50/30 via-indigo-50/20 to-purple-50/30 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 backdrop-blur-sm">
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center space-y-3 space-y-reverse">
-                          <div className="w-16 h-16 bg-platinum-100 dark:bg-jet-700 rounded-full flex items-center justify-center">
-                            <FileText className="w-8 h-8 text-platinum-400 dark:text-jet-500" />
-                          </div>
-                          <div>
-                            <p className="text-lg font-medium text-jet-600 dark:text-jet-300">
-                              {isArabic ? 'لا توجد طلبات بعد' : 'No requests yet'}
-                            </p>
-                            <p className="text-sm text-jet-500 dark:text-jet-400">
-                              {isArabic ? 'ستظهر طلبات التأمين الصحي هنا' : 'Health insurance requests will appear here'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'العميل' : 'Client'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'العمر' : 'Age'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'تاريخ الميلاد' : 'Birth Date'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'الشركة' : 'Company'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'السعر' : 'Price'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'الحالة' : 'Status'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'تاريخ التقديم' : 'Submission Date'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'الملف المرفوع' : 'Attached File'}
+                      </th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700 dark:text-slate-200 tracking-wider">
+                        {isArabic ? 'الإجراءات' : 'Actions'}
+                      </th>
                     </tr>
+                  </thead>
+                  <tbody className="bg-white/50 dark:bg-white/5 divide-y divide-white/20 dark:divide-white/10">
+                                          {requests.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="px-6 py-12 text-center">
+                              <div className="flex flex-col items-center space-y-3 space-y-reverse">
+                                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                                  <FileText className="w-8 h-8 text-blue-400 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                  <p className="text-lg font-medium text-slate-600 dark:text-slate-300">
+                                    {isArabic ? 'لا توجد طلبات بعد' : 'No requests yet'}
+                                  </p>
+                                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {isArabic ? 'ستظهر طلبات التأمين الصحي هنا' : 'Health insurance requests will appear here'}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                   ) : (
-                    requests.map((request, index) => (
-                      <tr key={request.id} className={`hover:bg-sky-50 dark:hover:bg-jet-700 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white dark:bg-jet-800' : 'bg-sky-25 dark:bg-jet-750'}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm">
-                            <div className="font-semibold text-jet-900 dark:text-white">{request.contact_name}</div>
-                            <div className="text-jet-600 dark:text-platinum-300">{request.contact_email}</div>
-                            <div className="text-jet-500 dark:text-jet-400">{request.contact_phone}</div>
+                                          requests.map((request, index) => (
+                        <tr key={request.id} className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white/30 dark:bg-white/5' : 'bg-white/20 dark:bg-white/3'}`}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm">
+                              <div className="font-semibold text-slate-700 dark:text-white">{request.contact_name}</div>
+                              <div className="text-slate-600 dark:text-slate-300">{request.contact_email}</div>
+                              <div className="text-slate-500 dark:text-slate-400">{request.contact_phone}</div>
 
                             {request.insurance_offer_confirmed && (
                               <div className="mt-1">
@@ -1209,19 +1210,19 @@ const HealthInsuranceManagement: React.FC = () => {
                             {request.customer_age ? (
                               <div className="flex items-center">
                                 <Users className="w-4 h-4 text-caribbean-500 mr-1" />
-                                <span className="font-medium text-jet-900 dark:text-white">
+                                <span className="font-medium text-slate-700 dark:text-white">
                                   {request.customer_age} {isArabic ? 'سنة' : 'years'}
                                 </span>
                               </div>
                             ) : request.birth_date ? (
                               <div className="flex items-center">
                                 <Users className="w-4 h-4 text-caribbean-500 mr-1" />
-                                <span className="font-medium text-jet-900 dark:text-white">
+                                <span className="font-medium text-slate-700 dark:text-white">
                                   {calculateAge(request.birth_date)} {isArabic ? 'سنة' : 'years'}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-jet-400 dark:text-jet-500 text-xs">
+                              <span className="text-slate-400 dark:text-slate-500 text-xs">
                                 {isArabic ? 'غير محدد' : 'Not specified'}
                               </span>
                             )}
@@ -1231,13 +1232,13 @@ const HealthInsuranceManagement: React.FC = () => {
                           <div className="text-sm">
                             {request.birth_date ? (
                               <div className="flex items-center">
-                                <Calendar className="w-4 h-4 text-sky-500 mr-1" />
-                                <span className="font-medium text-jet-900 dark:text-white">
+                                <Calendar className="w-4 h-4 text-blue-500 mr-1" />
+                                <span className="font-medium text-slate-700 dark:text-white">
                                   {formatDateEnglish(request.birth_date)}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-jet-400 dark:text-jet-500 text-xs">
+                              <span className="text-slate-400 dark:text-slate-500 text-xs">
                                 {isArabic ? 'غير محدد' : 'Not specified'}
                               </span>
                             )}
@@ -1245,16 +1246,16 @@ const HealthInsuranceManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 bg-caribbean-100 dark:bg-caribbean-900 rounded-lg flex items-center justify-center mr-3">
-                              <Building className="w-4 h-4 text-caribbean-600 dark:text-caribbean-400" />
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3">
+                              <Building className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="text-sm font-medium text-jet-900 dark:text-white">{request.company_name}</span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-white">{request.company_name}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                            <span className="text-sm font-semibold text-jet-900 dark:text-white">{formatPrice(request.calculated_price)}</span>
+                            <DollarSign className="w-4 h-4 text-emerald-500 mr-1" />
+                            <span className="text-sm font-semibold text-slate-700 dark:text-white">{formatPrice(request.calculated_price)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1262,7 +1263,7 @@ const HealthInsuranceManagement: React.FC = () => {
                             {request.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-jet-500 dark:text-jet-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                           {request.submission_date ? formatDateEnglish(request.submission_date) : formatDate(request.created_at)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1317,7 +1318,7 @@ const HealthInsuranceManagement: React.FC = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-jet-400 dark:text-jet-500">
+                            <span className="text-xs text-slate-400 dark:text-slate-500">
                               {isArabic ? 'لا يوجد ملف' : 'No file'}
                             </span>
                           );
@@ -1371,24 +1372,24 @@ const HealthInsuranceManagement: React.FC = () => {
           </div>
 
           <div className="grid gap-4 px-2">
-            {ageGroups.length === 0 ? (
+            {getAgeGroupsWithPricing().length === 0 ? (
                               <div className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-12 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 text-center relative z-10">
                 <div className="flex flex-col items-center space-y-4 space-y-reverse">
                   <div className="w-20 h-20 bg-gradient-to-br from-sky-100 to-caribbean-100 dark:from-sky-900 dark:to-caribbean-900 rounded-full flex items-center justify-center">
                     <Users className="w-10 h-10 text-sky-600 dark:text-sky-400" />
                   </div>
                   <div>
-                    <p className="text-xl font-semibold text-jet-800 dark:text-white">
-                      {isArabic ? 'لا توجد فئات عمرية' : 'No age groups'}
+                    <p className="text-xl font-semibold text-slate-700 dark:text-white">
+                      {isArabic ? 'لا توجد فئات عمرية مع أسعار' : 'No age groups with pricing'}
                     </p>
-                    <p className="text-sm text-jet-600 dark:text-platinum-300 mt-2">
-                      {isArabic ? 'سيتم تحميل الفئات العمرية قريباً' : 'Age groups will be loaded soon'}
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                      {isArabic ? 'أضف أسعار للفئات العمرية لتظهر هنا' : 'Add pricing to age groups to see them here'}
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
-              ageGroups.map((ageGroup) => (
+              getAgeGroupsWithPricing().map((ageGroup) => (
                 <div key={ageGroup.id} className="bg-gradient-to-r from-white via-sky-50/30 to-white dark:from-jet-800 dark:via-jet-700 dark:to-jet-800 p-6 rounded-xl shadow-lg border border-sky-200 dark:border-jet-700 hover:shadow-xl transition-all duration-300 relative z-10">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-4 space-x-reverse">
@@ -1482,6 +1483,7 @@ const HealthInsuranceManagement: React.FC = () => {
         </div>
       )}
 
+      {/* Edit Request Modal */}
       {editingRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-jet-800 rounded-lg p-6 max-w-md w-full">
@@ -2167,123 +2169,6 @@ const HealthInsuranceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* File Preview Modal */}
-      {showFilePreview && selectedFile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-jet-800 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-jet-900 dark:text-white">
-                {isArabic ? 'عرض الملف المرفوع' : 'File Preview'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowFilePreview(false);
-                  setSelectedFile(null);
-                }}
-                className="text-jet-400 hover:text-jet-600 dark:text-jet-500 dark:hover:text-jet-300"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* File Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg">
-                <div className="flex items-center space-x-3 space-x-reverse">
-                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-blue-800 dark:text-blue-200">
-                      {selectedFile.name}
-                    </h4>
-                    <p className="text-sm text-blue-600 dark:text-blue-400">
-                      {isArabic ? 'صورة جواز السفر أو الإقامة' : 'Passport or Residence Image'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* File Preview */}
-              <div className="bg-gray-50 dark:bg-jet-700 rounded-lg p-4">
-                {selectedFile.type === 'image' ? (
-                  <div className="text-center">
-                    <img
-                      src={selectedFile.url}
-                      alt={selectedFile.name}
-                      className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'text-red-500 dark:text-red-400 p-8 text-center';
-                        errorDiv.innerHTML = isArabic ? 'خطأ في تحميل الصورة' : 'Error loading image';
-                        target.parentNode?.appendChild(errorDiv);
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="text-center p-8">
-                    <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 dark:text-gray-400">
-                      {isArabic ? 'معاينة غير متاحة لهذا النوع من الملفات' : 'Preview not available for this file type'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex space-x-4 space-x-reverse">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowFilePreview(false);
-                    setSelectedFile(null);
-                  }}
-                  className="flex-1 px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg text-jet-700 dark:text-platinum-300 hover:bg-platinum-50 dark:hover:bg-jet-700 transition-all duration-300"
-                >
-                  {isArabic ? 'إغلاق' : 'Close'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = selectedFile.url;
-                    link.download = selectedFile.name;
-                    link.target = '_blank';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  {isArabic ? 'تحميل الملف' : 'Download File'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(selectedFile.url, '_blank')}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  {isArabic ? 'فتح في نافذة جديدة' : 'Open in New Tab'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
       <ConfirmDeleteModal
         isOpen={showDeleteModal}
@@ -2298,6 +2183,7 @@ const HealthInsuranceManagement: React.FC = () => {
         isLoading={isDeleting}
       />
     </div>
+  </div>
   );
 };
 

@@ -228,18 +228,18 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-platinum-50 dark:bg-jet-900">
-      <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8 z-10">
+    <div className="p-6">
+      <div className="relative max-w-7xl mx-auto z-10">
         {isLoading && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
                 <RefreshCw className="w-8 h-8 text-white animate-spin" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
                 {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
               </h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-slate-600 dark:text-slate-300">
                 {language === 'ar' 
                   ? 'جاري تحميل إعدادات الـ webhooks'
                   : 'Loading webhook settings'
@@ -255,10 +255,10 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
               <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <XCircle className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
                 {language === 'ar' ? 'خطأ في التحميل' : 'Loading Error'}
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-slate-600 dark:text-slate-300 mb-4">
                 {language === 'ar' 
                   ? 'حدث خطأ أثناء تحميل إعدادات الـ webhooks'
                   : 'An error occurred while loading webhook settings'
@@ -285,10 +285,10 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                   <Zap className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-3xl font-bold text-slate-800 dark:text-white">
                     {language === 'ar' ? 'إعدادات الـ Webhooks' : 'Webhook Settings'}
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-slate-600 dark:text-slate-300">
                     {language === 'ar' 
                       ? 'إدارة إشعارات التيليجرام لجميع الطلبات'
                       : 'Manage Telegram notifications for all requests'
@@ -321,13 +321,13 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
 
             {/* Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/30 dark:border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3 space-x-reverse">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'حالة الـ Webhooks' : 'Webhook Status'}
                     </h3>
                   </div>
@@ -338,13 +338,13 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/30 dark:border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3 space-x-reverse">
                     <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
                       <MessageSquare className="w-5 h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'اتصال التيليجرام' : 'Telegram Connection'}
                     </h3>
                   </div>
@@ -355,18 +355,18 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/30 dark:border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3 space-x-reverse">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
                       <TestTube className="w-5 h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'آخر اختبار' : 'Last Test'}
                     </h3>
                   </div>
                 </div>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                <p className="text-lg font-bold text-slate-800 dark:text-white">
                   {webhookStatus.lastTest 
                     ? webhookStatus.lastTest.toLocaleString(language === 'ar' ? 'ar-SA' : 'en-US')
                     : (language === 'ar' ? 'لم يتم الاختبار' : 'Not tested')
@@ -376,14 +376,14 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
             </div>
 
             {/* Controls Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/30 dark:border-white/20 shadow-xl mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">
                 {language === 'ar' ? 'التحكم في النظام' : 'System Controls'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
                     {language === 'ar' ? 'إعدادات التيليجرام' : 'Telegram Settings'}
                   </h3>
                   <button
@@ -395,7 +395,7 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                       <span>{language === 'ar' ? 'إدارة المعرفات' : 'Manage Credentials'}</span>
                     </div>
                   </button>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     {language === 'ar' 
                       ? 'إدارة معرف البوت ومعرف المحادثة'
                       : 'Manage bot token and chat ID'
@@ -404,7 +404,7 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
                     {language === 'ar' ? 'اختبار الاتصال' : 'Test Connection'}
                   </h3>
                   <button
@@ -445,7 +445,7 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
                       <span>{language === 'ar' ? 'اختبار الاتصال' : 'Test Connection'}</span>
                     </div>
                   </button>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     {language === 'ar' 
                       ? 'اختبار الاتصال بالتيليجرام'
                       : 'Test Telegram connection'
@@ -456,43 +456,43 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
             </div>
 
             {/* Supported Request Types */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/30 dark:border-white/20 shadow-xl">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">
                 {language === 'ar' ? 'أنواع الطلبات المدعومة' : 'Supported Request Types'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-700">
+                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-200/30 dark:border-blue-700/20 backdrop-blur-sm">
                   <MessageSquare className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                    <h4 className="font-semibold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'الدعم الفني' : 'Chat Support'}
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {language === 'ar' ? 'طلبات المحادثة والرسائل' : 'Chat requests and messages'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-700">
+                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-green-50/50 dark:bg-green-900/10 rounded-2xl border border-green-200/30 dark:border-green-700/20 backdrop-blur-sm">
                   <Globe className="w-6 h-6 text-green-600 dark:text-green-400" />
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                    <h4 className="font-semibold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'الترجمة' : 'Translation'}
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {language === 'ar' ? 'طلبات ترجمة الوثائق' : 'Document translation requests'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center space-x-3 space-x-reverse p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-200/30 dark:border-purple-700/20 backdrop-blur-sm">
                   <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                    <h4 className="font-semibold text-slate-800 dark:text-white">
                       {language === 'ar' ? 'التأمين' : 'Insurance'}
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {language === 'ar' ? 'طلبات التأمين الصحي' : 'Health insurance requests'}
                     </p>
                   </div>

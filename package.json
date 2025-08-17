@@ -13,7 +13,6 @@
     "fix:netlify": "node fix-netlify-deploy.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-
     "test:email": "node scripts/test-email.js",
     "test:signup": "node scripts/test-signup-system.js",
     "test:file-upload": "node test-file-upload.js",
@@ -33,11 +32,16 @@
     "storage:test": "node scripts/test-storage.js"
   },
   "dependencies": {
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/core": "^7.4.2",
     "@supabase/supabase-js": "^2.55.0",
     "@types/uuid": "^9.0.8",
+    "canvas": "^3.1.2",
     "chart.js": "^4.5.0",
     "dotenv": "^17.2.1",
     "form-data": "^4.0.4",
+    "groq-sdk": "^0.30.0",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",

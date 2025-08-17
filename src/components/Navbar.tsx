@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, User, LogOut, Globe, Sun, Moon, Menu, X, LogIn, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Home, User, LogOut, Globe, Sun, Moon, Menu, X, LogIn, Settings } from 'lucide-react';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage, Language } from '../hooks/useLanguage';
 import { UserAvatar } from './UserAvatar';
@@ -28,15 +28,6 @@ const Navbar: React.FC<NavbarProps> = ({
   const { language, setLanguage, t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // Music control state
-  const [isMusicMuted, setIsMusicMuted] = useState(() => {
-    const savedMuted = localStorage.getItem('backgroundMusicMuted');
-    return savedMuted ? JSON.parse(savedMuted) : false;
-  });
-  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
-  const [showMusicVolumeSlider, setShowMusicVolumeSlider] = useState(false);
-  const [musicVolume, setMusicVolume] = useState(0.04);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -120,99 +111,7 @@ const Navbar: React.FC<NavbarProps> = ({
     return userRole === 'admin' || userRole === 'moderator';
   };
 
-  // Music control functions
-  const toggleMusicMute = () => {
-    const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) return;
 
-    if (isMusicMuted) {
-      audio.muted = false;
-      setIsMusicMuted(false);
-      localStorage.setItem('backgroundMusicMuted', 'false');
-    } else {
-      audio.muted = true;
-      setIsMusicMuted(true);
-      localStorage.setItem('backgroundMusicMuted', 'true');
-    }
-  };
-
-  const handleMusicClick = () => {
-    const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) {
-      console.log('Audio element not found');
-      return;
-    }
-
-    if (!isMusicPlaying) {
-      audio.play().catch((error) => {
-        console.error('Failed to play audio:', error);
-        // Try to unmute first if autoplay is blocked
-        audio.muted = false;
-        audio.play().catch(console.error);
-      });
-    } else {
-      toggleMusicMute();
-    }
-  };
-
-  const handleMusicVolumeChange = (newVolume: number) => {
-    const audio = document.querySelector('audio') as HTMLAudioElement;
-    if (!audio) {
-      console.log('Audio element not found for volume change');
-      return;
-    }
-
-    setMusicVolume(newVolume);
-    audio.volume = newVolume;
-    
-    // Unmute if volume is increased
-    if (isMusicMuted && newVolume > 0) {
-      setIsMusicMuted(false);
-      audio.muted = false;
-      localStorage.setItem('backgroundMusicMuted', 'false');
-    }
-  };
-
-  // Listen for audio state changes
-  useEffect(() => {
-    const checkAudio = () => {
-      const audio = document.querySelector('audio') as HTMLAudioElement;
-      if (!audio) {
-        console.log('Audio element not found, retrying...');
-        // Retry after a short delay
-        setTimeout(checkAudio, 1000);
-        return;
-      }
-
-      const handlePlay = () => {
-        console.log('Audio started playing');
-        setIsMusicPlaying(true);
-      };
-      const handlePause = () => {
-        console.log('Audio paused');
-        setIsMusicPlaying(false);
-      };
-      const handleEnded = () => {
-        console.log('Audio ended');
-        setIsMusicPlaying(false);
-      };
-
-      audio.addEventListener('play', handlePlay);
-      audio.addEventListener('pause', handlePause);
-      audio.addEventListener('ended', handleEnded);
-
-      // Set initial state
-      setIsMusicPlaying(!audio.paused && !audio.muted);
-
-      return () => {
-        audio.removeEventListener('play', handlePlay);
-        audio.removeEventListener('pause', handlePause);
-        audio.removeEventListener('ended', handleEnded);
-      };
-    };
-
-    checkAudio();
-  }, []);
 
   return (
     <>
@@ -327,59 +226,7 @@ const Navbar: React.FC<NavbarProps> = ({
               <Moon className="icon moon-icon w-4 h-4" />
             </button>
 
-            {/* Music Control Button */}
-            <div className="relative group">
-              <button
-                onClick={handleMusicClick}
-                onMouseEnter={() => setShowMusicVolumeSlider(true)}
-                onMouseLeave={() => setShowMusicVolumeSlider(false)}
-                className={`
-                  flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:scale-110
-                  ${isMusicMuted || !isMusicPlaying 
-                    ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' 
-                    : 'bg-white/10 hover:bg-white/20 text-white'
-                  }
-                  ${isMusicPlaying && !isMusicMuted ? 'animate-pulse' : ''}
-                `}
-                title={isMusicMuted ? 'تشغيل الموسيقى' : 'إيقاف الموسيقى'}
-              >
-                {isMusicMuted || !isMusicPlaying ? (
-                  <VolumeX className="w-4 h-4" />
-                ) : (
-                  <Volume2 className="w-4 h-4" />
-                )}
-              </button>
-              
-              {/* Music indicator */}
-              {isMusicPlaying && !isMusicMuted && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-ping" />
-              )}
-              
-              {/* Volume Slider */}
-              {showMusicVolumeSlider && (
-                <div 
-                  className="absolute top-12 right-0 bg-white/10 backdrop-blur-md rounded-lg p-3 border border-white/20 shadow-xl"
-                  onMouseEnter={() => setShowMusicVolumeSlider(true)}
-                  onMouseLeave={() => setShowMusicVolumeSlider(false)}
-                >
-                  <div className="text-blue-300 text-xs mb-3 text-center font-medium">
-                    {Math.round(musicVolume * 100)}%
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={musicVolume}
-                      onChange={(e) => handleMusicVolumeChange(parseFloat(e.target.value))}
-                      className="w-16 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer border border-white/30 hover:bg-white/30 transition-colors"
-                    />
-                    <div className="text-blue-300/80 text-xs mt-2 font-medium">صوت</div>
-                  </div>
-                </div>
-              )}
-            </div>
+
 
             {/* Language Selector */}
             <div className="relative group">
@@ -713,26 +560,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 </button>
 
-                {/* Music Control */}
-                <button
-                  onClick={handleMusicClick}
-                  className="w-full flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-                >
-                  {isMusicMuted || !isMusicPlaying ? (
-                    <VolumeX className="w-5 h-5 mr-3" />
-                  ) : (
-                    <Volume2 className="w-5 h-5 mr-3" />
-                  )}
-                  <span className="font-medium">
-                    {isMusicMuted || !isMusicPlaying 
-                      ? (language === 'ar' ? 'تشغيل الموسيقى' : language === 'tr' ? 'Müziği Aç' : 'Play Music')
-                      : (language === 'ar' ? 'إيقاف الموسيقى' : language === 'tr' ? 'Müziği Kapat' : 'Stop Music')
-                    }
-                  </span>
-                  {isMusicPlaying && !isMusicMuted && (
-                    <div className="ml-auto w-3 h-3 bg-blue-400 rounded-full animate-ping" />
-                  )}
-                </button>
+
 
                 {/* Language Selector */}
                 <div className="px-4 py-3">

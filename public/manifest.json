@@ -5,30 +5,66 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "theme_color": "#6495ED",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "ar",
   "dir": "rtl",
-  "categories": ["business", "productivity", "utilities", "finance", "legal"],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities",
+    "finance",
+    "legal"
+  ],
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/pwa-icons/logo-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo-fınal.png",
+      "src": "/pwa-icons/logo-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icons/logo-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/logo-fınal.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -39,7 +75,7 @@
       "url": "/health-insurance",
       "icons": [
         {
-          "src": "/logo.png",
+          "src": "/pwa-icons/logo-192x192.png",
           "sizes": "192x192"
         }
       ]
@@ -51,7 +87,7 @@
       "url": "/voluntary-return",
       "icons": [
         {
-          "src": "/logo.png",
+          "src": "/pwa-icons/logo-192x192.png",
           "sizes": "192x192"
         }
       ]
@@ -63,7 +99,7 @@
       "url": "/services",
       "icons": [
         {
-          "src": "/logo.png",
+          "src": "/pwa-icons/logo-192x192.png",
           "sizes": "192x192"
         }
       ]

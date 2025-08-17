@@ -150,6 +150,44 @@ class TelegramService {
     }
   }
 
+  async sendChatReply(sessionId: string, message: string, adminName?: string): Promise<boolean> {
+    console.log('🔄 جاري إرسال رد المدير إلى التيليجرام...', {
+      sessionId,
+      messageLength: message.length,
+      adminName
+    });
+
+    try {
+      const text = `💬 <b>رد من المدير</b>\n\n` +
+                   `📝 <b>الرسالة:</b> ${message}\n` +
+                   `🆔 <b>رقم الجلسة:</b> ${sessionId.substring(0, 8)}...\n` +
+                   `👤 <b>المدير:</b> ${adminName || 'غير محدد'}\n` +
+                   `⏰ <b>التاريخ:</b> ${new Date().toLocaleString('ar-SA')}`;
+
+      // استخدام Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('telegram-webhook', {
+        body: {
+          sessionId: sessionId,
+          message: text,
+          language: 'ar',
+          requestType: 'admin_reply',
+          adminName: adminName
+        }
+      });
+
+      if (error) {
+        console.error('❌ خطأ في إرسال رد المدير إلى التيليجرام:', error);
+        return false;
+      }
+
+      console.log('✅ تم إرسال رد المدير إلى التيليجرام بنجاح');
+      return true;
+    } catch (error) {
+      console.error('❌ خطأ في إرسال رد المدير إلى التيليجرام:', error);
+      return false;
+    }
+  }
+
   // دالة جديدة لإرسال الملفات
   async sendFile(fileMessage: TelegramFileMessage): Promise<boolean> {
     console.log('🔄 جاري إرسال ملف إلى التيليجرام عبر Edge Function...', {

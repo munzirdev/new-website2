@@ -93,10 +93,7 @@ export const router = createBrowserRouter([
         path: 'admin/health-insurance',
         element: <Outlet />
       },
-      {
-        path: 'admin/chat-support',
-        element: <Outlet />
-      },
+
       {
         path: 'admin/webhooks',
         element: <Outlet />
