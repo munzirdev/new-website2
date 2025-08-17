@@ -175,11 +175,15 @@ const ModeratorManagement: React.FC<ModeratorManagementProps> = ({ isDarkMode })
       });
       
       // Only include created_by if user is authenticated and exists
-      const moderatorData = {
+      const moderatorData: any = {
         email: formData.email,
-        full_name: formData.full_name,
-        user_id: userId // Link to existing user if found
+        full_name: formData.full_name
       };
+      
+      // Add user_id only if we found a valid user ID from auth.users
+      if (userId) {
+        moderatorData.user_id = userId;
+      }
       
       // Add created_by only if user exists and is authenticated
       if (user?.id) {

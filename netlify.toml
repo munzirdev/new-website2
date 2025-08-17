@@ -24,7 +24,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fctvityawavmuethxxix.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://fctvityawavmuethxxix.supabase.co wss://fctvityawavmuethxxix.supabase.co; frame-src 'none'; object-src 'none';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fctvityawavmuethxxix.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://fctvityawavmuethxxix.supabase.co wss://fctvityawavmuethxxix.supabase.co https://api.exchangerate-api.com; frame-src 'none'; object-src 'none';"
 
 # Cache static assets with long expiration
 [[headers]]
