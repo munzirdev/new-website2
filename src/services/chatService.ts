@@ -59,14 +59,14 @@ export class ChatService {
 - التكيف اللغوي: ${personality.language_adaptation}
 
 المؤهلات المهنية:
-${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
+${personality.professional_qualities.map((q: any) => `- ${q}`).join('\n')}
 
 إرشادات الرد:
 يجب عليك:
-${guidelines.do.map(g => `- ${g}`).join('\n')}
+${guidelines.do.map((g: any) => `- ${g}`).join('\n')}
 
 لا يجب عليك:
-${guidelines.dont.map(g => `- ${g}`).join('\n')}
+${guidelines.dont.map((g: any) => `- ${g}`).join('\n')}
 
 معلومات الشركة:
 - الاسم: ${data.company_info.name}
@@ -110,14 +110,14 @@ Kişiliğin:
 - Dil adaptasyonu: ${personality.language_adaptation}
 
 Profesyonel nitelikler:
-${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
+${personality.professional_qualities.map((q: any) => `- ${q}`).join('\n')}
 
 Cevap kuralları:
 Yapmalısın:
-${guidelines.do.map(g => `- ${g}`).join('\n')}
+${guidelines.do.map((g: any) => `- ${g}`).join('\n')}
 
 Yapmamalısın:
-${guidelines.dont.map(g => `- ${g}`).join('\n')}
+${guidelines.dont.map((g: any) => `- ${g}`).join('\n')}
 
 Şirket bilgileri:
 - İsim: ${data.company_info.english_name}
@@ -160,14 +160,14 @@ Your personality:
 - Language adaptation: ${personality.language_adaptation}
 
 Professional qualifications:
-${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
+${personality.professional_qualities.map((q: any) => `- ${q}`).join('\n')}
 
 Response guidelines:
 You should:
-${guidelines.do.map(g => `- ${g}`).join('\n')}
+${guidelines.do.map((g: any) => `- ${g}`).join('\n')}
 
 You should not:
-${guidelines.dont.map(g => `- ${g}`).join('\n')}
+${guidelines.dont.map((g: any) => `- ${g}`).join('\n')}
 
 Company information:
 - Name: ${data.company_info.english_name}
@@ -237,7 +237,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
         ];
       }
 
-      // Get API key from environment
+      // Use OpenRouter with TNG: DeepSeek R1T2 Chimera (free)
       const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
       if (!apiKey) {
         throw new Error('OpenRouter API key not found');
@@ -252,7 +252,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
           'X-Title': 'Tevasul Chat Bot'
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.1-8b-instruct',
+          model: 'tngtech/deepseek-r1t2-chimera:free',
           messages: conversation,
           max_tokens: 300,
           temperature: 0.7,
@@ -324,7 +324,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
         ];
       }
 
-      // Get API key from environment
+      // Use OpenRouter with TNG: DeepSeek R1T2 Chimera (free)
       const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
       if (!apiKey) {
         throw new Error('OpenRouter API key not found');
@@ -339,7 +339,7 @@ Remember: Always respond in English, be professional and polite, provide accurat
           'X-Title': 'Tevasul Chat Bot'
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.1-8b-instruct',
+          model: 'tngtech/deepseek-r1t2-chimera:free',
           messages: conversation,
           max_tokens: 300,
           temperature: 0.7,

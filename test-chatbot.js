@@ -11,22 +11,16 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsI
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// اختبار OpenRouter API مباشرة
+// اختبار OpenRouter API مع النموذج المجاني
 async function testOpenRouterAPI() {
-  console.log('🧪 اختبار OpenRouter API...');
-  
-  // عرض جميع المتغيرات البيئية المتعلقة بـ OpenRouter
-  console.log('🔍 جميع المتغيرات البيئية:');
-  console.log('VITE_OPENROUTER_API_KEY:', process.env.VITE_OPENROUTER_API_KEY ? 'موجود' : 'مفقود');
-  console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'موجود' : 'مفقود');
+  console.log('🧪 اختبار OpenRouter API مع النموذج المجاني...');
+  console.log('🔍 النموذج: tngtech/deepseek-r1t2-chimera:free');
   
   const apiKey = process.env.VITE_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
-  console.log('🔍 المفتاح المحدد:', apiKey ? 'موجود' : 'مفقود');
-  console.log('🔍 طول المفتاح:', apiKey ? apiKey.length : 0);
+  console.log('🔍 مفتاح API:', apiKey ? 'موجود' : 'مفقود');
   
   if (!apiKey) {
-    console.error('❌ مفتاح OpenRouter API مفقود في ملف .env');
-    console.log('📝 يرجى إضافة VITE_OPENROUTER_API_KEY=your-key-here إلى ملف .env');
+    console.error('❌ مفتاح OpenRouter API مفقود');
     return false;
   }
 
@@ -40,7 +34,7 @@ async function testOpenRouterAPI() {
         'X-Title': 'Tevasul Chat Bot Test'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct',
+        model: 'tngtech/deepseek-r1t2-chimera:free',
         messages: [
           {
             role: 'system',
