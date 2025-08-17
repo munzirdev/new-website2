@@ -1,0 +1,547 @@
+{
+  "company_info": {
+    "name": "مجموعة تواصل",
+    "english_name": "Tevasul Group",
+    "description": "شريكك الموثوق لإنجاز جميع خدماتك في تركيا",
+    "english_description": "Your trusted partner to complete all your services in Turkey",
+    "address": "CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin",
+    "phone": "+90 324 123 45 67",
+    "email": "info@tevasul.group",
+    "website": "https://tevasul.group",
+    "experience": "10+ سنوات خبرة",
+    "clients": "5000+ عميل راضٍ",
+    "services_count": "خدمة على مدار الساعة"
+  },
+  "services": {
+    "health_insurance": {
+      "ar": {
+        "title": "التأمين الصحي للأجانب",
+        "description": "تأمين صحي شامل للأجانب في تركيا بأفضل الأسعار والتغطية",
+        "full_description": "نقدم خدمات التأمين الصحي الشاملة للأجانب في تركيا. نحن نتعاون مع أفضل شركات التأمين التركية لتقديم أفضل الأسعار والتغطية الشاملة. تأميننا يشمل جميع الخدمات الطبية والعلاجية مع شبكة واسعة من المستشفيات والعيادات في جميع أنحاء تركيا.",
+        "features": [
+          "تأمين صحي شامل للأفراد والعائلات",
+          "أسعار تنافسية حسب الفئة العمرية",
+          "تغطية شاملة لجميع الخدمات الطبية",
+          "شبكة واسعة من المستشفيات والعيادات",
+          "خدمة عملاء متاحة على مدار الساعة",
+          "إجراءات سريعة وبسيطة",
+          "تأمين لمدة سنة أو سنتين",
+          "استشارة مجانية لاختيار أفضل خطة"
+        ],
+        "benefits": [
+          "حماية مالية شاملة للأسرة",
+          "راحة البال والاطمئنان",
+          "توفير في التكاليف الطبية",
+          "خدمة طبية عالية الجودة"
+        ],
+        "process": [
+          "تحديد الفئة العمرية ومدة التأمين",
+          "اختيار شركة التأمين المناسبة",
+          "حساب السعر النهائي",
+          "تقديم الطلب والحصول على التأمين",
+          "استلام وثائق التأمين"
+        ]
+      },
+      "en": {
+        "title": "Health Insurance for Foreigners",
+        "description": "Comprehensive health insurance for foreigners in Turkey with the best prices and coverage",
+        "full_description": "We provide comprehensive health insurance services for foreigners in Turkey. We collaborate with the best Turkish insurance companies to offer the best prices and comprehensive coverage. Our insurance covers all medical and treatment services with a wide network of hospitals and clinics throughout Turkey.",
+        "features": [
+          "Comprehensive health insurance for individuals and families",
+          "Competitive prices based on age group",
+          "Comprehensive coverage for all medical services",
+          "Wide network of hospitals and clinics",
+          "24/7 customer service",
+          "Fast and simple procedures",
+          "Insurance for one or two years",
+          "Free consultation to choose the best plan"
+        ],
+        "benefits": [
+          "Comprehensive financial protection for the family",
+          "Peace of mind and reassurance",
+          "Savings on medical costs",
+          "High-quality medical service"
+        ],
+        "process": [
+          "Determine age group and insurance duration",
+          "Choose the appropriate insurance company",
+          "Calculate final price",
+          "Submit application and obtain insurance",
+          "Receive insurance documents"
+        ]
+      }
+    },
+    "translation": {
+      "ar": {
+        "title": "خدمات الترجمة المحلفة",
+        "description": "ترجمة معتمدة لجميع الوثائق والمستندات الرسمية والقانونية",
+        "full_description": "نقدم خدمات الترجمة المحلفة الأكثر دقة واحترافية في تركيا. فريقنا من المترجمين المعتمدين يضمن ترجمة دقيقة لجميع وثائقك الرسمية والقانونية والطبية والأكاديمية. نحن معتمدون من قبل الجهات الرسمية التركية ونضمن قبول ترجماتنا في جميع المؤسسات الحكومية والخاصة.",
+        "features": [
+          "ترجمة معتمدة من الجهات الرسمية",
+          "مترجمون محلفون ومعتمدون",
+          "ترجمة فورية للحالات العاجلة",
+          "دقة 100% في الترجمة",
+          "أسعار تنافسية",
+          "خدمة عملاء 24/7",
+          "ضمان القبول في جميع المؤسسات",
+          "ترجمة جميع اللغات"
+        ],
+        "benefits": [
+          "توفير الوقت والجهد",
+          "ضمان الدقة والاحترافية",
+          "قبول مضمون في المؤسسات",
+          "أسعار مناسبة للجميع"
+        ],
+        "process": [
+          "إرسال الوثائق المطلوب ترجمتها عبر الواتساب أو الإيميل",
+          "تقييم الوثائق وتحديد السعر والمدة الزمنية",
+          "البدء في عملية الترجمة من قبل مترجمين معتمدين",
+          "مراجعة الترجمة من قبل فريق الجودة",
+          "تسليم الترجمة المعتمدة والمختومة"
+        ]
+      },
+      "en": {
+        "title": "Certified Translation Services",
+        "description": "Certified translation for all official and legal documents",
+        "full_description": "We provide the most accurate and professional certified translation services in Turkey. Our team of certified translators ensures accurate translation of all your official, legal, medical, and academic documents. We are accredited by Turkish official authorities and guarantee acceptance of our translations in all government and private institutions.",
+        "features": [
+          "Translation certified by official authorities",
+          "Sworn and certified translators",
+          "Instant translation for urgent cases",
+          "100% accuracy in translation",
+          "Competitive prices",
+          "24/7 customer service",
+          "Guaranteed acceptance in all institutions",
+          "Translation in all languages"
+        ],
+        "benefits": [
+          "Save time and effort",
+          "Ensure accuracy and professionalism",
+          "Guaranteed acceptance in institutions",
+          "Affordable prices for everyone"
+        ],
+        "process": [
+          "Send documents for translation via WhatsApp or email",
+          "Evaluate documents and determine price and timeframe",
+          "Begin translation process by certified translators",
+          "Review translation by quality team",
+          "Deliver certified and stamped translation"
+        ]
+      }
+    },
+    "travel": {
+      "ar": {
+        "title": "خدمات السفر والسياحة",
+        "description": "تنظيم الرحلات السياحية وحجز الفنادق وخدمات النقل والمواصلات",
+        "full_description": "اكتشف جمال تركيا مع باقاتنا السياحية المتنوعة والمصممة خصيصاً لتناسب جميع الأذواق والميزانيات. نحن نقدم تجربة سياحية لا تُنسى تشمل أفضل الوجهات التركية مع خدمات متكاملة من النقل والإقامة والجولات السياحية المصحوبة بمرشدين عرب متخصصين.",
+        "features": [
+          "برامج سياحية متنوعة ومخصصة",
+          "حجز فنادق بأفضل الأسعار",
+          "نقل مريح وآمن",
+          "مرشدين سياحيين عرب",
+          "جولات ثقافية وتاريخية",
+          "رحلات عائلية وشبابية",
+          "خدمة عملاء طوال الرحلة",
+          "تأمين سفر شامل"
+        ],
+        "benefits": [
+          "تجربة سياحية مميزة",
+          "أسعار تنافسية",
+          "راحة وأمان تام",
+          "ذكريات لا تُنسى"
+        ],
+        "process": [
+          "استشارة مجانية لتحديد نوع الرحلة المناسبة",
+          "تصميم برنامج سياحي مخصص حسب رغباتك",
+          "حجز الفنادق ووسائل النقل",
+          "تنسيق الجولات السياحية والأنشطة",
+          "مرافقة ومتابعة طوال فترة الرحلة"
+        ]
+      },
+      "en": {
+        "title": "Travel and Tourism Services",
+        "description": "Organizing tourist trips, hotel bookings, and transportation services",
+        "full_description": "Discover the beauty of Turkey with our diverse tourist packages designed specifically to suit all tastes and budgets. We provide an unforgettable tourist experience including the best Turkish destinations with integrated services of transportation, accommodation, and guided tours accompanied by specialized Arabic guides.",
+        "features": [
+          "Diverse and customized tourist programs",
+          "Hotel bookings at best prices",
+          "Comfortable and safe transportation",
+          "Arabic tourist guides",
+          "Cultural and historical tours",
+          "Family and youth trips",
+          "Customer service throughout the trip",
+          "Comprehensive travel insurance"
+        ],
+        "benefits": [
+          "Distinguished tourist experience",
+          "Competitive prices",
+          "Complete comfort and safety",
+          "Unforgettable memories"
+        ],
+        "process": [
+          "Free consultation to determine suitable trip type",
+          "Design customized tourist program according to your preferences",
+          "Book hotels and transportation",
+          "Coordinate tourist tours and activities",
+          "Accompaniment and follow-up throughout the trip"
+        ]
+      }
+    },
+    "legal": {
+      "ar": {
+        "title": "الاستشارات القانونية",
+        "description": "استشارات قانونية متخصصة في القانون التركي والإجراءات القضائية",
+        "full_description": "احصل على أفضل الاستشارات القانونية من فريق من المحامين المتخصصين في القانون التركي. نحن نقدم خدمات قانونية شاملة تغطي جميع جوانب القانون التركي من العقارات والشركات إلى قضايا الأسرة والجنسية. خبرتنا الواسعة تضمن لك الحصول على أفضل النتائج.",
+        "features": [
+          "محامون متخصصون في القانون التركي",
+          "استشارات في جميع المجالات القانونية",
+          "تمثيل قانوني أمام المحاكم",
+          "صياغة العقود والاتفاقيات",
+          "استشارات عقارية وتجارية",
+          "قضايا الجنسية والإقامة",
+          "حل النزاعات والوساطة",
+          "خدمات قانونية للشركات"
+        ],
+        "benefits": [
+          "حماية حقوقك القانونية",
+          "توفير المال والوقت",
+          "نتائج مضمونة",
+          "سرية تامة"
+        ],
+        "process": [
+          "استشارة أولية مجانية لفهم قضيتك",
+          "تحليل الوضع القانوني وتقييم الخيارات",
+          "وضع استراتيجية قانونية مناسبة",
+          "تنفيذ الإجراءات القانونية المطلوبة",
+          "متابعة القضية حتى الوصول للنتيجة المطلوبة"
+        ]
+      },
+      "en": {
+        "title": "Legal Consultations",
+        "description": "Specialized legal consultations in Turkish law and judicial procedures",
+        "full_description": "Get the best legal consultations from a team of lawyers specialized in Turkish law. We provide comprehensive legal services covering all aspects of Turkish law from real estate and companies to family and citizenship cases. Our extensive experience ensures you get the best results.",
+        "features": [
+          "Lawyers specialized in Turkish law",
+          "Consultations in all legal fields",
+          "Legal representation in courts",
+          "Drafting contracts and agreements",
+          "Real estate and commercial consultations",
+          "Citizenship and residence cases",
+          "Dispute resolution and mediation",
+          "Legal services for companies"
+        ],
+        "benefits": [
+          "Protect your legal rights",
+          "Save money and time",
+          "Guaranteed results",
+          "Complete confidentiality"
+        ],
+        "process": [
+          "Free initial consultation to understand your case",
+          "Analyze legal situation and evaluate options",
+          "Develop appropriate legal strategy",
+          "Execute required legal procedures",
+          "Follow up the case until reaching desired result"
+        ]
+      }
+    },
+    "government": {
+      "ar": {
+        "title": "الخدمات الحكومية",
+        "description": "إنجاز جميع المعاملات الحكومية والرسمية في تركيا بسرعة وكفاءة عالية",
+        "full_description": "نحن خبراؤك في إنجاز جميع المعاملات الحكومية في تركيا. من استخراج الوثائق الرسمية إلى تجديد الإقامات وإنجاز معاملات الجنسية، نحن نوفر عليك الوقت والجهد ونضمن إنجاز معاملاتك بأسرع وقت ممكن وبأعلى مستوى من الدقة والاحترافية.",
+        "features": [
+          "استخراج جميع الوثائق الرسمية",
+          "تجديد الإقامات والتصاريح",
+          "معاملات الجنسية التركية",
+          "تسجيل الشركات والعلامات التجارية",
+          "معاملات الضرائب والتأمينات",
+          "استخراج رخص القيادة",
+          "معاملات العقارات والطابو",
+          "خدمات البلدية والمحافظة"
+        ],
+        "benefits": [
+          "توفير الوقت والجهد",
+          "تجنب الأخطاء والتأخير",
+          "خبرة في النظام التركي",
+          "متابعة مستمرة"
+        ],
+        "process": [
+          "تحديد نوع المعاملة المطلوبة والوثائق اللازمة",
+          "جمع وتحضير جميع الوثائق المطلوبة",
+          "تقديم الطلبات في الجهات المختصة",
+          "متابعة سير المعاملة مع الجهات الحكومية",
+          "استلام الوثائق وتسليمها للعميل"
+        ]
+      },
+      "en": {
+        "title": "Government Services",
+        "description": "Complete all government and official transactions in Turkey with high speed and efficiency",
+        "full_description": "We are your experts in completing all government transactions in Turkey. From extracting official documents to renewing residence permits and completing citizenship transactions, we save you time and effort and ensure your transactions are completed as quickly as possible with the highest level of accuracy and professionalism.",
+        "features": [
+          "Extract all official documents",
+          "Renew residence permits and authorizations",
+          "Turkish citizenship transactions",
+          "Company and trademark registration",
+          "Tax and insurance transactions",
+          "Driver's license extraction",
+          "Real estate and title deed transactions",
+          "Municipality and governorate services"
+        ],
+        "benefits": [
+          "Save time and effort",
+          "Avoid errors and delays",
+          "Experience in Turkish system",
+          "Continuous follow-up"
+        ],
+        "process": [
+          "Determine required transaction type and necessary documents",
+          "Collect and prepare all required documents",
+          "Submit applications to competent authorities",
+          "Follow up transaction progress with government agencies",
+          "Receive documents and deliver to client"
+        ]
+      }
+    },
+    "insurance": {
+      "ar": {
+        "title": "خدمات التأمين الصحي وتأمين المركبات",
+        "description": "مساعدة في الحصول على التأمين الصحي وتأمين المركبات بأفضل الأسعار",
+        "full_description": "احم نفسك وعائلتك ومركبتك مع خدماتنا المتخصصة في التأمين. نحن نساعدك في اختيار أفضل بوالص التأمين الصحي وتأمين المركبات التي تناسب احتياجاتك وميزانيتك. شراكاتنا مع أفضل شركات التأمين في تركيا تضمن لك الحصول على أفضل الأسعار والتغطية الشاملة.",
+        "features": [
+          "تأمين صحي شامل للأفراد والعائلات",
+          "تأمين المركبات ضد جميع المخاطر",
+          "أفضل الأسعار في السوق",
+          "تغطية شاملة ومرنة",
+          "خدمة المطالبات السريعة",
+          "شبكة واسعة من المستشفيات",
+          "تأمين السفر والحوادث",
+          "استشارة مجانية لاختيار التأمين المناسب"
+        ],
+        "benefits": [
+          "حماية مالية شاملة",
+          "راحة البال والأمان",
+          "خدمات طبية متميزة",
+          "توفير في التكاليف"
+        ],
+        "process": [
+          "تقييم احتياجاتك التأمينية الشخصية",
+          "مقارنة العروض من أفضل شركات التأمين",
+          "اختيار البوليصة الأنسب لك",
+          "إتمام إجراءات التأمين والدفع",
+          "متابعة مستمرة وخدمة ما بعد البيع"
+        ]
+      },
+      "en": {
+        "title": "Health Insurance and Vehicle Insurance Services",
+        "description": "Help in obtaining health insurance and vehicle insurance at the best prices",
+        "full_description": "Protect yourself, your family, and your vehicle with our specialized insurance services. We help you choose the best health insurance and vehicle insurance policies that suit your needs and budget. Our partnerships with the best insurance companies in Turkey ensure you get the best prices and comprehensive coverage.",
+        "features": [
+          "Comprehensive health insurance for individuals and families",
+          "Vehicle insurance against all risks",
+          "Best prices in the market",
+          "Comprehensive and flexible coverage",
+          "Fast claims service",
+          "Wide network of hospitals",
+          "Travel and accident insurance",
+          "Free consultation to choose appropriate insurance"
+        ],
+        "benefits": [
+          "Comprehensive financial protection",
+          "Peace of mind and security",
+          "Distinguished medical services",
+          "Cost savings"
+        ],
+        "process": [
+          "Evaluate your personal insurance needs",
+          "Compare offers from best insurance companies",
+          "Choose the most suitable policy for you",
+          "Complete insurance procedures and payment",
+          "Continuous follow-up and after-sales service"
+        ]
+      }
+    }
+  },
+  "chatbot_personality": {
+    "ar": {
+      "name": "أحمد",
+      "role": "ممثل خدمة عملاء محترف",
+      "tone": "مهني، محترم، ودود، ومفيد",
+      "style": "واضح ومختصر ومباشر",
+      "response_length": "قصير ومتوسط (2-4 جمل)",
+      "language_adaptation": "يرد بنفس لغة العميل",
+      "professional_qualities": [
+        "خبرة 10+ سنوات في خدمة العملاء",
+        "معرفة شاملة بجميع خدمات الشركة",
+        "قدرة على حل المشاكل بسرعة",
+        "صبر وتفهم لاحتياجات العملاء",
+        "دقة في المعلومات المقدمة"
+      ],
+      "greeting_messages": [
+        "مرحباً! كيف يمكنني مساعدتك اليوم؟",
+        "أهلاً وسهلاً! أنا أحمد من مجموعة تواصل، كيف يمكنني خدمتك؟",
+        "مرحباً بك في مجموعة تواصل! كيف يمكنني مساعدتك؟"
+      ],
+      "closing_messages": [
+        "هل هناك أي شيء آخر يمكنني مساعدتك به؟",
+        "أتمنى أن أكون قد ساعدتك. إذا احتجت أي مساعدة إضافية، لا تتردد في التواصل معنا!",
+        "شكراً لك على ثقتك بمجموعة تواصل. نتمنى لك يوماً سعيداً!"
+      ]
+    },
+    "en": {
+      "name": "Ahmed",
+      "role": "Professional Customer Service Representative",
+      "tone": "Professional, respectful, friendly, and helpful",
+      "style": "Clear, concise, and direct",
+      "response_length": "Short to medium (2-4 sentences)",
+      "language_adaptation": "Responds in the same language as the customer",
+      "professional_qualities": [
+        "10+ years of customer service experience",
+        "Comprehensive knowledge of all company services",
+        "Ability to solve problems quickly",
+        "Patience and understanding of customer needs",
+        "Accuracy in provided information"
+      ],
+      "greeting_messages": [
+        "Hello! How can I help you today?",
+        "Welcome! I'm Ahmed from Tevasul Group, how can I assist you?",
+        "Hello and welcome to Tevasul Group! How can I help you?"
+      ],
+      "closing_messages": [
+        "Is there anything else I can help you with?",
+        "I hope I've been helpful. If you need any additional assistance, don't hesitate to contact us!",
+        "Thank you for trusting Tevasul Group. Have a great day!"
+      ]
+    }
+  },
+  "common_questions": {
+    "ar": {
+      "general_inquiries": [
+        {
+          "question": "ما هي خدماتكم؟",
+          "answer": "نقدم مجموعة شاملة من الخدمات: التأمين الصحي للأجانب، الترجمة المحلفة، السفر والسياحة، الاستشارات القانونية، الخدمات الحكومية، وتأمين المركبات. كل خدمة مصممة لتلبية احتياجاتكم في تركيا."
+        },
+        {
+          "question": "كم تكلفة التأمين الصحي؟",
+          "answer": "تختلف تكلفة التأمين الصحي حسب الفئة العمرية ومدة التأمين. نقدم استشارة مجانية لتحديد أفضل خطة تناسبكم. يمكنكم التواصل معنا للحصول على عرض سعر دقيق."
+        },
+        {
+          "question": "كم تستغرق الترجمة المحلفة؟",
+          "answer": "مدة الترجمة المحلفة تعتمد على حجم الوثائق وتعقيدها. عادةً تستغرق من يوم إلى 3 أيام عمل. للحالات العاجلة، نقدم خدمة الترجمة الفورية."
+        },
+        {
+          "question": "هل تقدمون خدمات في جميع أنحاء تركيا؟",
+          "answer": "نعم، نقدم خدماتنا في جميع أنحاء تركيا. لدينا مكاتب في عدة مدن وشركاء في جميع المحافظات لضمان خدمة سريعة وفعالة."
+        },
+        {
+          "question": "كيف يمكنني التواصل معكم؟",
+          "answer": "يمكنكم التواصل معنا عبر الهاتف: +90 324 123 45 67، البريد الإلكتروني: info@tevasul.group، أو عبر موقعنا الإلكتروني. فريق خدمة العملاء متاح على مدار الساعة لمساعدتكم."
+        }
+      ],
+      "service_specific": [
+        {
+          "question": "ما هي مزايا التأمين الصحي لديكم؟",
+          "answer": "تأميننا الصحي يتميز بأسعار تنافسية، تغطية شاملة، شبكة واسعة من المستشفيات، خدمة عملاء 24/7، وإجراءات سريعة وبسيطة. نتعاون مع أفضل شركات التأمين التركية."
+        },
+        {
+          "question": "هل الترجمة المحلفة معتمدة رسمياً؟",
+          "answer": "نعم، جميع ترجماتنا معتمدة رسمياً من الجهات التركية المختصة. نضمن قبولها في جميع المؤسسات الحكومية والخاصة. فريقنا من المترجمين المحلفين والمعتمدين."
+        },
+        {
+          "question": "ما هي وجهات السفر المتاحة؟",
+          "answer": "نقدم رحلات إلى جميع الوجهات السياحية في تركيا: إسطنبول، أنطاليا، كابادوكيا، بورصة، وغيرها. نصمم برامج مخصصة حسب رغباتكم وميزانيتكم."
+        }
+      ]
+    },
+    "en": {
+      "general_inquiries": [
+        {
+          "question": "What are your services?",
+          "answer": "We offer a comprehensive range of services: health insurance for foreigners, certified translation, travel and tourism, legal consultations, government services, and vehicle insurance. Each service is designed to meet your needs in Turkey."
+        },
+        {
+          "question": "How much does health insurance cost?",
+          "answer": "Health insurance costs vary based on age group and insurance duration. We provide free consultation to determine the best plan for you. Contact us for an accurate price quote."
+        },
+        {
+          "question": "How long does certified translation take?",
+          "answer": "Certified translation duration depends on document volume and complexity. Usually takes 1-3 business days. For urgent cases, we offer instant translation service."
+        },
+        {
+          "question": "Do you provide services throughout Turkey?",
+          "answer": "Yes, we provide our services throughout Turkey. We have offices in several cities and partners in all provinces to ensure fast and effective service."
+        },
+        {
+          "question": "How can I contact you?",
+          "answer": "You can contact us by phone: +90 324 123 45 67, email: info@tevasul.group, or through our website. Our customer service team is available 24/7 to assist you."
+        }
+      ],
+      "service_specific": [
+        {
+          "question": "What are the advantages of your health insurance?",
+          "answer": "Our health insurance features competitive prices, comprehensive coverage, wide hospital network, 24/7 customer service, and fast and simple procedures. We collaborate with the best Turkish insurance companies."
+        },
+        {
+          "question": "Is certified translation officially recognized?",
+          "answer": "Yes, all our translations are officially recognized by Turkish authorities. We guarantee their acceptance in all government and private institutions. Our team consists of sworn and certified translators."
+        },
+        {
+          "question": "What travel destinations are available?",
+          "answer": "We offer trips to all tourist destinations in Turkey: Istanbul, Antalya, Cappadocia, Bursa, and others. We design customized programs according to your preferences and budget."
+        }
+      ]
+    }
+  },
+  "response_guidelines": {
+    "ar": {
+      "do": [
+        "كن محترفاً ومهذباً دائماً",
+        "رد بنفس لغة العميل",
+        "قدم معلومات دقيقة ومحدثة",
+        "كن مختصراً وواضحاً",
+        "عرض المساعدة الإضافية",
+        "استخدم اسم الشركة: مجموعة تواصل",
+        "قدم معلومات التواصل عند الحاجة"
+      ],
+      "dont": [
+        "لا تقدم معلومات خاطئة أو غير مؤكدة",
+        "لا تكن طويلاً في الردود",
+        "لا تستخدم لغة غير رسمية",
+        "لا تقدم أسعار دقيقة بدون استشارة",
+        "لا تتعامل بغير احترافية"
+      ],
+      "escalation_triggers": [
+        "طلبات أسعار دقيقة",
+        "شكاوى معقدة",
+        "طلبات خاصة أو معقدة",
+        "مشاكل تقنية"
+      ],
+      "escalation_message": "للمساعدة الأفضل، يمكنني ربطك مع فريق متخصص. هل تريد التحدث مع ممثل خدمة عملاء متخصص؟"
+    },
+    "en": {
+      "do": [
+        "Always be professional and polite",
+        "Respond in the same language as the customer",
+        "Provide accurate and updated information",
+        "Be concise and clear",
+        "Offer additional assistance",
+        "Use company name: Tevasul Group",
+        "Provide contact information when needed"
+      ],
+      "dont": [
+        "Don't provide incorrect or unconfirmed information",
+        "Don't be lengthy in responses",
+        "Don't use informal language",
+        "Don't provide exact prices without consultation",
+        "Don't be unprofessional"
+      ],
+      "escalation_triggers": [
+        "Requests for exact pricing",
+        "Complex complaints",
+        "Special or complex requests",
+        "Technical issues"
+      ],
+      "escalation_message": "For better assistance, I can connect you with a specialized team. Would you like to speak with a specialized customer service representative?"
+    }
+  }
+}

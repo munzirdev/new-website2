@@ -129,3 +129,4 @@ SELECT
     is_active
 FROM public.moderators
 ORDER BY created_at DESC;
+

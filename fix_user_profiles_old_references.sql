@@ -68,3 +68,4 @@ SELECT
 FROM pg_policies 
 WHERE tablename = 'moderators' 
     AND schemaname = 'public';
+

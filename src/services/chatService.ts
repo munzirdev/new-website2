@@ -1,3 +1,5 @@
+import trainingData from '../data/chatbot-training-data.json';
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -15,38 +17,111 @@ export class ChatService {
   }
 
   private getSystemPrompt(language: string): string {
+    const data = trainingData as any;
+    const lang = language === 'ar' ? 'ar' : 'en';
+    const personality = data.chatbot_personality[lang];
+    const guidelines = data.response_guidelines[lang];
+    
     if (language === 'ar') {
-      return `أنت مساعد ذكي لشركة تواصل، وهي شركة خدمات متكاملة في تركيا. مهمتك مساعدة العملاء في:
+      return `أنت ${personality.name}، ${personality.role} في ${data.company_info.name}. 
 
-1. معلومات عن الخدمات المقدمة (الإقامة، الجنسية، الاستثمار، التأمين الصحي، إلخ)
-2. إرشادات حول الإجراءات والمستندات المطلوبة
-3. أسعار الخدمات والتوضيحات
-4. المساعدة في حل المشاكل والاستفسارات
-5. توجيه العملاء لطلب خدمة عملاء حقيقي عند الحاجة
+شخصيتك:
+- النبرة: ${personality.tone}
+- الأسلوب: ${personality.style}
+- طول الرد: ${personality.response_length}
+- التكيف اللغوي: ${personality.language_adaptation}
 
-يجب أن تكون إجاباتك:
-- دقيقة ومفيدة
-- باللغة العربية
-- مهذبة ومهنية
-- تشجع على التواصل مع الشركة للحصول على خدمات مخصصة
+المؤهلات المهنية:
+${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
 
-إذا لم تكن متأكداً من إجابة، اطلب من العميل التواصل مع فريق خدمة العملاء للحصول على معلومات محدثة ودقيقة.`;
+إرشادات الرد:
+يجب عليك:
+${guidelines.do.map(g => `- ${g}`).join('\n')}
+
+لا يجب عليك:
+${guidelines.dont.map(g => `- ${g}`).join('\n')}
+
+معلومات الشركة:
+- الاسم: ${data.company_info.name}
+- الوصف: ${data.company_info.description}
+- العنوان: ${data.company_info.address}
+- الهاتف: ${data.company_info.phone}
+- البريد الإلكتروني: ${data.company_info.email}
+- الموقع: ${data.company_info.website}
+- الخبرة: ${data.company_info.experience}
+- العملاء: ${data.company_info.clients}
+
+الخدمات المتوفرة:
+${Object.entries(data.services).map(([key, service]: [string, any]) => 
+  `- ${service[lang].title}: ${service[lang].description}`
+).join('\n')}
+
+الأسئلة الشائعة:
+${data.common_questions[lang].general_inquiries.map((q: any) => 
+  `س: ${q.question}\nج: ${q.answer}`
+).join('\n\n')}
+
+${data.common_questions[lang].service_specific.map((q: any) => 
+  `س: ${q.question}\nج: ${q.answer}`
+).join('\n\n')}
+
+رسائل الترحيب:
+${personality.greeting_messages.join('\n')}
+
+رسائل الوداع:
+${personality.closing_messages.join('\n')}
+
+تذكر: رد دائماً باللغة العربية، كن محترفاً ومهذباً، قدم معلومات دقيقة، وكن مختصراً وواضحاً. إذا لم تكن متأكداً من إجابة، اطلب من العميل التواصل مع فريق خدمة العملاء للحصول على معلومات محدثة ودقيقة.`;
     } else {
-      return `You are an intelligent assistant for Tevasul Group, a comprehensive services company in Turkey. Your role is to help customers with:
+      return `You are ${personality.name}, a ${personality.role} at ${data.company_info.english_name}. 
 
-1. Information about services offered (residence, citizenship, investment, health insurance, etc.)
-2. Guidance on procedures and required documents
-3. Service pricing and clarifications
-4. Help with problems and inquiries
-5. Directing customers to request real customer service when needed
+Your personality:
+- Tone: ${personality.tone}
+- Style: ${personality.style}
+- Response length: ${personality.response_length}
+- Language adaptation: ${personality.language_adaptation}
 
-Your responses should be:
-- Accurate and helpful
-- In English
-- Polite and professional
-- Encourage contact with the company for personalized services
+Professional qualifications:
+${personality.professional_qualities.map(q => `- ${q}`).join('\n')}
 
-If you're unsure about an answer, ask the customer to contact the customer service team for updated and accurate information.`;
+Response guidelines:
+You should:
+${guidelines.do.map(g => `- ${g}`).join('\n')}
+
+You should not:
+${guidelines.dont.map(g => `- ${g}`).join('\n')}
+
+Company information:
+- Name: ${data.company_info.english_name}
+- Description: ${data.company_info.english_description}
+- Address: ${data.company_info.address}
+- Phone: ${data.company_info.phone}
+- Email: ${data.company_info.email}
+- Website: ${data.company_info.website}
+- Experience: ${data.company_info.experience}
+- Clients: ${data.company_info.clients}
+
+Available services:
+${Object.entries(data.services).map(([key, service]: [string, any]) => 
+  `- ${service[lang].title}: ${service[lang].description}`
+).join('\n')}
+
+Common questions:
+${data.common_questions[lang].general_inquiries.map((q: any) => 
+  `Q: ${q.question}\nA: ${q.answer}`
+).join('\n\n')}
+
+${data.common_questions[lang].service_specific.map((q: any) => 
+  `Q: ${q.question}\nA: ${q.answer}`
+).join('\n\n')}
+
+Greeting messages:
+${personality.greeting_messages.join('\n')}
+
+Closing messages:
+${personality.closing_messages.join('\n')}
+
+Remember: Always respond in English, be professional and polite, provide accurate information, and be concise and clear. If you're unsure about an answer, ask the customer to contact the customer service team for updated and accurate information.`;
     }
   }
 
@@ -98,7 +173,7 @@ If you're unsure about an answer, ask the customer to contact the customer servi
         body: JSON.stringify({
           model: 'anthropic/claude-3.5-sonnet',
           messages: conversation,
-          max_tokens: 500,
+          max_tokens: 300,
           temperature: 0.7,
           stream: false
         })
@@ -181,7 +256,7 @@ If you're unsure about an answer, ask the customer to contact the customer servi
         body: JSON.stringify({
           model: 'anthropic/claude-3.5-sonnet',
           messages: conversation,
-          max_tokens: 500,
+          max_tokens: 300,
           temperature: 0.7,
           stream: true
         })

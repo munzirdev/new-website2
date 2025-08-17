@@ -14,3 +14,4 @@ CREATE POLICY "Admin can manage telegram config" ON telegram_config
       AND profiles.role IN ('admin', 'moderator')
     )
   );
+

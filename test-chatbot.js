@@ -15,7 +15,15 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function testOpenRouterAPI() {
   console.log('🧪 اختبار OpenRouter API...');
   
-  const apiKey = process.env.VITE_OPENROUTER_API_KEY;
+  // عرض جميع المتغيرات البيئية المتعلقة بـ OpenRouter
+  console.log('🔍 جميع المتغيرات البيئية:');
+  console.log('VITE_OPENROUTER_API_KEY:', process.env.VITE_OPENROUTER_API_KEY ? 'موجود' : 'مفقود');
+  console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'موجود' : 'مفقود');
+  
+  const apiKey = process.env.VITE_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
+  console.log('🔍 المفتاح المحدد:', apiKey ? 'موجود' : 'مفقود');
+  console.log('🔍 طول المفتاح:', apiKey ? apiKey.length : 0);
+  
   if (!apiKey) {
     console.error('❌ مفتاح OpenRouter API مفقود في ملف .env');
     console.log('📝 يرجى إضافة VITE_OPENROUTER_API_KEY=your-key-here إلى ملف .env');

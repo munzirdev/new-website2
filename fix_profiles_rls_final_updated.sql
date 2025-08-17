@@ -79,3 +79,4 @@ WHERE EXISTS (
     WHERE id = auth.uid() 
     AND role = 'admin'
 );
+
